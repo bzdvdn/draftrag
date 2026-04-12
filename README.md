@@ -613,6 +613,7 @@ for _, fe := range result.Failed {
 | [examples/qdrant](examples/qdrant/) | RAG с Qdrant, auto-create collection |
 
 Документация:
+- [docs/compatibility.md](docs/compatibility.md) — политика совместимости и поддержки
 - [docs/production.md](docs/production.md) — production checklist + runbook
 - [docs/getting-started.md](docs/getting-started.md) — начало работы
 
