@@ -12,8 +12,8 @@ generated_at: 2026-04-07
 
 - snapshot: проверена спецификация миграций для pgvector (extension + таблицы + индексы) и критерии приемки для воспроизводимого развёртывания
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/specs/vectorstore-pgvector-migrations/spec.md
+  - .speckeep/constitution.md
+  - .speckeep/specs/vectorstore-pgvector-migrations/spec.md
 
 ## Verdict
 
@@ -43,5 +43,5 @@ generated_at: 2026-04-07
 
 ## Next Step
 
-- safe to continue to plan: `/draftspec.plan vectorstore-pgvector-migrations`
+- safe to continue to plan: `/speckeep.plan vectorstore-pgvector-migrations`
 

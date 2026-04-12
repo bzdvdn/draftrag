@@ -50,4 +50,4 @@ generated_at: 2026-04-08T21:36:00+03:00
 
 ## Next Step
 
-Следующая команда: `/draftspec.plan streaming-responses`
+Следующая команда: `/speckeep.plan streaming-responses`

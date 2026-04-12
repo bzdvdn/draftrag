@@ -13,9 +13,9 @@ generated_at: 2026-04-07
 - snapshot: проверены migration assets для pgvector (SQL файлы + документация) и то, что runtime `MigratePGVector` использует те же миграции (go:embed), без регрессий тестов
 - verification_mode: default
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/specs/vectorstore-pgvector-migrations/spec.md
-  - .draftspec/plans/vectorstore-pgvector-migrations/tasks.md
+  - .speckeep/constitution.md
+  - .speckeep/specs/vectorstore-pgvector-migrations/spec.md
+  - .speckeep/plans/vectorstore-pgvector-migrations/tasks.md
 - inspected_surfaces:
   - pkg/draftrag/migrations/pgvector/0000_pgvector_extension.sql
   - pkg/draftrag/migrations/pgvector/0001_chunks_table.sql

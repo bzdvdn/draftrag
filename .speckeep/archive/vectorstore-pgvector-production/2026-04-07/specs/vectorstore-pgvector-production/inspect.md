@@ -12,8 +12,8 @@ generated_at: 2026-04-07
 
 - snapshot: проверена спецификация production-ready улучшений pgvector VectorStore (миграции, индексы, фильтры ParentID, лимиты/таймауты)
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/specs/vectorstore-pgvector-production/spec.md
+  - .speckeep/constitution.md
+  - .speckeep/specs/vectorstore-pgvector-production/spec.md
 
 ## Verdict
 
@@ -40,7 +40,7 @@ generated_at: 2026-04-07
 ## Traceability
 
 - AC-001..AC-005 покрывают миграции, индексы, фильтры, таймауты/лимиты и обратную совместимость.
-- `tasks.md` для данного slug ещё не создан — трассировка к задачам будет добавлена на фазе `/draftspec.tasks`.
+- `tasks.md` для данного slug ещё не создан — трассировка к задачам будет добавлена на фазе `/speckeep.tasks`.
 
 ## Next Step
 

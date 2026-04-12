@@ -2,7 +2,7 @@
 
 ## Phase Contract
 
-Inputs: `.draftspec/plans/prompt-context-limit/plan.md`, `.draftspec/plans/prompt-context-limit/data-model.md`
+Inputs: `.speckeep/plans/prompt-context-limit/plan.md`, `.speckeep/plans/prompt-context-limit/data-model.md`
 Outputs: упорядоченные исполнимые задачи с покрытием критериев
 Stop if: задачи получаются расплывчатыми или coverage по AC не удаётся сопоставить
 

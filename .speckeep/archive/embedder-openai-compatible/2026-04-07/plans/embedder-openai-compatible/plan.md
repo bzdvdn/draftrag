@@ -2,7 +2,7 @@
 
 ## Phase Contract
 
-Inputs: `.draftspec/specs/embedder-openai-compatible/spec.md`, `.draftspec/specs/embedder-openai-compatible/inspect.md`, конституция проекта.
+Inputs: `.speckeep/specs/embedder-openai-compatible/spec.md`, `.speckeep/specs/embedder-openai-compatible/inspect.md`, конституция проекта.
 Outputs: `plan.md`, `data-model.md` (contracts/research не требуются).
 Stop if: невозможно зафиксировать минимальный JSON контракт embeddings API без расплывчатых допущений.
 

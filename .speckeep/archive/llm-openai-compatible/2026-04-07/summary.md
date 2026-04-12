@@ -16,16 +16,16 @@ archived_at: 2026-04-07
 
 ## Snapshot
 
-- path: `.draftspec/archive/llm-openai-compatible/2026-04-07/`
-- mode: move-based (активные `.draftspec/specs/llm-openai-compatible/` и `.draftspec/plans/llm-openai-compatible/` удалены после переноса)
+- path: `.speckeep/archive/llm-openai-compatible/2026-04-07/`
+- mode: move-based (активные `.speckeep/specs/llm-openai-compatible/` и `.speckeep/plans/llm-openai-compatible/` удалены после переноса)
 
 ## Contents
 
-- specs: `.draftspec/archive/llm-openai-compatible/2026-04-07/specs/llm-openai-compatible/` (spec + inspect)
-- plans: `.draftspec/archive/llm-openai-compatible/2026-04-07/plans/llm-openai-compatible/` (plan + data-model + tasks + verify)
+- specs: `.speckeep/archive/llm-openai-compatible/2026-04-07/specs/llm-openai-compatible/` (spec + inspect)
+- plans: `.speckeep/archive/llm-openai-compatible/2026-04-07/plans/llm-openai-compatible/` (plan + data-model + tasks + verify)
 
 ## Evidence
 
 - tasks: 7/7 выполнено на момент архивации (`verify-task-state.sh`)
-- verify: `.draftspec/archive/llm-openai-compatible/2026-04-07/plans/llm-openai-compatible/verify.md`
+- verify: `.speckeep/archive/llm-openai-compatible/2026-04-07/plans/llm-openai-compatible/verify.md`
 

@@ -18,7 +18,7 @@ archived_at: 2026-04-11T13:52:53Z
 
 ## Snapshot
 
-- path: `/home/bzdv/PAT_PROJECTS/DRAFTRAG/.draftspec/archive/milvus-vectorstore/2026-04-11`
+- path: `/home/bzdv/PAT_PROJECTS/DRAFTRAG/.speckeep/archive/milvus-vectorstore/2026-04-11`
 - mode: move-based (active files removed after archive)
 
 ## Contents

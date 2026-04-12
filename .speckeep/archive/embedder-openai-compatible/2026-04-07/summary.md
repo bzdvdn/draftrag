@@ -16,16 +16,16 @@ archived_at: 2026-04-07
 
 ## Snapshot
 
-- path: `.draftspec/archive/embedder-openai-compatible/2026-04-07/`
-- mode: move-based (активные `.draftspec/specs/embedder-openai-compatible/` и `.draftspec/plans/embedder-openai-compatible/` удалены после переноса)
+- path: `.speckeep/archive/embedder-openai-compatible/2026-04-07/`
+- mode: move-based (активные `.speckeep/specs/embedder-openai-compatible/` и `.speckeep/plans/embedder-openai-compatible/` удалены после переноса)
 
 ## Contents
 
-- specs: `.draftspec/archive/embedder-openai-compatible/2026-04-07/specs/embedder-openai-compatible/` (spec + inspect)
-- plans: `.draftspec/archive/embedder-openai-compatible/2026-04-07/plans/embedder-openai-compatible/` (plan + data-model + tasks + verify)
+- specs: `.speckeep/archive/embedder-openai-compatible/2026-04-07/specs/embedder-openai-compatible/` (spec + inspect)
+- plans: `.speckeep/archive/embedder-openai-compatible/2026-04-07/plans/embedder-openai-compatible/` (plan + data-model + tasks + verify)
 
 ## Evidence
 
 - tasks: 7/7 выполнено на момент архивации (`verify-task-state.sh`)
-- verify: `.draftspec/archive/embedder-openai-compatible/2026-04-07/plans/embedder-openai-compatible/verify.md`
+- verify: `.speckeep/archive/embedder-openai-compatible/2026-04-07/plans/embedder-openai-compatible/verify.md`
 

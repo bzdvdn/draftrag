@@ -76,4 +76,4 @@
 
 ---
 
-**Следующая команда**: `/draftspec.archive search-builder-routing-fix`
+**Следующая команда**: `/speckeep.archive search-builder-routing-fix`

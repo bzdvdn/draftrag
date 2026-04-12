@@ -13,8 +13,8 @@ generated_at: 2026-04-08
 - snapshot: проверен MMR rerank/selection (diversification) для Answer* путей, guards на embeddings, отсутствие регрессий
 - verification_mode: default
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/plans/retrieval-reranker-mmr/tasks.md
+  - .speckeep/constitution.md
+  - .speckeep/plans/retrieval-reranker-mmr/tasks.md
 - inspected_surfaces:
   - `internal/application/mmr.go` (MMR selection + cosine)
   - `internal/application/pipeline.go` (интеграция в Answer/AnswerWithCitations/AnswerWithInlineCitations/AnswerWithCitationsWithParentIDs)

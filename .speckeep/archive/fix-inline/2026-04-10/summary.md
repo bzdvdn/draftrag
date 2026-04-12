@@ -16,13 +16,13 @@ archived_at: 2026-04-10
 
 ## Snapshot
 
-- path: `.draftspec/archive/fix-inline/2026-04-10/`
-- mode: move-based (активные `.draftspec/specs/fix-inline/` и `.draftspec/plans/fix-inline/` удалены после переноса)
+- path: `.speckeep/archive/fix-inline/2026-04-10/`
+- mode: move-based (активные `.speckeep/specs/fix-inline/` и `.speckeep/plans/fix-inline/` удалены после переноса)
 
 ## Contents
 
-- specs: `.draftspec/archive/fix-inline/2026-04-10/specs/fix-inline/` (spec + inspect + summary)
-- plans: `.draftspec/archive/fix-inline/2026-04-10/plans/fix-inline/` (plan + data-model + tasks)
+- specs: `.speckeep/archive/fix-inline/2026-04-10/specs/fix-inline/` (spec + inspect + summary)
+- plans: `.speckeep/archive/fix-inline/2026-04-10/plans/fix-inline/` (plan + data-model + tasks)
 
 ## Evidence
 

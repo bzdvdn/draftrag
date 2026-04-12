@@ -30,5 +30,5 @@
 ## Следующая команда
 
 ```
-/draftspec.plan embedding-cache
+/speckeep.plan embedding-cache
 ```

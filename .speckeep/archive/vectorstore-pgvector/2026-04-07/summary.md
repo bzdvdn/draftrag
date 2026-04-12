@@ -16,16 +16,16 @@ archived_at: 2026-04-07
 
 ## Snapshot
 
-- path: `.draftspec/archive/vectorstore-pgvector/2026-04-07/`
-- mode: move-based (активные `.draftspec/specs/vectorstore-pgvector/` и `.draftspec/plans/vectorstore-pgvector/` удалены после переноса)
+- path: `.speckeep/archive/vectorstore-pgvector/2026-04-07/`
+- mode: move-based (активные `.speckeep/specs/vectorstore-pgvector/` и `.speckeep/plans/vectorstore-pgvector/` удалены после переноса)
 
 ## Contents
 
-- specs: `.draftspec/archive/vectorstore-pgvector/2026-04-07/specs/vectorstore-pgvector/` (spec + inspect)
-- plans: `.draftspec/archive/vectorstore-pgvector/2026-04-07/plans/vectorstore-pgvector/` (plan + data-model + tasks + verify)
+- specs: `.speckeep/archive/vectorstore-pgvector/2026-04-07/specs/vectorstore-pgvector/` (spec + inspect)
+- plans: `.speckeep/archive/vectorstore-pgvector/2026-04-07/plans/vectorstore-pgvector/` (plan + data-model + tasks + verify)
 
 ## Evidence
 
 - tasks: 7/7 выполнено на момент архивации (`verify-task-state.sh`)
-- verify: `.draftspec/archive/vectorstore-pgvector/2026-04-07/plans/vectorstore-pgvector/verify.md`
+- verify: `.speckeep/archive/vectorstore-pgvector/2026-04-07/plans/vectorstore-pgvector/verify.md`
 

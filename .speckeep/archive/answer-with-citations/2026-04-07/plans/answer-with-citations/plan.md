@@ -2,7 +2,7 @@
 
 ## Phase Contract
 
-Inputs: `.draftspec/specs/answer-with-citations/spec.md`, `.draftspec/specs/answer-with-citations/inspect.md`, конституция проекта.
+Inputs: `.speckeep/specs/answer-with-citations/spec.md`, `.speckeep/specs/answer-with-citations/inspect.md`, конституция проекта.
 Outputs: `plan.md`, `data-model.md` (contracts/research не требуются).
 Stop if: невозможно добавить методы аддитивно без нарушения существующего API.
 

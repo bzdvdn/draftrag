@@ -2,7 +2,7 @@
 
 ## Phase Contract
 
-Inputs: `.draftspec/specs/pipeline-index-with-chunker/spec.md`, `.draftspec/specs/pipeline-index-with-chunker/inspect.md`, конституция проекта.
+Inputs: `.speckeep/specs/pipeline-index-with-chunker/spec.md`, `.speckeep/specs/pipeline-index-with-chunker/inspect.md`, конституция проекта.
 Outputs: `plan.md`, `data-model.md` (contracts/research не требуются).
 Stop if: невозможно сохранить backward compatibility и при этом интегрировать chunker без расплывчатости контракта.
 

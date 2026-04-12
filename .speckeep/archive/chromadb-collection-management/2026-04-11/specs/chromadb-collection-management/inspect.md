@@ -12,9 +12,9 @@ generated_at: 2026-04-11
 
 - snapshot: полная проверка обновлённого spec.md (AC-003 amend) против constitution.md; tasks.md проверен на AC-coverage
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/specs/chromadb-collection-management/spec.md
-  - .draftspec/specs/chromadb-collection-management/plan/tasks.md
+  - .speckeep/constitution.md
+  - .speckeep/specs/chromadb-collection-management/spec.md
+  - .speckeep/specs/chromadb-collection-management/plan/tasks.md
 
 ## Verdict
 
@@ -48,4 +48,4 @@ generated_at: 2026-04-11
 
 ## Next Step
 
-- Готово к: `/draftspec.implement chromadb-collection-management`
+- Готово к: `/speckeep.implement chromadb-collection-management`

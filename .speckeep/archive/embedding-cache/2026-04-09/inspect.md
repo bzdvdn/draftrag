@@ -6,7 +6,7 @@
 
 ## Инспектор
 
-draftspec automation
+speckeep automation
 
 ## Результат
 
@@ -77,5 +77,5 @@ draftspec automation
 Спецификация готова. Рекомендуется:
 
 ```
-/draftspec.plan embedding-cache
+/speckeep.plan embedding-cache
 ```

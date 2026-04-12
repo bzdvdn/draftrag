@@ -2,7 +2,7 @@
 
 ## Phase Contract
 
-Inputs: `.draftspec/specs/vectorstore-pgvector/spec.md`, `.draftspec/specs/vectorstore-pgvector/inspect.md`, конституция проекта.
+Inputs: `.speckeep/specs/vectorstore-pgvector/spec.md`, `.speckeep/specs/vectorstore-pgvector/inspect.md`, конституция проекта.
 Outputs: `plan.md`, `data-model.md` (contracts/research не требуются).
 Stop if: spec недостаточно конкретна для выбора публичной API поверхности и формы DDL/schema.
 
@@ -41,7 +41,7 @@ Stop if: spec недостаточно конкретна для выбора п
 
 ## Данные и контракты
 
-- Data model фиксируется в `.draftspec/plans/vectorstore-pgvector/data-model.md` (таблица чанков).
+- Data model фиксируется в `.speckeep/plans/vectorstore-pgvector/data-model.md` (таблица чанков).
 - Публичный контракт (в `pkg/draftrag`):
   - `type PGVectorOptions struct { TableName string; EmbeddingDimension int; CreateExtension bool; IndexMethod string; Lists int; }` (точные поля финализируются в tasks, но intent фиксируется здесь).
   - `func SetupPGVector(ctx context.Context, db *sql.DB, opts PGVectorOptions) error`

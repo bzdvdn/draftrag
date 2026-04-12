@@ -12,8 +12,8 @@ generated_at: 2026-04-07
 
 - snapshot: проверка спецификации vectorstore-pgvector на соответствие конституции и качество acceptance criteria
 - artifacts:
-  - .draftspec/constitution.summary.md
-  - .draftspec/specs/vectorstore-pgvector/spec.md
+  - .speckeep/constitution.summary.md
+  - .speckeep/specs/vectorstore-pgvector/spec.md
 
 ## Verdict
 
@@ -46,5 +46,5 @@ generated_at: 2026-04-07
 ## Next Step
 
 - safe to continue to plan
-- Следующая команда: /draftspec.plan vectorstore-pgvector
+- Следующая команда: /speckeep.plan vectorstore-pgvector
 

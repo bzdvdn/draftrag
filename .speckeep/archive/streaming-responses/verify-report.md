@@ -187,4 +187,4 @@ None. All acceptance criteria satisfied.
 
 ---
 
-*Next step: `/draftspec.archive streaming-responses`*
+*Next step: `/speckeep.archive streaming-responses`*

@@ -13,16 +13,16 @@ generated_at: 2026-04-07
 - snapshot: проверены публичные методы `Pipeline.Answer*` (retrieve → prompt → llm.Generate) с детерминированным Prompt Contract v1 и тестами без внешней сети
 - verification_mode: default
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/specs/pipeline-answer/spec.md
-  - .draftspec/plans/pipeline-answer/tasks.md
+  - .speckeep/constitution.md
+  - .speckeep/specs/pipeline-answer/spec.md
+  - .speckeep/plans/pipeline-answer/tasks.md
 - inspected_surfaces:
   - pkg/draftrag/draftrag.go
   - internal/application/pipeline.go
   - pkg/draftrag/pipeline_answer_test.go
   - internal/application/pipeline_answer_test.go
-  - .draftspec/scripts/check-verify-ready.sh (через запуск)
-  - .draftspec/scripts/verify-task-state.sh (через запуск)
+  - .speckeep/scripts/check-verify-ready.sh (через запуск)
+  - .speckeep/scripts/verify-task-state.sh (через запуск)
   - go test ./...
 
 ## Verdict
@@ -33,7 +33,7 @@ generated_at: 2026-04-07
 
 ## Checks
 
-- task_state: completed=5, open=0 (см. `.draftspec/scripts/verify-task-state.sh pipeline-answer`)
+- task_state: completed=5, open=0 (см. `.speckeep/scripts/verify-task-state.sh pipeline-answer`)
 - acceptance_evidence:
   - AC-001 -> компиляционные проверки наличия методов в `pkg/draftrag/pipeline_answer_test.go` (ссылки на `(*Pipeline).Answer` и `(*Pipeline).AnswerTopK`)
   - AC-002 -> порядок вызовов `Embed`→`Search`→`Generate` и возврат результата в `internal/application/pipeline_answer_test.go` (`TestPipeline_Answer_CallsOrderAndReturnsAnswer`)
@@ -50,7 +50,7 @@ generated_at: 2026-04-07
 
 ## Warnings
 
-- Traceability annotations отсутствуют (`.draftspec/scripts/trace.sh pipeline-answer` -> "No traceability annotations found.")
+- Traceability annotations отсутствуют (`.speckeep/scripts/trace.sh pipeline-answer` -> "No traceability annotations found.")
 
 ## Questions
 
@@ -62,5 +62,5 @@ generated_at: 2026-04-07
 
 ## Next Step
 
-- safe to archive: `/draftspec.archive pipeline-answer`
+- safe to archive: `/speckeep.archive pipeline-answer`
 

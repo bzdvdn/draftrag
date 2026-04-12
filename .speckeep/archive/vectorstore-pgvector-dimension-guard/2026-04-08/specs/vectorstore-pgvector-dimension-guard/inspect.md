@@ -12,8 +12,8 @@ generated_at: 2026-04-07
 
 - snapshot: проверена спецификация типизированной ошибки несоответствия размерности embeddings для pgvector store (Upsert/Search) и критерии приемки
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/specs/vectorstore-pgvector-dimension-guard/spec.md
+  - .speckeep/constitution.md
+  - .speckeep/specs/vectorstore-pgvector-dimension-guard/spec.md
 
 ## Verdict
 
@@ -43,5 +43,5 @@ generated_at: 2026-04-07
 
 ## Next Step
 
-- safe to continue to plan: `/draftspec.plan vectorstore-pgvector-dimension-guard`
+- safe to continue to plan: `/speckeep.plan vectorstore-pgvector-dimension-guard`
 

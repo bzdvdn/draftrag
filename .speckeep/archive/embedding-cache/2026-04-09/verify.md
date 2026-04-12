@@ -118,5 +118,5 @@ None.
 Фича готова к архивированию.
 
 ```
-/draftspec.archive embedding-cache
+/speckeep.archive embedding-cache
 ```

@@ -145,4 +145,4 @@ $ go test -v ./pkg/draftrag/... -run "ChromaDB"
 
 ---
 
-**Следующая команда**: `/draftspec.archive chromadb-migrations`
+**Следующая команда**: `/speckeep.archive chromadb-migrations`

@@ -13,16 +13,16 @@ generated_at: 2026-04-07
 - snapshot: проверены `PipelineOptions` и `NewPipelineWithOptions` (defaultTopK, system prompt override, chunker через options) с сохранением backward compatibility
 - verification_mode: default
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/specs/pipeline-config/spec.md
-  - .draftspec/plans/pipeline-config/tasks.md
+  - .speckeep/constitution.md
+  - .speckeep/specs/pipeline-config/spec.md
+  - .speckeep/plans/pipeline-config/tasks.md
 - inspected_surfaces:
   - pkg/draftrag/draftrag.go
   - internal/application/pipeline.go
   - pkg/draftrag/pipeline_options_test.go
   - internal/application/pipeline_options_test.go
-  - .draftspec/scripts/check-verify-ready.sh (через запуск)
-  - .draftspec/scripts/verify-task-state.sh (через запуск)
+  - .speckeep/scripts/check-verify-ready.sh (через запуск)
+  - .speckeep/scripts/verify-task-state.sh (через запуск)
   - go test ./...
 
 ## Verdict
@@ -33,7 +33,7 @@ generated_at: 2026-04-07
 
 ## Checks
 
-- task_state: completed=5, open=0 (см. `.draftspec/scripts/verify-task-state.sh pipeline-config`)
+- task_state: completed=5, open=0 (см. `.speckeep/scripts/verify-task-state.sh pipeline-config`)
 - acceptance_evidence:
   - AC-001 -> compile-time доступность `PipelineOptions` и `NewPipelineWithOptions` в `pkg/draftrag/pipeline_options_test.go`
   - AC-002 -> `DefaultTopK` применяется в `Query`/`Answer` подтверждено тестом `TestPipelineOptions_DefaultTopK_AppliesToQueryAndAnswer` в `pkg/draftrag/pipeline_options_test.go`
@@ -49,7 +49,7 @@ generated_at: 2026-04-07
 
 ## Warnings
 
-- Traceability annotations отсутствуют (`.draftspec/scripts/trace.sh pipeline-config` -> "No traceability annotations found.")
+- Traceability annotations отсутствуют (`.speckeep/scripts/trace.sh pipeline-config` -> "No traceability annotations found.")
 
 ## Questions
 
@@ -61,5 +61,5 @@ generated_at: 2026-04-07
 
 ## Next Step
 
-- safe to archive: `/draftspec.archive pipeline-config`
+- safe to archive: `/speckeep.archive pipeline-config`
 

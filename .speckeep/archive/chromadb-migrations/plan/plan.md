@@ -187,4 +187,4 @@
 ---
 
 **Slug**: `chromadb-migrations`  
-**Следующая команда**: `/draftspec.tasks chromadb-migrations`
+**Следующая команда**: `/speckeep.tasks chromadb-migrations`

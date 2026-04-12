@@ -2,7 +2,7 @@
 
 ## Phase Contract
 
-Inputs: `.draftspec/specs/pipeline-config/spec.md`, `.draftspec/specs/pipeline-config/inspect.md`, конституция проекта.
+Inputs: `.speckeep/specs/pipeline-config/spec.md`, `.speckeep/specs/pipeline-config/inspect.md`, конституция проекта.
 Outputs: `plan.md`, `data-model.md` (contracts/research не требуются).
 Stop if: невозможно сохранить backward compatibility, не усложняя публичный API.
 

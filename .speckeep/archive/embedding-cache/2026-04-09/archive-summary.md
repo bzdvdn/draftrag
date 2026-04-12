@@ -38,13 +38,13 @@
 
 ## Workflow History
 
-1. `/draftspec.spec` — spec created (2026-04-08)
-2. `/draftspec.inspect` — inspect passed (2026-04-08)
-3. `/draftspec.plan` — plan and data-model created (2026-04-08)
-4. `/draftspec.tasks` — tasks decomposed (2026-04-08)
-5. `/draftspec.implement` — all tasks completed (2026-04-09)
-6. `/draftspec.verify` — verification passed (2026-04-09)
-7. `/draftspec.archive` — archived (2026-04-09)
+1. `/speckeep.spec` — spec created (2026-04-08)
+2. `/speckeep.inspect` — inspect passed (2026-04-08)
+3. `/speckeep.plan` — plan and data-model created (2026-04-08)
+4. `/speckeep.tasks` — tasks decomposed (2026-04-08)
+5. `/speckeep.implement` — all tasks completed (2026-04-09)
+6. `/speckeep.verify` — verification passed (2026-04-09)
+7. `/speckeep.archive` — archived (2026-04-09)
 
 ## Notes
 

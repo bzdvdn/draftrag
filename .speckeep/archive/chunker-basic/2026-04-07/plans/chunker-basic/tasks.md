@@ -2,7 +2,7 @@
 
 ## Phase Contract
 
-Inputs: `.draftspec/plans/chunker-basic/plan.md`, `.draftspec/plans/chunker-basic/data-model.md`
+Inputs: `.speckeep/plans/chunker-basic/plan.md`, `.speckeep/plans/chunker-basic/data-model.md`
 Outputs: упорядоченные исполнимые задачи с покрытием критериев
 Stop if: задачи получаются расплывчатыми или coverage по AC не удаётся сопоставить
 

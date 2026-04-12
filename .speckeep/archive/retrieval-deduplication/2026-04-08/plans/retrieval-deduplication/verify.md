@@ -13,9 +13,9 @@ generated_at: 2026-04-08
 - snapshot: проверена opt-in дедупликация retrieval sources по ParentID (без изменения поведения по умолчанию) и тестовое покрытие
 - verification_mode: default
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/specs/retrieval-deduplication/spec.md
-  - .draftspec/plans/retrieval-deduplication/tasks.md
+  - .speckeep/constitution.md
+  - .speckeep/specs/retrieval-deduplication/spec.md
+  - .speckeep/plans/retrieval-deduplication/tasks.md
 - inspected_surfaces:
   - pkg/draftrag/draftrag.go
   - internal/application/pipeline.go

@@ -2,8 +2,8 @@
 
 ## Phase Contract
 
-Inputs: `.draftspec/specs/vectorstore-pgvector-dimension-guard/spec.md`, `.draftspec/specs/vectorstore-pgvector-dimension-guard/inspect.md`, `.draftspec/constitution.md`.
-Outputs: `.draftspec/plans/vectorstore-pgvector-dimension-guard/plan.md`, `.draftspec/plans/vectorstore-pgvector-dimension-guard/data-model.md`.
+Inputs: `.speckeep/specs/vectorstore-pgvector-dimension-guard/spec.md`, `.speckeep/specs/vectorstore-pgvector-dimension-guard/inspect.md`, `.speckeep/constitution.md`.
+Outputs: `.speckeep/plans/vectorstore-pgvector-dimension-guard/plan.md`, `.speckeep/plans/vectorstore-pgvector-dimension-guard/data-model.md`.
 Stop if: невозможно сделать ошибку типизированной и доступной пользователю без нарушения Clean Architecture.
 
 ## Цель

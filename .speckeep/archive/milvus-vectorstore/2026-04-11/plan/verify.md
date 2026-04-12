@@ -13,8 +13,8 @@ generated_at: 2026-04-11
 - snapshot: структурная верификация + traceability evidence по @ds-task аннотациям и результатам тестов
 - verification_mode: default
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/specs/milvus-vectorstore/plan/tasks.md
+  - .speckeep/constitution.md
+  - .speckeep/specs/milvus-vectorstore/plan/tasks.md
 - inspected_surfaces:
   - internal/infrastructure/vectorstore/milvus.go
   - internal/infrastructure/vectorstore/milvus_test.go

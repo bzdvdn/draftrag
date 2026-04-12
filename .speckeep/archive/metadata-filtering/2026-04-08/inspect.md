@@ -37,4 +37,4 @@ none
 
 ## Next Step
 
-Spec готов к планированию. Следующая команда: `/draftspec.plan metadata-filtering`
+Spec готов к планированию. Следующая команда: `/speckeep.plan metadata-filtering`

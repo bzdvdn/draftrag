@@ -189,9 +189,9 @@ type HybridConfig struct {
 
 ## Связанные артефакты
 
-- Spec: `.draftspec/specs/hybrid-search-bm25-semantic/spec.md`
-- Inspect: `.draftspec/specs/hybrid-search-bm25-semantic/inspect.md`
-- Tasks: `.draftspec/plans/hybrid-search-bm25-semantic/tasks.md`
+- Spec: `.speckeep/specs/hybrid-search-bm25-semantic/spec.md`
+- Inspect: `.speckeep/specs/hybrid-search-bm25-semantic/inspect.md`
+- Tasks: `.speckeep/plans/hybrid-search-bm25-semantic/tasks.md`
 
 ## Дата создания плана
 

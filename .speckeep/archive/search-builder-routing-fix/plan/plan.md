@@ -180,4 +180,4 @@ HyDE > MultiQuery > Hybrid > ParentIDs > Filter > basic
 ---
 
 **Slug**: `search-builder-routing-fix`  
-**Следующая команда**: `/draftspec.tasks search-builder-routing-fix`
+**Следующая команда**: `/speckeep.tasks search-builder-routing-fix`

@@ -13,8 +13,8 @@ generated_at: 2026-04-07
 - snapshot: подтверждена реализуемость и согласованность core-компонентов через состояние задач + точечные проверки code surfaces и тестов
 - verification_mode: default
 - artifacts:
-  - .draftspec/constitution.summary.md
-  - .draftspec/plans/core-components/tasks.md
+  - .speckeep/constitution.summary.md
+  - .speckeep/plans/core-components/tasks.md
 - inspected_surfaces:
   - internal/domain/interfaces.go
   - internal/domain/models.go
@@ -53,7 +53,7 @@ generated_at: 2026-04-07
 
 ## Warnings
 
-- Traceability annotations отсутствуют: `./.draftspec/scripts/trace.sh core-components` вернул `No traceability annotations found.`
+- Traceability annotations отсутствуют: `./.speckeep/scripts/trace.sh core-components` вернул `No traceability annotations found.`
 
 ## Questions
 
@@ -66,5 +66,5 @@ generated_at: 2026-04-07
 ## Next Step
 
 - safe to archive
-- Следующая команда: /draftspec.archive core-components
+- Следующая команда: /speckeep.archive core-components
 

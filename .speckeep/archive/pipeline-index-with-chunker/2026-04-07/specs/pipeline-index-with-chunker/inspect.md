@@ -12,8 +12,8 @@ generated_at: 2026-04-07
 
 - snapshot: проверена спецификация интеграции `Chunker` в `Pipeline.Index` с сохранением backward compatibility
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/specs/pipeline-index-with-chunker/spec.md
+  - .speckeep/constitution.md
+  - .speckeep/specs/pipeline-index-with-chunker/spec.md
 
 ## Verdict
 
@@ -38,9 +38,9 @@ generated_at: 2026-04-07
 ## Traceability
 
 - acceptance criteria: 4/4 определены, все содержат Given/When/Then маркеры и уникальные AC IDs
-- tasks: отсутствуют на этой фазе (traceability к tasks появится после `/draftspec.tasks pipeline-index-with-chunker`)
+- tasks: отсутствуют на этой фазе (traceability к tasks появится после `/speckeep.tasks pipeline-index-with-chunker`)
 
 ## Next Step
 
-- safe to continue to plan: `/draftspec.plan pipeline-index-with-chunker`
+- safe to continue to plan: `/speckeep.plan pipeline-index-with-chunker`
 

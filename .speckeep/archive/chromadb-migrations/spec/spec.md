@@ -128,4 +128,4 @@
 
 **Slug**: `chromadb-migrations`
 
-**Следующая команда**: `/draftspec.inspect chromadb-migrations`
+**Следующая команда**: `/speckeep.inspect chromadb-migrations`

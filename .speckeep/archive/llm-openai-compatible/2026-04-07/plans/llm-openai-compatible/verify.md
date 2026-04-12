@@ -13,18 +13,18 @@ generated_at: 2026-04-07
 - snapshot: проверен OpenAI-compatible LLMProvider (Responses API) с options/валидацией, парсингом ответа и redaction секретов
 - verification_mode: default
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/specs/llm-openai-compatible/spec.md
-  - .draftspec/plans/llm-openai-compatible/plan.md
-  - .draftspec/plans/llm-openai-compatible/tasks.md
+  - .speckeep/constitution.md
+  - .speckeep/specs/llm-openai-compatible/spec.md
+  - .speckeep/plans/llm-openai-compatible/plan.md
+  - .speckeep/plans/llm-openai-compatible/tasks.md
 - inspected_surfaces:
   - pkg/draftrag/errors.go
   - pkg/draftrag/openai_compatible_llm.go
   - pkg/draftrag/openai_compatible_llm_test.go
   - internal/infrastructure/llm/openai_compatible_responses.go
   - internal/infrastructure/llm/openai_compatible_responses_test.go
-  - .draftspec/scripts/check-verify-ready.sh (через запуск)
-  - .draftspec/scripts/verify-task-state.sh (через запуск)
+  - .speckeep/scripts/check-verify-ready.sh (через запуск)
+  - .speckeep/scripts/verify-task-state.sh (через запуск)
   - go test ./...
 
 ## Verdict
@@ -35,7 +35,7 @@ generated_at: 2026-04-07
 
 ## Checks
 
-- task_state: completed=7, open=0 (см. `.draftspec/scripts/verify-task-state.sh llm-openai-compatible`)
+- task_state: completed=7, open=0 (см. `.speckeep/scripts/verify-task-state.sh llm-openai-compatible`)
 - acceptance_evidence:
   - AC-001 -> фабрика `NewOpenAICompatibleLLM` и compile-time assertion `var _ LLMProvider = ...` в `pkg/draftrag/openai_compatible_llm_test.go`
   - AC-002 -> success-пути парсинга: `output_text` и fallback `output[].content[]` в `internal/infrastructure/llm/openai_compatible_responses_test.go`
@@ -54,7 +54,7 @@ generated_at: 2026-04-07
 
 ## Warnings
 
-- Traceability annotations отсутствуют (`.draftspec/scripts/trace.sh llm-openai-compatible` -> "No traceability annotations found.")
+- Traceability annotations отсутствуют (`.speckeep/scripts/trace.sh llm-openai-compatible` -> "No traceability annotations found.")
 
 ## Questions
 
@@ -68,5 +68,5 @@ generated_at: 2026-04-07
 
 ## Next Step
 
-- safe to archive: `/draftspec.archive llm-openai-compatible`
+- safe to archive: `/speckeep.archive llm-openai-compatible`
 

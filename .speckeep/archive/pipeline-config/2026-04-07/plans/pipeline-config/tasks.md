@@ -2,7 +2,7 @@
 
 ## Phase Contract
 
-Inputs: `.draftspec/plans/pipeline-config/plan.md`, `.draftspec/plans/pipeline-config/data-model.md`
+Inputs: `.speckeep/plans/pipeline-config/plan.md`, `.speckeep/plans/pipeline-config/data-model.md`
 Outputs: упорядоченные исполнимые задачи с покрытием критериев
 Stop if: задачи получаются расплывчатыми или coverage по AC не удаётся сопоставить
 

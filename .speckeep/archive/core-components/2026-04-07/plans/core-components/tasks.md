@@ -2,7 +2,7 @@
 
 ## Phase Contract
 
-Inputs: `.draftspec/plans/core-components/plan.md`, `.draftspec/plans/core-components/data-model.md`
+Inputs: `.speckeep/plans/core-components/plan.md`, `.speckeep/plans/core-components/data-model.md`
 Outputs: упорядоченные исполнимые задачи с покрытием критериев
 Stop if: задачи получаются расплывчатыми или coverage не удается сопоставить
 

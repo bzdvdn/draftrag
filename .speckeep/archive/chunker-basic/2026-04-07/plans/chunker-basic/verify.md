@@ -13,9 +13,9 @@ generated_at: 2026-04-07
 - snapshot: проверен базовый rune-based chunker с overlap и MaxChunks, публичной фабрикой, валидацией options и поддержкой ctx cancel/deadline
 - verification_mode: default
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/specs/chunker-basic/spec.md
-  - .draftspec/plans/chunker-basic/tasks.md
+  - .speckeep/constitution.md
+  - .speckeep/specs/chunker-basic/spec.md
+  - .speckeep/plans/chunker-basic/tasks.md
 - inspected_surfaces:
   - pkg/draftrag/errors.go
   - pkg/draftrag/draftrag.go
@@ -23,8 +23,8 @@ generated_at: 2026-04-07
   - pkg/draftrag/basic_chunker_test.go
   - internal/infrastructure/chunker/basic.go
   - internal/infrastructure/chunker/basic_test.go
-  - .draftspec/scripts/check-verify-ready.sh (через запуск)
-  - .draftspec/scripts/verify-task-state.sh (через запуск)
+  - .speckeep/scripts/check-verify-ready.sh (через запуск)
+  - .speckeep/scripts/verify-task-state.sh (через запуск)
   - go test ./...
 
 ## Verdict
@@ -35,7 +35,7 @@ generated_at: 2026-04-07
 
 ## Checks
 
-- task_state: completed=6, open=0 (см. `.draftspec/scripts/verify-task-state.sh chunker-basic`)
+- task_state: completed=6, open=0 (см. `.speckeep/scripts/verify-task-state.sh chunker-basic`)
 - acceptance_evidence:
   - AC-001 -> compile-time assertion `var _ Chunker = NewBasicChunker(...)` в `pkg/draftrag/basic_chunker_test.go`
   - AC-002 -> детерминизм и поля `ParentID/Position/ID/Content` в `internal/infrastructure/chunker/basic_test.go` (`TestBasicRuneChunker_Chunk_DeterministicAndFields`)
@@ -54,7 +54,7 @@ generated_at: 2026-04-07
 
 ## Warnings
 
-- Traceability annotations отсутствуют (`.draftspec/scripts/trace.sh chunker-basic` -> "No traceability annotations found.")
+- Traceability annotations отсутствуют (`.speckeep/scripts/trace.sh chunker-basic` -> "No traceability annotations found.")
 
 ## Questions
 
@@ -66,5 +66,5 @@ generated_at: 2026-04-07
 
 ## Next Step
 
-- safe to archive: `/draftspec.archive chunker-basic`
+- safe to archive: `/speckeep.archive chunker-basic`
 

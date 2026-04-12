@@ -2,7 +2,7 @@
 
 ## Phase Contract
 
-Inputs: `.draftspec/plans/vectorstore-pgvector-production/plan.md`, `.draftspec/plans/vectorstore-pgvector-production/data-model.md`, `.draftspec/specs/vectorstore-pgvector-production/spec.md`.
+Inputs: `.speckeep/plans/vectorstore-pgvector-production/plan.md`, `.speckeep/plans/vectorstore-pgvector-production/data-model.md`, `.speckeep/specs/vectorstore-pgvector-production/spec.md`.
 Outputs: упорядоченные исполнимые задачи с явным покрытием `AC-*`.
 Stop if: хотя бы один `AC-*` не удаётся покрыть конкретной задачей без догадок по реализации.
 

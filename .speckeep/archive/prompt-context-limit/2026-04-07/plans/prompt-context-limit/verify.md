@@ -13,16 +13,16 @@ generated_at: 2026-04-07
 - snapshot: проверено ограничение секции “Контекст:” в prompt для `Pipeline.Answer*` через `MaxContextChars/MaxContextChunks`
 - verification_mode: default
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/specs/prompt-context-limit/spec.md
-  - .draftspec/plans/prompt-context-limit/tasks.md
+  - .speckeep/constitution.md
+  - .speckeep/specs/prompt-context-limit/spec.md
+  - .speckeep/plans/prompt-context-limit/tasks.md
 - inspected_surfaces:
   - pkg/draftrag/draftrag.go
   - internal/application/pipeline.go
   - pkg/draftrag/prompt_context_limit_test.go
   - internal/application/prompt_context_limit_test.go
-  - .draftspec/scripts/check-verify-ready.sh (через запуск)
-  - .draftspec/scripts/verify-task-state.sh (через запуск)
+  - .speckeep/scripts/check-verify-ready.sh (через запуск)
+  - .speckeep/scripts/verify-task-state.sh (через запуск)
   - go test ./...
 
 ## Verdict
@@ -33,7 +33,7 @@ generated_at: 2026-04-07
 
 ## Checks
 
-- task_state: completed=5, open=0 (см. `.draftspec/scripts/verify-task-state.sh prompt-context-limit`)
+- task_state: completed=5, open=0 (см. `.speckeep/scripts/verify-task-state.sh prompt-context-limit`)
 - acceptance_evidence:
   - AC-001 -> compile-time использование новых полей options в `pkg/draftrag/prompt_context_limit_test.go`
   - AC-002 -> `MaxContextChunks` ограничивает число чанков: `TestPromptContextLimit_MaxContextChunks` в `internal/application/prompt_context_limit_test.go`
@@ -49,7 +49,7 @@ generated_at: 2026-04-07
 
 ## Warnings
 
-- Traceability annotations отсутствуют (`.draftspec/scripts/trace.sh prompt-context-limit` -> "No traceability annotations found.")
+- Traceability annotations отсутствуют (`.speckeep/scripts/trace.sh prompt-context-limit` -> "No traceability annotations found.")
 
 ## Questions
 
@@ -61,5 +61,5 @@ generated_at: 2026-04-07
 
 ## Next Step
 
-- safe to archive: `/draftspec.archive prompt-context-limit`
+- safe to archive: `/speckeep.archive prompt-context-limit`
 

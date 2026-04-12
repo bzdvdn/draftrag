@@ -12,8 +12,8 @@ generated_at: 2026-04-05
 
 - snapshot: проверка спецификации core-components на соответствие конституции и качество
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/specs/core-components/spec.md
+  - .speckeep/constitution.md
+  - .speckeep/specs/core-components/spec.md
 
 ## Verdict
 
@@ -46,4 +46,4 @@ generated_at: 2026-04-05
 ## Next Step
 
 - safe to continue to plan
-- Следующая команда: /draftspec.plan core-components
+- Следующая команда: /speckeep.plan core-components

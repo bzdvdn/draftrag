@@ -2,7 +2,7 @@
 
 ## Phase Contract
 
-Inputs: `.draftspec/plans/retrieval-deduplication/plan.md`, `.draftspec/plans/retrieval-deduplication/data-model.md`
+Inputs: `.speckeep/plans/retrieval-deduplication/plan.md`, `.speckeep/plans/retrieval-deduplication/data-model.md`
 Outputs: упорядоченные исполнимые задачи с покрытием критериев
 Stop if: задачи становятся расплывчатыми или coverage по AC не удаётся сопоставить
 

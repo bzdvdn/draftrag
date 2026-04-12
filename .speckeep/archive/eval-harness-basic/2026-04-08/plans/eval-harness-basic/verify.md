@@ -13,8 +13,8 @@ generated_at: 2026-04-08
 - snapshot: проверен базовый eval harness (hit@k, MRR) на синтетическом датасете, без сетевых зависимостей
 - verification_mode: default
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/plans/eval-harness-basic/tasks.md
+  - .speckeep/constitution.md
+  - .speckeep/plans/eval-harness-basic/tasks.md
 - inspected_surfaces:
   - `pkg/draftrag/eval.Run`
   - `pkg/draftrag/eval` metrics (rank/hit@k/MRR)

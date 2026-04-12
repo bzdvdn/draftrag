@@ -40,4 +40,4 @@ generated_at: 2026-04-10
 
 ## Next Step
 
-- Спецификация готова к планированию. Следующая команда: `/draftspec.plan search-builder-stream-sources`
+- Спецификация готова к планированию. Следующая команда: `/speckeep.plan search-builder-stream-sources`

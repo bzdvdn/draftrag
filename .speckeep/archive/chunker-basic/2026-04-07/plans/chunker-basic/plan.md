@@ -2,7 +2,7 @@
 
 ## Phase Contract
 
-Inputs: `.draftspec/specs/chunker-basic/spec.md`, `.draftspec/specs/chunker-basic/inspect.md`, конституция проекта.
+Inputs: `.speckeep/specs/chunker-basic/spec.md`, `.speckeep/specs/chunker-basic/inspect.md`, конституция проекта.
 Outputs: `plan.md`, `data-model.md` (contracts/research не требуются).
 Stop if: невозможно зафиксировать детерминированный контракт чанкинга и лимитирования без расплывчатости.
 

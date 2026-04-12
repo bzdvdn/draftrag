@@ -2,7 +2,7 @@
 
 ## Phase Contract
 
-Inputs: `.draftspec/specs/prompt-context-limit/spec.md`, `.draftspec/specs/prompt-context-limit/inspect.md`, конституция проекта.
+Inputs: `.speckeep/specs/prompt-context-limit/spec.md`, `.speckeep/specs/prompt-context-limit/inspect.md`, конституция проекта.
 Outputs: `plan.md`, `data-model.md` (contracts/research не требуются).
 Stop if: невозможно задать детерминированные правила обрезания контекста без неоднозначностей.
 

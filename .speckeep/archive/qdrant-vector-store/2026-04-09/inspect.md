@@ -49,4 +49,4 @@ none
 
 Можно безопасно продолжать к планированию.
 
-**Следующая команда**: `/draftspec.plan qdrant-vector-store`
+**Следующая команда**: `/speckeep.plan qdrant-vector-store`

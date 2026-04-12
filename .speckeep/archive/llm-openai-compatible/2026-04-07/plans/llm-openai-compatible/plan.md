@@ -2,7 +2,7 @@
 
 ## Phase Contract
 
-Inputs: `.draftspec/specs/llm-openai-compatible/spec.md`, `.draftspec/specs/llm-openai-compatible/inspect.md`, конституция проекта.
+Inputs: `.speckeep/specs/llm-openai-compatible/spec.md`, `.speckeep/specs/llm-openai-compatible/inspect.md`, конституция проекта.
 Outputs: `plan.md`, `data-model.md` (contracts/research не требуются).
 Stop if: невозможно зафиксировать стабильный минимальный parsing contract Responses API без расплывчатости.
 

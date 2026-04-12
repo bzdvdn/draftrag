@@ -61,4 +61,4 @@ None.
 
 ## Next Step
 
-Спецификация готова к планированию. Следующая команда: `/draftspec.plan chromadb-vector-store`
+Спецификация готова к планированию. Следующая команда: `/speckeep.plan chromadb-vector-store`

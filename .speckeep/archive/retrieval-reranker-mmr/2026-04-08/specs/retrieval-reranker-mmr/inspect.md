@@ -12,8 +12,8 @@ generated_at: 2026-04-08
 
 - snapshot: проверена спецификация MMR rerank на аддитивность, детерминизм и отсутствие сетевых зависимостей
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/specs/retrieval-reranker-mmr/spec.md
+  - .speckeep/constitution.md
+  - .speckeep/specs/retrieval-reranker-mmr/spec.md
 
 ## Verdict
 

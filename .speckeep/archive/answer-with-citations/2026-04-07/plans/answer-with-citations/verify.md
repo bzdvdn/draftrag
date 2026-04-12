@@ -13,9 +13,9 @@ generated_at: 2026-04-07
 - snapshot: проверены новые методы `AnswerWithCitations`/`AnswerTopKWithCitations` (ответ + retrieval evidence) и их тестовое покрытие
 - verification_mode: default
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/specs/answer-with-citations/spec.md
-  - .draftspec/plans/answer-with-citations/tasks.md
+  - .speckeep/constitution.md
+  - .speckeep/specs/answer-with-citations/spec.md
+  - .speckeep/plans/answer-with-citations/tasks.md
 - inspected_surfaces:
   - pkg/draftrag/draftrag.go
   - internal/application/pipeline.go
@@ -46,7 +46,7 @@ generated_at: 2026-04-07
 
 ## Warnings
 
-- `./.draftspec/scripts/trace.sh answer-with-citations` не нашёл traceability annotations (не блокирует приемку)
+- `./.speckeep/scripts/trace.sh answer-with-citations` не нашёл traceability annotations (не блокирует приемку)
 
 ## Questions
 

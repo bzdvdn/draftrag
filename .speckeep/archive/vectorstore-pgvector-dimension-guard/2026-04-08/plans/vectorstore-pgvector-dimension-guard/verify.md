@@ -13,9 +13,9 @@ generated_at: 2026-04-08
 - snapshot: проверена типизированная ошибка несоответствия размерности embeddings для pgvector store (Upsert/Search) и её доступность через `errors.Is`
 - verification_mode: default
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/specs/vectorstore-pgvector-dimension-guard/spec.md
-  - .draftspec/plans/vectorstore-pgvector-dimension-guard/tasks.md
+  - .speckeep/constitution.md
+  - .speckeep/specs/vectorstore-pgvector-dimension-guard/spec.md
+  - .speckeep/plans/vectorstore-pgvector-dimension-guard/tasks.md
 - inspected_surfaces:
   - internal/domain/models.go
   - pkg/draftrag/errors.go

@@ -13,9 +13,9 @@ generated_at: 2026-04-09
 - snapshot: проверка реализации batch-индексации после завершения всех задач
 - verification_mode: default
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/plans/batch-indexing/tasks.md
-  - .draftspec/specs/batch-indexing/spec.md
+  - .speckeep/constitution.md
+  - .speckeep/plans/batch-indexing/tasks.md
+  - .speckeep/specs/batch-indexing/spec.md
 - inspected_surfaces:
   - internal/domain/models.go
   - internal/application/pipeline.go
@@ -70,4 +70,4 @@ generated_at: 2026-04-09
 ## Next Step
 
 - safe to archive
-- Следующая команда: `/draftspec.archive batch-indexing`
+- Следующая команда: `/speckeep.archive batch-indexing`

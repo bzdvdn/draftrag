@@ -13,10 +13,10 @@ generated_at: 2026-04-07
 - snapshot: подтверждена согласованность задач и реализации; pgvector store и публичный API собираются, unit-тесты проходят; интеграционные тесты присутствуют и opt-in по DSN
 - verification_mode: default
 - artifacts:
-  - .draftspec/constitution.summary.md
-  - .draftspec/plans/vectorstore-pgvector/tasks.md
-  - .draftspec/specs/vectorstore-pgvector/spec.md
-  - .draftspec/plans/vectorstore-pgvector/plan.md
+  - .speckeep/constitution.summary.md
+  - .speckeep/plans/vectorstore-pgvector/tasks.md
+  - .speckeep/specs/vectorstore-pgvector/spec.md
+  - .speckeep/plans/vectorstore-pgvector/plan.md
 - inspected_surfaces:
   - pkg/draftrag/pgvector.go
   - internal/infrastructure/vectorstore/pgvector.go
@@ -50,7 +50,7 @@ generated_at: 2026-04-07
 ## Warnings
 
 - Интеграционные доказательства AC-002..AC-005 зависят от наличия PostgreSQL+pgvector и переменной окружения `PGVECTOR_TEST_DSN`; в этом verify они не выполнялись.
-- Traceability annotations отсутствуют: `./.draftspec/scripts/trace.sh vectorstore-pgvector` вернул `No traceability annotations found.`
+- Traceability annotations отсутствуют: `./.speckeep/scripts/trace.sh vectorstore-pgvector` вернул `No traceability annotations found.`
 
 ## Questions
 
@@ -63,5 +63,5 @@ generated_at: 2026-04-07
 ## Next Step
 
 - safe to archive
-- Следующая команда: /draftspec.archive vectorstore-pgvector --copy (если планируется активная доработка) или /draftspec.archive vectorstore-pgvector (move-based)
+- Следующая команда: /speckeep.archive vectorstore-pgvector --copy (если планируется активная доработка) или /speckeep.archive vectorstore-pgvector (move-based)
 

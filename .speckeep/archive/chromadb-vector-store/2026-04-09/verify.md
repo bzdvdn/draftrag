@@ -15,7 +15,7 @@ mode: deep
 - **surfaces checked**:
   - `internal/infrastructure/vectorstore/chromadb.go`
   - `internal/infrastructure/vectorstore/chromadb_test.go`
-  - `.draftspec/plans/chromadb-vector-store/tasks.md`
+  - `.speckeep/plans/chromadb-vector-store/tasks.md`
 
 ## Verdict
 
@@ -90,4 +90,4 @@ None.
 
 Фича готова к архивированию.
 
-**Следующая команда**: `/draftspec.archive chromadb-vector-store`
+**Следующая команда**: `/speckeep.archive chromadb-vector-store`

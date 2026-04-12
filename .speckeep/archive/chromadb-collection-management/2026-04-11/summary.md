@@ -18,7 +18,7 @@ archived_at: 2026-04-11T15:19:20Z
 
 ## Snapshot
 
-- path: `/home/bzdv/PAT_PROJECTS/DRAFTRAG/.draftspec/archive/chromadb-collection-management/2026-04-11`
+- path: `/home/bzdv/PAT_PROJECTS/DRAFTRAG/.speckeep/archive/chromadb-collection-management/2026-04-11`
 - mode: move-based (active files removed after archive)
 
 ## Contents

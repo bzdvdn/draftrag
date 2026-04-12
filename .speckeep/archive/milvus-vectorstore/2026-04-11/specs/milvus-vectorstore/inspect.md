@@ -12,8 +12,8 @@ generated_at: 2026-04-11
 
 - snapshot: проверка spec.md на соответствие конституции, полноту, корректность AC и правдоподобность допущений
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/specs/milvus-vectorstore/spec.md
+  - .speckeep/constitution.md
+  - .speckeep/specs/milvus-vectorstore/spec.md
   - internal/domain/interfaces.go (точечная проверка)
   - internal/domain/models.go (точечная проверка)
 
@@ -45,4 +45,4 @@ generated_at: 2026-04-11
 ## Next Step
 
 - Ошибок нет. Безопасно переходить к планированию.
-- `/draftspec.plan milvus-vectorstore`
+- `/speckeep.plan milvus-vectorstore`

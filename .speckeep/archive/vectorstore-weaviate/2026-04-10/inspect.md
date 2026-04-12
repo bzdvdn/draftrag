@@ -51,5 +51,5 @@ generated_at: 2026-04-10
 Ошибок нет, можно двигаться вперёд. Следующая команда:
 
 ```
-/draftspec.plan vectorstore-weaviate
+/speckeep.plan vectorstore-weaviate
 ```

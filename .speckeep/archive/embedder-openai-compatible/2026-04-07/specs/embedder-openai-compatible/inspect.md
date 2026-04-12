@@ -12,8 +12,8 @@ generated_at: 2026-04-07
 
 - snapshot: проверка спецификации embedder-openai-compatible на соответствие конституции и качество acceptance criteria
 - artifacts:
-  - .draftspec/constitution.summary.md
-  - .draftspec/specs/embedder-openai-compatible/spec.md
+  - .speckeep/constitution.summary.md
+  - .speckeep/specs/embedder-openai-compatible/spec.md
 
 ## Verdict
 
@@ -45,5 +45,5 @@ generated_at: 2026-04-07
 ## Next Step
 
 - safe to continue to plan
-- Следующая команда: /draftspec.plan embedder-openai-compatible
+- Следующая команда: /speckeep.plan embedder-openai-compatible
 

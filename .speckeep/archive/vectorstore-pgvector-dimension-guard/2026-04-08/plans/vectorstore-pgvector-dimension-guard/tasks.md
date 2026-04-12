@@ -2,7 +2,7 @@
 
 ## Phase Contract
 
-Inputs: `.draftspec/plans/vectorstore-pgvector-dimension-guard/plan.md`, `.draftspec/plans/vectorstore-pgvector-dimension-guard/data-model.md`
+Inputs: `.speckeep/plans/vectorstore-pgvector-dimension-guard/plan.md`, `.speckeep/plans/vectorstore-pgvector-dimension-guard/data-model.md`
 Outputs: упорядоченные исполнимые задачи с покрытием критериев
 Stop if: задачи становятся расплывчатыми или coverage по AC не удаётся сопоставить
 

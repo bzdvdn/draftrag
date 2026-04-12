@@ -12,8 +12,8 @@ generated_at: 2026-04-07
 
 - snapshot: проверена спецификация публичных `Pipeline.Answer*` (retrieve → prompt → llm.Generate) с детерминированным Prompt Contract и тестами без внешней сети
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/specs/pipeline-answer/spec.md
+  - .speckeep/constitution.md
+  - .speckeep/specs/pipeline-answer/spec.md
 
 ## Verdict
 
@@ -38,9 +38,9 @@ generated_at: 2026-04-07
 ## Traceability
 
 - acceptance criteria: 5/5 определены, все содержат Given/When/Then маркеры и уникальные AC IDs
-- tasks: отсутствуют на этой фазе (traceability к tasks появится после `/draftspec.tasks pipeline-answer`)
+- tasks: отсутствуют на этой фазе (traceability к tasks появится после `/speckeep.tasks pipeline-answer`)
 
 ## Next Step
 
-- safe to continue to plan: `/draftspec.plan pipeline-answer`
+- safe to continue to plan: `/speckeep.plan pipeline-answer`
 

@@ -12,8 +12,8 @@ generated_at: 2026-04-08
 
 - snapshot: проверена спецификация hooks для стадий pipeline на аддитивность и тестируемость без сети
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/specs/observability-hooks/spec.md
+  - .speckeep/constitution.md
+  - .speckeep/specs/observability-hooks/spec.md
 
 ## Verdict
 

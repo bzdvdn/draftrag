@@ -2,7 +2,7 @@
 
 ## Phase Contract
 
-Inputs: `.draftspec/specs/core-components/spec.md`, `.draftspec/specs/core-components/inspect.md`, конституция проекта
+Inputs: `.speckeep/specs/core-components/spec.md`, `.speckeep/specs/core-components/inspect.md`, конституция проекта
 Outputs: `plan.md`, `data-model.md`
 Stop if: spec слишком расплывчата для безопасного планирования
 

@@ -12,8 +12,8 @@ generated_at: 2026-04-08
 
 - snapshot: проверена спецификация на полноту для планирования и соответствие конституции (аддитивное изменение публичного API, без breaking changes)
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/specs/answer-inline-citations/spec.md
+  - .speckeep/constitution.md
+  - .speckeep/specs/answer-inline-citations/spec.md
 
 ## Verdict
 

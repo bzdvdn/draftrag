@@ -22,4 +22,4 @@ generated_at: 2026-04-10
 - Новые поля или методы `CircuitBreaker`
 - Публичные интерфейсы resilience-обёрток
 - Поведение `CircuitClosed` и `CircuitOpen`
-- Архивные `.draftspec/` файлы
+- Архивные `.speckeep/` файлы

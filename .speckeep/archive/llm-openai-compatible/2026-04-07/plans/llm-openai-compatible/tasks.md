@@ -2,7 +2,7 @@
 
 ## Phase Contract
 
-Inputs: `.draftspec/plans/llm-openai-compatible/plan.md`, `.draftspec/plans/llm-openai-compatible/data-model.md`
+Inputs: `.speckeep/plans/llm-openai-compatible/plan.md`, `.speckeep/plans/llm-openai-compatible/data-model.md`
 Outputs: упорядоченные исполнимые задачи с покрытием критериев
 Stop if: задачи получаются расплывчатыми или coverage по AC не удаётся сопоставить
 

@@ -2,7 +2,7 @@
 
 ## Phase Contract
 
-Inputs: `.draftspec/plans/vectorstore-pgvector-migrations/plan.md`, `.draftspec/plans/vectorstore-pgvector-migrations/data-model.md`
+Inputs: `.speckeep/plans/vectorstore-pgvector-migrations/plan.md`, `.speckeep/plans/vectorstore-pgvector-migrations/data-model.md`
 Outputs: упорядоченные исполнимые задачи с покрытием критериев
 Stop if: задачи становятся расплывчатыми или coverage по AC не удаётся сопоставить
 

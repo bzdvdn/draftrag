@@ -12,7 +12,7 @@ generated_at: 2026-04-08T21:20:00+03:00
 
 - **mode**: standard (structural verification with targeted code review)
 - **surfaces verified**:
-  - Task states in `.draftspec/plans/hybrid-search-bm25-semantic/tasks.md`
+  - Task states in `.speckeep/plans/hybrid-search-bm25-semantic/tasks.md`
   - Domain layer: `HybridConfig`, `HybridSearcher`, `HybridSearcherWithFilters`
   - Infrastructure: `SearchBM25`, `SearchHybrid`, `SearchHybridWithParentIDFilter`, `SearchHybridWithMetadataFilter`
   - Fusion algorithms: RRF, Weighted score
@@ -128,6 +128,6 @@ ok  	github.com/bzdvdn/draftrag/pkg/draftrag	(cached)
 
 ## Next Step
 
-**Следующая команда**: `/draftspec.archive hybrid-search-bm25-semantic`
+**Следующая команда**: `/speckeep.archive hybrid-search-bm25-semantic`
 
 Фича готова к архивированию. Все критические компоненты реализованы и протестированы.

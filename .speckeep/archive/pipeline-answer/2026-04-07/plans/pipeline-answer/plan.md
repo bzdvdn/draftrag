@@ -2,7 +2,7 @@
 
 ## Phase Contract
 
-Inputs: `.draftspec/specs/pipeline-answer/spec.md`, `.draftspec/specs/pipeline-answer/inspect.md`, конституция проекта.
+Inputs: `.speckeep/specs/pipeline-answer/spec.md`, `.speckeep/specs/pipeline-answer/inspect.md`, конституция проекта.
 Outputs: `plan.md`, `data-model.md` (contracts/research не требуются).
 Stop if: невозможно зафиксировать минимальный prompt contract и traceability AC→tasks без расплывчатости.
 

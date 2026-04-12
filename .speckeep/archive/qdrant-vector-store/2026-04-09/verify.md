@@ -94,4 +94,4 @@ none
 
 Фича готова к архивированию.
 
-**Следующая команда**: `/draftspec.archive qdrant-vector-store`
+**Следующая команда**: `/speckeep.archive qdrant-vector-store`

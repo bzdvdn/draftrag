@@ -83,4 +83,4 @@ none
 
 ## Next Step
 
-Следующая команда: `/draftspec.archive ollama-llm-embedder`
+Следующая команда: `/speckeep.archive ollama-llm-embedder`

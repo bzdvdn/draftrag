@@ -102,7 +102,7 @@
 
 ## Итог
 
-**Спецификация готова к `/draftspec.plan search-builder-routing-fix`.**
+**Спецификация готова к `/speckeep.plan search-builder-routing-fix`.**
 
 - Все AC проверяемы
 - Все RQ конкретны
@@ -110,4 +110,4 @@
 - Scope чётко ограничен
 - Открытых вопросов нет
 
-**Следующая команда**: `/draftspec.plan search-builder-routing-fix`
+**Следующая команда**: `/speckeep.plan search-builder-routing-fix`

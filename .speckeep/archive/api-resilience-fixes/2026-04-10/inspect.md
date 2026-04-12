@@ -11,7 +11,7 @@ generated_at: 2026-04-10
 ## Scope
 
 - snapshot: проверка спецификации двух корректность-фиксов: переименование `BMFinaKK` → `BMFinalK` и probe-семафор в `CircuitBreaker.CanExecute()`
-- artifacts: `.draftspec/constitution.md`, `.draftspec/specs/api-resilience-fixes/spec.md`
+- artifacts: `.speckeep/constitution.md`, `.speckeep/specs/api-resilience-fixes/spec.md`
 
 ## Verdict
 
@@ -40,4 +40,4 @@ generated_at: 2026-04-10
 
 ## Next Step
 
-- Спецификация готова к планированию. Следующая команда: `/draftspec.plan api-resilience-fixes`
+- Спецификация готова к планированию. Следующая команда: `/speckeep.plan api-resilience-fixes`

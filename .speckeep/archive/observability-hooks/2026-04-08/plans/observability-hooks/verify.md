@@ -13,8 +13,8 @@ generated_at: 2026-04-08
 - snapshot: проверены hooks для стадий pipeline (chunking/embed/search/generate), порядок событий и no-op поведение при nil hooks
 - verification_mode: default
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/plans/observability-hooks/tasks.md
+  - .speckeep/constitution.md
+  - .speckeep/plans/observability-hooks/tasks.md
 - inspected_surfaces:
   - `internal/domain/hooks.go` (типизация hooks)
   - `internal/application/pipeline.go` (instrumentation)

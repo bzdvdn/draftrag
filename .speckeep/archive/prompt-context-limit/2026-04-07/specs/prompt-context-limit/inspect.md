@@ -12,8 +12,8 @@ generated_at: 2026-04-07
 
 - snapshot: проверена спецификация лимита контекста в prompt для `Pipeline.Answer*` через `MaxContextChars/MaxContextChunks` в `PipelineOptions`
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/specs/prompt-context-limit/spec.md
+  - .speckeep/constitution.md
+  - .speckeep/specs/prompt-context-limit/spec.md
 
 ## Verdict
 
@@ -38,9 +38,9 @@ generated_at: 2026-04-07
 ## Traceability
 
 - acceptance criteria: 4/4 определены, все содержат Given/When/Then маркеры и уникальные AC IDs
-- tasks: отсутствуют на этой фазе (traceability к tasks появится после `/draftspec.tasks prompt-context-limit`)
+- tasks: отсутствуют на этой фазе (traceability к tasks появится после `/speckeep.tasks prompt-context-limit`)
 
 ## Next Step
 
-- safe to continue to plan: `/draftspec.plan prompt-context-limit`
+- safe to continue to plan: `/speckeep.plan prompt-context-limit`
 

@@ -13,16 +13,16 @@ generated_at: 2026-04-07
 - snapshot: проверена интеграция `Chunker` в `Pipeline.Index` с сохранением legacy поведения без chunker
 - verification_mode: default
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/specs/pipeline-index-with-chunker/spec.md
-  - .draftspec/plans/pipeline-index-with-chunker/tasks.md
+  - .speckeep/constitution.md
+  - .speckeep/specs/pipeline-index-with-chunker/spec.md
+  - .speckeep/plans/pipeline-index-with-chunker/tasks.md
 - inspected_surfaces:
   - pkg/draftrag/draftrag.go
   - internal/application/pipeline.go
   - pkg/draftrag/pipeline_chunker_test.go
   - internal/application/pipeline_chunker_test.go
-  - .draftspec/scripts/check-verify-ready.sh (через запуск)
-  - .draftspec/scripts/verify-task-state.sh (через запуск)
+  - .speckeep/scripts/check-verify-ready.sh (через запуск)
+  - .speckeep/scripts/verify-task-state.sh (через запуск)
   - go test ./...
 
 ## Verdict
@@ -33,7 +33,7 @@ generated_at: 2026-04-07
 
 ## Checks
 
-- task_state: completed=4, open=0 (см. `.draftspec/scripts/verify-task-state.sh pipeline-index-with-chunker`)
+- task_state: completed=4, open=0 (см. `.speckeep/scripts/verify-task-state.sh pipeline-index-with-chunker`)
 - acceptance_evidence:
   - AC-001 -> compile-time проверка конструктора в `pkg/draftrag/pipeline_chunker_test.go`
   - AC-002 -> chunker path: 2 чанка → 2×Embed и 2×Upsert подтверждено тестом `TestPipeline_Index_UsesChunker_UpsertsMultipleChunks` в `internal/application/pipeline_chunker_test.go`
@@ -49,7 +49,7 @@ generated_at: 2026-04-07
 
 ## Warnings
 
-- Traceability annotations отсутствуют (`.draftspec/scripts/trace.sh pipeline-index-with-chunker` -> "No traceability annotations found.")
+- Traceability annotations отсутствуют (`.speckeep/scripts/trace.sh pipeline-index-with-chunker` -> "No traceability annotations found.")
 
 ## Questions
 
@@ -61,5 +61,5 @@ generated_at: 2026-04-07
 
 ## Next Step
 
-- safe to archive: `/draftspec.archive pipeline-index-with-chunker`
+- safe to archive: `/speckeep.archive pipeline-index-with-chunker`
 

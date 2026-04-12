@@ -13,10 +13,10 @@ generated_at: 2026-04-07
 - snapshot: подтверждена согласованность задач и реализации; OpenAI-compatible embedder реализован и покрыт тестами на `httptest.Server`, сборка/тесты проходят без внешней сети
 - verification_mode: default
 - artifacts:
-  - .draftspec/constitution.summary.md
-  - .draftspec/plans/embedder-openai-compatible/tasks.md
-  - .draftspec/specs/embedder-openai-compatible/spec.md
-  - .draftspec/plans/embedder-openai-compatible/plan.md
+  - .speckeep/constitution.summary.md
+  - .speckeep/plans/embedder-openai-compatible/tasks.md
+  - .speckeep/specs/embedder-openai-compatible/spec.md
+  - .speckeep/plans/embedder-openai-compatible/plan.md
 - inspected_surfaces:
   - pkg/draftrag/errors.go
   - pkg/draftrag/openai_compatible_embedder.go
@@ -49,7 +49,7 @@ generated_at: 2026-04-07
 
 ## Warnings
 
-- Traceability annotations отсутствуют: `./.draftspec/scripts/trace.sh embedder-openai-compatible` вернул `No traceability annotations found.`
+- Traceability annotations отсутствуют: `./.speckeep/scripts/trace.sh embedder-openai-compatible` вернул `No traceability annotations found.`
 
 ## Questions
 
@@ -62,5 +62,5 @@ generated_at: 2026-04-07
 ## Next Step
 
 - safe to archive
-- Следующая команда: /draftspec.archive embedder-openai-compatible
+- Следующая команда: /speckeep.archive embedder-openai-compatible
 

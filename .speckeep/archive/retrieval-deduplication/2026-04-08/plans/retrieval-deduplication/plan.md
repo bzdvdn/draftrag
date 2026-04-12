@@ -2,8 +2,8 @@
 
 ## Phase Contract
 
-Inputs: `.draftspec/specs/retrieval-deduplication/spec.md`, `.draftspec/specs/retrieval-deduplication/inspect.md`, `.draftspec/constitution.md`.
-Outputs: `.draftspec/plans/retrieval-deduplication/plan.md`, `.draftspec/plans/retrieval-deduplication/data-model.md`.
+Inputs: `.speckeep/specs/retrieval-deduplication/spec.md`, `.speckeep/specs/retrieval-deduplication/inspect.md`, `.speckeep/constitution.md`.
+Outputs: `.speckeep/plans/retrieval-deduplication/plan.md`, `.speckeep/plans/retrieval-deduplication/data-model.md`.
 Stop if: невозможно реализовать дедупликацию аддитивно без изменения поведения по умолчанию.
 
 ## Цель

@@ -2,7 +2,7 @@
 
 **Дата**: 2026-04-09  
 **Статус**: ✅ PASSED  
-**Проверяющий**: draftspec inspector
+**Проверяющий**: speckeep inspector
 
 ---
 
@@ -41,7 +41,7 @@
 
 ### Языковая политика ✅
 - Документация на русском языке
-- Структура соответствует шаблону `.draftspec/templates/spec.md`
+- Структура соответствует шаблону `.speckeep/templates/spec.md`
 
 ---
 
@@ -105,4 +105,4 @@
 
 ---
 
-**Следующая команда**: `/draftspec.plan chromadb-migrations`
+**Следующая команда**: `/speckeep.plan chromadb-migrations`

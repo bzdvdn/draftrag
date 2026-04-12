@@ -12,8 +12,8 @@ generated_at: 2026-04-07
 
 - snapshot: проверена спецификация `PipelineOptions` и `NewPipelineWithOptions` (defaultTopK, system prompt override, chunker через options) с сохранением backward compatibility
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/specs/pipeline-config/spec.md
+  - .speckeep/constitution.md
+  - .speckeep/specs/pipeline-config/spec.md
 
 ## Verdict
 
@@ -38,9 +38,9 @@ generated_at: 2026-04-07
 ## Traceability
 
 - acceptance criteria: 4/4 определены, все содержат Given/When/Then маркеры и уникальные AC IDs
-- tasks: отсутствуют на этой фазе (traceability к tasks появится после `/draftspec.tasks pipeline-config`)
+- tasks: отсутствуют на этой фазе (traceability к tasks появится после `/speckeep.tasks pipeline-config`)
 
 ## Next Step
 
-- safe to continue to plan: `/draftspec.plan pipeline-config`
+- safe to continue to plan: `/speckeep.plan pipeline-config`
 

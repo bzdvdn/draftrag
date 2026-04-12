@@ -2,7 +2,7 @@
 
 ## Phase Contract
 
-Inputs: `.draftspec/plans/answer-with-citations/plan.md`, `.draftspec/plans/answer-with-citations/data-model.md`
+Inputs: `.speckeep/plans/answer-with-citations/plan.md`, `.speckeep/plans/answer-with-citations/data-model.md`
 Outputs: упорядоченные исполнимые задачи с покрытием критериев
 Stop if: задачи получаются расплывчатыми или coverage по AC не удаётся сопоставить
 

@@ -16,16 +16,16 @@ archived_at: 2026-04-07
 
 ## Snapshot
 
-- path: `.draftspec/archive/prompt-context-limit/2026-04-07/`
-- mode: move-based (активные `.draftspec/specs/prompt-context-limit/` и `.draftspec/plans/prompt-context-limit/` удалены после переноса)
+- path: `.speckeep/archive/prompt-context-limit/2026-04-07/`
+- mode: move-based (активные `.speckeep/specs/prompt-context-limit/` и `.speckeep/plans/prompt-context-limit/` удалены после переноса)
 
 ## Contents
 
-- specs: `.draftspec/archive/prompt-context-limit/2026-04-07/specs/prompt-context-limit/` (spec + inspect)
-- plans: `.draftspec/archive/prompt-context-limit/2026-04-07/plans/prompt-context-limit/` (plan + data-model + tasks + verify)
+- specs: `.speckeep/archive/prompt-context-limit/2026-04-07/specs/prompt-context-limit/` (spec + inspect)
+- plans: `.speckeep/archive/prompt-context-limit/2026-04-07/plans/prompt-context-limit/` (plan + data-model + tasks + verify)
 
 ## Evidence
 
 - tasks: 5/5 выполнено на момент архивации (`verify-task-state.sh`)
-- verify: `.draftspec/archive/prompt-context-limit/2026-04-07/plans/prompt-context-limit/verify.md`
+- verify: `.speckeep/archive/prompt-context-limit/2026-04-07/plans/prompt-context-limit/verify.md`
 

@@ -12,8 +12,8 @@ generated_at: 2026-04-08
 
 - snapshot: проверена спецификация на достаточность для планирования и соответствие конституции (addivitve API, детерминированные метрики, тесты без сети)
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/specs/eval-harness-basic/spec.md
+  - .speckeep/constitution.md
+  - .speckeep/specs/eval-harness-basic/spec.md
 
 ## Verdict
 

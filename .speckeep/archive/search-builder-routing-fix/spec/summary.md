@@ -55,4 +55,4 @@
 
 ---
 
-**Следующая команда**: `/draftspec.plan search-builder-routing-fix`
+**Следующая команда**: `/speckeep.plan search-builder-routing-fix`

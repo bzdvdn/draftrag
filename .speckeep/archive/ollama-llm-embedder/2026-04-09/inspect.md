@@ -56,4 +56,4 @@ generated_at: 2026-04-09T01:25:00+03:00
 
 ## Next Step
 
-Следующая команда: `/draftspec.plan ollama-llm-embedder`
+Следующая команда: `/speckeep.plan ollama-llm-embedder`

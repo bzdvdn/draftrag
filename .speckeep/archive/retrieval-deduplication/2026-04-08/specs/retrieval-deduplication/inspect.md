@@ -12,8 +12,8 @@ generated_at: 2026-04-08
 
 - snapshot: проверена спецификация опциональной дедупликации retrieval sources (по ParentID) и критерии приемки, без изменения поведения по умолчанию
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/specs/retrieval-deduplication/spec.md
+  - .speckeep/constitution.md
+  - .speckeep/specs/retrieval-deduplication/spec.md
 
 ## Verdict
 
@@ -43,5 +43,5 @@ generated_at: 2026-04-08
 
 ## Next Step
 
-- safe to continue to plan: `/draftspec.plan retrieval-deduplication`
+- safe to continue to plan: `/speckeep.plan retrieval-deduplication`
 

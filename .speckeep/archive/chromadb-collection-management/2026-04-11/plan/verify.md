@@ -12,7 +12,7 @@ generated_at: 2026-04-11
 
 - mode: structural + targeted code evidence per Touches:
 - artifacts:
-  - .draftspec/specs/chromadb-collection-management/plan/tasks.md
+  - .speckeep/specs/chromadb-collection-management/plan/tasks.md
   - internal/domain/interfaces.go (T1.1)
   - internal/infrastructure/vectorstore/chromadb.go (T2.1, T2.2, T2.3)
   - internal/infrastructure/vectorstore/chromadb_collection_test.go (T3.1)
@@ -61,4 +61,4 @@ generated_at: 2026-04-11
 
 ## Next Step
 
-- Готово к: `/draftspec.archive chromadb-collection-management`
+- Готово к: `/speckeep.archive chromadb-collection-management`

@@ -67,6 +67,6 @@
 
 ## Следующий шаг
 
-**Команда**: `/draftspec.plan chromadb-migrations`
+**Команда**: `/speckeep.plan chromadb-migrations`
 
 **Действие**: Создание плана реализации (architecture.md, design.md, tasks.md)

@@ -2,8 +2,8 @@
 
 ## Phase Contract
 
-Inputs: `.draftspec/specs/vectorstore-pgvector-migrations/spec.md`, `.draftspec/specs/vectorstore-pgvector-migrations/inspect.md`, `.draftspec/constitution.md`.
-Outputs: `.draftspec/plans/vectorstore-pgvector-migrations/plan.md`, `.draftspec/plans/vectorstore-pgvector-migrations/data-model.md`.
+Inputs: `.speckeep/specs/vectorstore-pgvector-migrations/spec.md`, `.speckeep/specs/vectorstore-pgvector-migrations/inspect.md`, `.speckeep/constitution.md`.
+Outputs: `.speckeep/plans/vectorstore-pgvector-migrations/plan.md`, `.speckeep/plans/vectorstore-pgvector-migrations/data-model.md`.
 Stop if: нельзя описать схему в виде миграций без конфликта с текущим API/реализацией pgvector store.
 
 ## Цель

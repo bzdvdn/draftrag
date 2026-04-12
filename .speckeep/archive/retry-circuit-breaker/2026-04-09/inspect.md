@@ -47,4 +47,4 @@ pass
 
 ## Next Step
 
-Следующая команда: `/draftspec.plan retry-circuit-breaker`
+Следующая команда: `/speckeep.plan retry-circuit-breaker`

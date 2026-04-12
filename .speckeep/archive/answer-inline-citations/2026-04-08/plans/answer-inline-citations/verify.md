@@ -13,8 +13,8 @@ generated_at: 2026-04-08
 - snapshot: проверен новый режим Answer*WithInlineCitations: prompt с `[n]`, корректный маппинг citations, отсутствие регрессий
 - verification_mode: default
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/plans/answer-inline-citations/tasks.md
+  - .speckeep/constitution.md
+  - .speckeep/plans/answer-inline-citations/tasks.md
 - inspected_surfaces:
   - `internal/application.Pipeline.AnswerWithInlineCitations`
   - `pkg/draftrag.Pipeline.AnswerWithInlineCitations`

@@ -13,11 +13,11 @@ generated_at: 2026-04-07
 - snapshot: deep-проверка реализации pgvector production-ready контура (миграции, индексы, фильтры ParentID, лимиты/таймауты, совместимость)
 - verification_mode: deep
 - artifacts:
-  - .draftspec/constitution.md
-  - .draftspec/specs/vectorstore-pgvector-production/spec.md
-  - .draftspec/plans/vectorstore-pgvector-production/plan.md
-  - .draftspec/plans/vectorstore-pgvector-production/data-model.md
-  - .draftspec/plans/vectorstore-pgvector-production/tasks.md
+  - .speckeep/constitution.md
+  - .speckeep/specs/vectorstore-pgvector-production/spec.md
+  - .speckeep/plans/vectorstore-pgvector-production/plan.md
+  - .speckeep/plans/vectorstore-pgvector-production/data-model.md
+  - .speckeep/plans/vectorstore-pgvector-production/tasks.md
 - inspected_surfaces:
   - internal/domain/interfaces.go (VectorStoreWithFilters, ParentIDFilter)
   - internal/infrastructure/vectorstore/pgvector.go (SearchWithFilter, runtime timeouts/limits, Upsert updated_at)

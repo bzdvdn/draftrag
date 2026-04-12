@@ -69,4 +69,4 @@ none
 
 ## Next Step
 
-Спецификация готова. Следующая команда: `/draftspec.plan anthropic-claude-llm`
+Спецификация готова. Следующая команда: `/speckeep.plan anthropic-claude-llm`
