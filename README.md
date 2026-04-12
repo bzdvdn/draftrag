@@ -53,6 +53,8 @@ Go-библиотека для построения RAG (Retrieval-Augmented Gen
 go get github.com/bzdvdn/draftrag
 ```
 
+Минимальная версия Go: **1.23**.
+
 Для pgvector дополнительно:
 
 ```bash

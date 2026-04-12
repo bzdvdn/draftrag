@@ -10,12 +10,12 @@
 
 `--deep`: режим полной валидации реализации — читает все plan artifacts и проверяет реальный код для каждой завершённой задачи и acceptance criterion, а не только структурные проверки. Выдаёт comprehensive отчёт с per-AC evidence. Без этого флага verification остаётся структурным и cheap по умолчанию.
 
-`--persist`: записать отчёт верификации в `.speckeep/specs/<slug>/plan/verify.md` в дополнение к выводу в чат. Без этого флага отчёт выводится только в чат. Когда `--persist` присутствует, используйте `.speckeep/templates/verify-report.md` как канонический шаблон и включите machine-readable metadata block.
+`--persist`: оставлен для обратной совместимости. По умолчанию вы ОБЯЗАНЫ сохранять отчёт верификации в `.speckeep/specs/<slug>/plan/verify.md` (в дополнение к выводу в чат). При сохранении используйте `.speckeep/templates/verify-report.md` как канонический шаблон и включайте machine-readable metadata block. Не создавайте файл только если пользователь явно просит вывод «только в чат».
 
 ## Phase Contract
 
 Inputs: `.speckeep/constitution.md`, `.speckeep/specs/<slug>/plan/tasks.md`; spec, plan, код — только для подтверждения конкретных выводов (или все артефакты в режиме `--deep`).
-Outputs: отчет с verdict (`pass`, `concerns` или `blocked`) в чате; сохраняется в `.speckeep/specs/<slug>/plan/verify.md` по запросу.
+Outputs: отчет с verdict (`pass`, `concerns` или `blocked`) в чате И сохранённый в `.speckeep/specs/<slug>/plan/verify.md` по умолчанию.
 Stop if: slug неоднозначен, tasks.md отсутствует, или verdict потребовал бы выдумывать факты о реализации.
 
 ## Load First
@@ -113,7 +113,7 @@ Stop if: slug неоднозначен, tasks.md отсутствует, или 
 
 ## Output expectations
 
-- Выведите отчёт в чат по умолчанию; сохраните в `.speckeep/specs/<slug>/plan/verify.md` когда присутствует `--persist` или пользователь явно просит
+- Выведите отчёт в чат И сохраните в `.speckeep/specs/<slug>/plan/verify.md` по умолчанию (не сохраняйте только если пользователь явно просит вывод «только в чат»)
 - Кратко суммируйте verdict, выполненные проверки, оставшиеся concerns и можно ли безопасно архивировать фичу
 - Завершайте разговор summary block: `Slug`, `Status`, `Artifacts`, `Blockers` и `Готово к` / `Return to`
 - Если фичу можно архивировать: `Готово к: /speckeep.archive <slug>`; при возврате на раннюю фазу — называйте её явно со slash-командой

@@ -1,6 +1,6 @@
 module github.com/bzdvdn/draftrag
 
-go 1.23.5
+go 1.23.0
 
 require (
 	github.com/jackc/pgx/v5 v5.7.6
