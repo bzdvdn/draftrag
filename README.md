@@ -120,6 +120,230 @@ func main() {
 
 ## Примеры использования
 
+### Production-ready end-to-end (pgvector)
+
+Ниже — копипастабельный пример с **таймаутами через контекст**, **LRU-кешом эмбеддингов** и **retry/circuit breaker**. Значения таймаутов/ретраев — стартовые ориентиры: калибруйте под свой трафик и latency провайдеров.
+
+```go
+package main
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"os"
+	"time"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
+
+	"github.com/bzdvdn/draftrag/pkg/draftrag"
+)
+
+func main() {
+	baseCtx := context.Background()
+
+	// Рекомендуемые стартовые таймауты (ориентиры):
+	// - миграции/создание схемы: 30s
+	// - индексация батча документов: 2m
+	// - запрос + генерация ответа: 20s
+	setupCtx, cancel := context.WithTimeout(baseCtx, 30*time.Second)
+	defer cancel()
+
+	db, err := sql.Open("pgx", os.Getenv("PG_DSN"))
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(10)
+	db.SetConnMaxLifetime(30 * time.Minute)
+
+	embeddingDim := 1536 // пример; укажите размерность вашей embedding-модели
+	pg := draftrag.PGVectorOptions{
+		TableName:          "draftrag_chunks",
+		EmbeddingDimension: embeddingDim,
+		CreateExtension:    false, // в production чаще делается отдельным шагом деплоя
+	}
+
+	// Для production обычно применяют миграции отдельной job/init-container.
+	if err := draftrag.MigratePGVector(setupCtx, db, draftrag.PGVectorMigrateOptions{PGVectorOptions: pg}); err != nil {
+		panic(err)
+	}
+
+	store := draftrag.NewPGVectorStoreWithOptions(db, draftrag.PGVectorStoreOptions{
+		PGVectorOptions: pg,
+		Runtime: draftrag.PGVectorRuntimeOptions{
+			SearchTimeout: 2 * time.Second,  // используется только если у ctx нет deadline
+			UpsertTimeout: 10 * time.Second, // используется только если у ctx нет deadline
+			DeleteTimeout: 5 * time.Second,  // используется только если у ctx нет deadline
+		},
+	})
+
+	baseEmbedder := draftrag.NewOpenAICompatibleEmbedder(draftrag.OpenAICompatibleEmbedderOptions{
+		BaseURL: "https://api.openai.com",
+		APIKey:  os.Getenv("OPENAI_API_KEY"),
+		Model:   "text-embedding-3-small",
+	})
+	cachedEmbedder, err := draftrag.NewCachedEmbedder(baseEmbedder, draftrag.CacheOptions{
+		MaxSize: 5000,
+		// Опционально: Redis L2 — см. раздел ниже про Redis L2.
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	retry := draftrag.RetryOptions{
+		MaxRetries:  3,
+		BaseDelay:   200 * time.Millisecond,
+		MaxDelay:    5 * time.Second,
+		Multiplier:  2.0,
+		JitterFactor: 0.2,
+		CBThreshold: 5,
+		CBTimeout:   30 * time.Second,
+	}
+	embedder := draftrag.NewRetryEmbedder(cachedEmbedder, retry)
+
+	baseLLM := draftrag.NewOpenAICompatibleLLM(draftrag.OpenAICompatibleLLMOptions{
+		BaseURL: "https://api.openai.com",
+		APIKey:  os.Getenv("OPENAI_API_KEY"),
+		Model:   "gpt-4o-mini",
+	})
+	llm := draftrag.NewRetryLLMProvider(baseLLM, retry)
+
+	pipeline := draftrag.NewPipelineWithOptions(store, llm, embedder, draftrag.PipelineOptions{
+		DefaultTopK: 5,
+		Chunker: draftrag.NewBasicChunker(draftrag.BasicChunkerOptions{
+			ChunkSize: 500,
+			Overlap:   60,
+		}),
+	})
+
+	docs := []draftrag.Document{
+		{ID: "doc1", Content: "Go использует горутины для конкурентного программирования..."},
+		{ID: "doc2", Content: "Каналы в Go обеспечивают синхронизацию между горутинами..."},
+	}
+
+	indexCtx, cancel := context.WithTimeout(baseCtx, 2*time.Minute)
+	defer cancel()
+	if err := pipeline.Index(indexCtx, docs); err != nil {
+		panic(err)
+	}
+
+	queryCtx, cancel := context.WithTimeout(baseCtx, 20*time.Second)
+	defer cancel()
+	answer, sources, err := pipeline.Search("Как работают горутины?").TopK(5).Cite(queryCtx)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(answer)
+	for i, r := range sources.Chunks {
+		fmt.Printf("[%d] %s (%.3f)\n", i+1, r.Chunk.ParentID, r.Score)
+	}
+}
+```
+
+### Production-ready end-to-end (Qdrant)
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"time"
+
+	"github.com/bzdvdn/draftrag/pkg/draftrag"
+)
+
+func main() {
+	baseCtx := context.Background()
+
+	// Ориентиры таймаутов: создание коллекции 10s, индексация 2m, запрос/ответ 20s.
+	setupCtx, cancel := context.WithTimeout(baseCtx, 10*time.Second)
+	defer cancel()
+
+	embeddingDim := 1536 // пример; укажите размерность вашей embedding-модели
+	qopts := draftrag.QdrantOptions{
+		URL:        os.Getenv("QDRANT_URL"), // например http://localhost:6333
+		Collection: "draftrag_chunks",
+		Dimension:  embeddingDim,
+		Timeout:    10 * time.Second,
+	}
+
+	exists, err := draftrag.CollectionExists(setupCtx, qopts)
+	if err != nil {
+		panic(err)
+	}
+	if !exists {
+		if err := draftrag.CreateCollection(setupCtx, qopts); err != nil {
+			panic(err)
+		}
+	}
+
+	store, err := draftrag.NewQdrantStore(qopts)
+	if err != nil {
+		panic(err)
+	}
+
+	baseEmbedder := draftrag.NewOpenAICompatibleEmbedder(draftrag.OpenAICompatibleEmbedderOptions{
+		BaseURL: "https://api.openai.com",
+		APIKey:  os.Getenv("OPENAI_API_KEY"),
+		Model:   "text-embedding-3-small",
+	})
+	cachedEmbedder, err := draftrag.NewCachedEmbedder(baseEmbedder, draftrag.CacheOptions{MaxSize: 5000})
+	if err != nil {
+		panic(err)
+	}
+
+	retry := draftrag.RetryOptions{
+		MaxRetries:  3,
+		BaseDelay:   200 * time.Millisecond,
+		MaxDelay:    5 * time.Second,
+		Multiplier:  2.0,
+		JitterFactor: 0.2,
+		CBThreshold: 5,
+		CBTimeout:   30 * time.Second,
+	}
+	embedder := draftrag.NewRetryEmbedder(cachedEmbedder, retry)
+
+	baseLLM := draftrag.NewOpenAICompatibleLLM(draftrag.OpenAICompatibleLLMOptions{
+		BaseURL: "https://api.openai.com",
+		APIKey:  os.Getenv("OPENAI_API_KEY"),
+		Model:   "gpt-4o-mini",
+	})
+	llm := draftrag.NewRetryLLMProvider(baseLLM, retry)
+
+	pipeline := draftrag.NewPipelineWithOptions(store, llm, embedder, draftrag.PipelineOptions{
+		DefaultTopK: 5,
+		Chunker: draftrag.NewBasicChunker(draftrag.BasicChunkerOptions{
+			ChunkSize: 500,
+			Overlap:   60,
+		}),
+	})
+
+	docs := []draftrag.Document{
+		{ID: "doc1", Content: "Go использует горутины для конкурентного программирования..."},
+		{ID: "doc2", Content: "Каналы в Go обеспечивают синхронизацию между горутинами..."},
+	}
+
+	indexCtx, cancel := context.WithTimeout(baseCtx, 2*time.Minute)
+	defer cancel()
+	if err := pipeline.Index(indexCtx, docs); err != nil {
+		panic(err)
+	}
+
+	queryCtx, cancel := context.WithTimeout(baseCtx, 20*time.Second)
+	defer cancel()
+	answer, _, err := pipeline.Search("Как работают горутины?").TopK(5).Cite(queryCtx)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(answer)
+}
+```
+
 ### Потоковый ответ с источниками
 
 ```go
