@@ -6,6 +6,11 @@
 
 Сформируйте сфокусированный отчет проверки для одной фичи, не расширяя scope.
 
+## Примечание о путях
+
+Пути в этом промпте показаны для layout по умолчанию. Если в `.speckeep/speckeep.yaml` переопределены `paths.specs_dir` или `project.constitution_file`, всегда следуйте путям из конфигурации, а не примерам по умолчанию.
+Читайте `.speckeep/speckeep.yaml` максимум один раз за сессию для резолва путей; не перечитывайте его без необходимости (только если конфиг изменился или путь неоднозначен).
+
 ## Phase Contract
 
 Inputs: `.speckeep/constitution.md`, `.speckeep/specs/<slug>/spec.md`; опционально `.speckeep/specs/<slug>/plan/plan.md`, `.speckeep/specs/<slug>/plan/tasks.md`, если они существуют.
@@ -144,6 +149,7 @@ Summary ДОЛЖЕН содержать только:
 - Сохраняйте отчет в `.speckeep/specs/<slug>/inspect.md` и записывайте `.speckeep/specs/<slug>/summary.md`; кратко суммируйте verdict в разговоре compact report с непустыми секциями
 - Завершайте разговор summary block: `Slug`, `Status`, `Artifacts`, `Blockers`, `Готово к`
 - Когда можно продолжать: в `## Next Step` указывайте точную slash-команду следующей фазы; после archive можно упомянуть `/speckeep.recap` как опциональный итог, но не рассматривайте его как обязательный
+- Когда verdict позволяет продолжать: завершайте также строкой `Готово к: /speckeep.plan <slug>` (или `Готово к: /speckeep.tasks <slug>`, если plan package уже существует)
 - Если сначала нужен refinement — говорите об этом прямо
 
 ## Self-Check
