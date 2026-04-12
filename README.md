@@ -474,6 +474,35 @@ pipeline := draftrag.NewPipelineWithOptions(store, llm, embedder,
 
 Стадии: `chunking`, `embed`, `search`, `generate`.
 
+#### OpenTelemetry (опционально)
+
+Подключение OTel — это **минимальный код, без форка библиотеки**: вы настраиваете OTel SDK в своём приложении, а в pipeline передаёте hooks-адаптер.
+
+Важно: hooks вызываются **синхронно**, поэтому используйте неблокирующие/батчевые exporters.
+
+```go
+import (
+    draftragotel "github.com/bzdvdn/draftrag/pkg/draftrag/otel"
+)
+
+hooks, err := draftragotel.NewHooks(draftragotel.HooksOptions{})
+if err != nil {
+    panic(err)
+}
+
+pipeline := draftrag.NewPipelineWithOptions(store, llm, embedder,
+    draftrag.PipelineOptions{
+        Hooks: hooks,
+    },
+)
+```
+
+Контракт v1 (stable naming):
+- span attributes: `draftrag.operation`, `draftrag.stage`
+- metrics:
+  - `draftrag.pipeline.stage.duration_ms` (histogram, labels: `operation`, `stage`)
+  - `draftrag.pipeline.stage.errors` (counter, labels: `operation`, `stage`)
+
 ### Eval harness
 
 ```go
