@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/bzdvdn/draftrag/internal/domain"
 )
 
 const (
@@ -162,7 +164,7 @@ func (l *OpenAICompatibleResponsesLLM) Generate(ctx context.Context, systemPromp
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		snippet, _ := readBodySnippet(resp.Body, maxErrorBodyBytes)
-		snippet = redactSecret(snippet, l.apiKey)
+		snippet = domain.RedactSecrets(snippet, l.apiKey, "Bearer "+l.apiKey)
 		return "", fmt.Errorf("responses request failed: status=%d body=%q", resp.StatusCode, snippet)
 	}
 
@@ -208,13 +210,6 @@ func readBodySnippet(r io.Reader, limit int64) (string, error) {
 		return "", err
 	}
 	return string(data), nil
-}
-
-func redactSecret(text, secret string) string {
-	if secret == "" {
-		return text
-	}
-	return strings.ReplaceAll(text, secret, "<redacted>")
 }
 
 // GenerateStream генерирует ответ токен за токеном через SSE streaming.
@@ -281,7 +276,7 @@ func (l *OpenAICompatibleResponsesLLM) GenerateStream(ctx context.Context, syste
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		defer resp.Body.Close()
 		snippet, _ := readBodySnippet(resp.Body, maxErrorBodyBytes)
-		snippet = redactSecret(snippet, l.apiKey)
+		snippet = domain.RedactSecrets(snippet, l.apiKey, "Bearer "+l.apiKey)
 		return nil, fmt.Errorf("responses stream request failed: status=%d body=%q", resp.StatusCode, snippet)
 	}
 

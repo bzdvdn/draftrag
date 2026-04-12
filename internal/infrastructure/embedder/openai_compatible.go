@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/bzdvdn/draftrag/internal/domain"
 )
 
 const (
@@ -101,7 +103,7 @@ func (e *OpenAICompatibleEmbedder) Embed(ctx context.Context, text string) ([]fl
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		snippet, _ := readBodySnippet(resp.Body, maxErrorBodyBytes)
-		snippet = redactSecret(snippet, e.apiKey)
+		snippet = domain.RedactSecrets(snippet, e.apiKey, "Bearer "+e.apiKey)
 		return nil, fmt.Errorf("embeddings request failed: status=%d body=%q", resp.StatusCode, snippet)
 	}
 
@@ -146,9 +148,4 @@ func readBodySnippet(r io.Reader, limit int64) (string, error) {
 	return string(data), nil
 }
 
-func redactSecret(text, secret string) string {
-	if secret == "" {
-		return text
-	}
-	return strings.ReplaceAll(text, secret, "<redacted>")
-}
+// Редакция секретов выполняется в internal/domain/redaction.go.

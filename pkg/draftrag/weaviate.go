@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/bzdvdn/draftrag/internal/domain"
 	"github.com/bzdvdn/draftrag/internal/infrastructure/vectorstore"
 )
 
@@ -117,7 +118,8 @@ func CreateWeaviateCollection(ctx context.Context, opts WeaviateOptions) error {
 	}
 
 	b, _ := io.ReadAll(resp.Body)
-	return fmt.Errorf("weaviate error: status=%d, body=%s", resp.StatusCode, string(b))
+	redactedBody := domain.RedactSecrets(string(b), opts.APIKey, "Bearer "+opts.APIKey)
+	return fmt.Errorf("weaviate error: status=%d, body=%s", resp.StatusCode, redactedBody)
 }
 
 // DeleteWeaviateCollection удаляет коллекцию из Weaviate.
@@ -155,7 +157,8 @@ func DeleteWeaviateCollection(ctx context.Context, opts WeaviateOptions) error {
 	}
 
 	b, _ := io.ReadAll(resp.Body)
-	return fmt.Errorf("weaviate error: status=%d, body=%s", resp.StatusCode, string(b))
+	redactedBody := domain.RedactSecrets(string(b), opts.APIKey, "Bearer "+opts.APIKey)
+	return fmt.Errorf("weaviate error: status=%d, body=%s", resp.StatusCode, redactedBody)
 }
 
 // WeaviateCollectionExists проверяет существование коллекции в Weaviate.
@@ -196,5 +199,6 @@ func WeaviateCollectionExists(ctx context.Context, opts WeaviateOptions) (bool, 
 	}
 
 	b, _ := io.ReadAll(resp.Body)
-	return false, fmt.Errorf("weaviate error: status=%d, body=%s", resp.StatusCode, string(b))
+	redactedBody := domain.RedactSecrets(string(b), opts.APIKey, "Bearer "+opts.APIKey)
+	return false, fmt.Errorf("weaviate error: status=%d, body=%s", resp.StatusCode, redactedBody)
 }

@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/bzdvdn/draftrag/internal/domain"
 )
 
 const (
@@ -162,7 +164,7 @@ func (c *ClaudeLLM) Generate(ctx context.Context, systemPrompt, userMessage stri
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		snippet, _ := readBodySnippet(resp.Body, maxErrorBodyBytes)
-		snippet = redactSecret(snippet, c.apiKey)
+		snippet = domain.RedactSecrets(snippet, c.apiKey, "Bearer "+c.apiKey)
 		return "", fmt.Errorf("anthropic request failed: status=%d body=%q", resp.StatusCode, snippet)
 	}
 
@@ -238,7 +240,7 @@ func (c *ClaudeLLM) GenerateStream(ctx context.Context, systemPrompt, userMessag
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		defer resp.Body.Close()
 		snippet, _ := readBodySnippet(resp.Body, maxErrorBodyBytes)
-		snippet = redactSecret(snippet, c.apiKey)
+		snippet = domain.RedactSecrets(snippet, c.apiKey, "Bearer "+c.apiKey)
 		return nil, fmt.Errorf("anthropic stream request failed: status=%d body=%q", resp.StatusCode, snippet)
 	}
 

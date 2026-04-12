@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/bzdvdn/draftrag/internal/infrastructure/vectorstore"
@@ -73,5 +74,29 @@ func TestOpenAICompatibleEmbedder_PipelineFullCycle(t *testing.T) {
 	}
 	if len(result.Chunks) == 0 {
 		t.Fatalf("expected non-empty results")
+	}
+}
+
+func TestOpenAICompatibleEmbedder_RedactsAPIKey(t *testing.T) {
+	apiKey := "secret-key"
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte("bad request: " + apiKey))
+	}))
+	t.Cleanup(srv.Close)
+
+	emb := NewOpenAICompatibleEmbedder(OpenAICompatibleEmbedderOptions{
+		BaseURL: srv.URL,
+		APIKey:  apiKey,
+		Model:   "test-model",
+	})
+
+	_, err := emb.Embed(context.Background(), "hello")
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+	if strings.Contains(err.Error(), apiKey) {
+		t.Fatalf("expected APIKey to be redacted from error, got: %v", err)
 	}
 }
