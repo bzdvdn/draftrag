@@ -612,6 +612,10 @@ for _, fe := range result.Failed {
 | [examples/pgvector](examples/pgvector/) | RAG с PostgreSQL+pgvector, docker-compose |
 | [examples/qdrant](examples/qdrant/) | RAG с Qdrant, auto-create collection |
 
+Документация:
+- [docs/production.md](docs/production.md) — production checklist + runbook
+- [docs/getting-started.md](docs/getting-started.md) — начало работы
+
 Дополнительные примеры в тестах:
 - [pipeline_answer_test.go](pkg/draftrag/pipeline_answer_test.go) — базовые сценарии
 - [answer_stream_test.go](pkg/draftrag/answer_stream_test.go) — streaming
