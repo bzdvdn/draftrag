@@ -16,12 +16,27 @@ type redisCache struct {
 	prefix string
 }
 
-func (r *redisCache) key(key string) string {
-	prefix := r.prefix
-	if prefix == "" {
-		prefix = defaultRedisKeyPrefix
+type redisDecodeError struct {
+	err error
+}
+
+func (e *redisDecodeError) Error() string {
+	return fmt.Sprintf("msgpack decode: %v", e.err)
+}
+
+func (e *redisDecodeError) Unwrap() error {
+	return e.err
+}
+
+func (r *redisCache) effectivePrefix() string {
+	if r.prefix == "" {
+		return defaultRedisKeyPrefix
 	}
-	return prefix + key
+	return r.prefix
+}
+
+func (r *redisCache) key(key string) string {
+	return r.effectivePrefix() + key
 }
 
 func (r *redisCache) Get(ctx context.Context, key string) ([]float64, bool, error) {
@@ -39,7 +54,7 @@ func (r *redisCache) Get(ctx context.Context, key string) ([]float64, bool, erro
 
 	var value []float64
 	if err := msgpack.Unmarshal(data, &value); err != nil {
-		return nil, false, fmt.Errorf("msgpack decode: %w", err)
+		return nil, false, &redisDecodeError{err: err}
 	}
 
 	return value, true, nil
@@ -57,4 +72,3 @@ func (r *redisCache) Set(ctx context.Context, key string, value []float64) error
 
 	return r.client.SetBytes(ctx, r.key(key), data, r.ttl)
 }
-

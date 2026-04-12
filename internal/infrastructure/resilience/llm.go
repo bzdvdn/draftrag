@@ -26,6 +26,9 @@ type RetryLLMProvider struct {
 
 	// hooks — опциональный интерфейс для observability.
 	hooks domain.Hooks
+
+	// logger — опциональный структурированный логгер.
+	logger domain.Logger
 }
 
 // NewRetryLLMProvider создаёт обёртку для LLM провайдера.
@@ -36,6 +39,7 @@ func NewRetryLLMProvider(
 	retryConfig *RetryConfig,
 	cbConfig *CircuitBreakerConfig,
 	hooks domain.Hooks,
+	logger domain.Logger,
 ) *RetryLLMProvider {
 	if retryConfig == nil {
 		retryConfig = DefaultRetryConfig()
@@ -46,6 +50,7 @@ func NewRetryLLMProvider(
 		retryConfig:    retryConfig,
 		circuitBreaker: NewCircuitBreaker(cbConfig),
 		hooks:          hooks,
+		logger:         logger,
 	}
 }
 
@@ -54,6 +59,12 @@ func NewRetryLLMProvider(
 func (r *RetryLLMProvider) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
 	// Проверяем circuit breaker
 	if err := r.circuitBreaker.CanExecute(); err != nil {
+		domain.SafeLog(r.logger, ctx, domain.LogLevelWarn, "circuit breaker rejected",
+			domain.LogField{Key: "component", Value: "resilience_retry"},
+			domain.LogField{Key: "operation", Value: "generate"},
+			domain.LogField{Key: "rejected", Value: true},
+			domain.LogField{Key: "err", Value: err},
+		)
 		r.recordEvent(ctx, "generate", 0, err, true)
 		return "", fmt.Errorf("circuit breaker: %w", err)
 	}
@@ -83,6 +94,13 @@ func (r *RetryLLMProvider) Generate(ctx context.Context, systemPrompt, userMessa
 
 		// Проверяем, стоит ли повторять
 		if !IsRetryable(err) {
+			domain.SafeLog(r.logger, ctx, domain.LogLevelWarn, "non-retryable error",
+				domain.LogField{Key: "component", Value: "resilience_retry"},
+				domain.LogField{Key: "operation", Value: "generate"},
+				domain.LogField{Key: "attempt", Value: attempt},
+				domain.LogField{Key: "rejected", Value: false},
+				domain.LogField{Key: "err", Value: err},
+			)
 			r.circuitBreaker.RecordFailure()
 			r.recordEvent(ctx, "generate", attempt, err, false)
 			return "", err
@@ -90,6 +108,13 @@ func (r *RetryLLMProvider) Generate(ctx context.Context, systemPrompt, userMessa
 
 		// Фиксируем ошибку в circuit breaker и вызываем hooks (кроме последней попытки)
 		if attempt < maxRetries {
+			domain.SafeLog(r.logger, ctx, domain.LogLevelWarn, "retry attempt failed",
+				domain.LogField{Key: "component", Value: "resilience_retry"},
+				domain.LogField{Key: "operation", Value: "generate"},
+				domain.LogField{Key: "attempt", Value: attempt},
+				domain.LogField{Key: "rejected", Value: false},
+				domain.LogField{Key: "err", Value: err},
+			)
 			r.circuitBreaker.RecordFailure()
 			r.recordEvent(ctx, "generate", attempt, err, false)
 		}

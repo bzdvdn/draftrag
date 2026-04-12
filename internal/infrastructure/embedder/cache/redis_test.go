@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bzdvdn/draftrag/internal/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vmihailenco/msgpack/v5"
@@ -25,6 +26,25 @@ type fakeRedisClient struct {
 
 	getErr error
 	setErr error
+}
+
+type logEntry struct {
+	level  domain.LogLevel
+	msg    string
+	fields map[string]any
+}
+
+type fakeLogger struct {
+	entries []logEntry
+}
+
+func (l *fakeLogger) Log(ctx context.Context, level domain.LogLevel, msg string, fields ...domain.LogField) {
+	_ = ctx
+	m := make(map[string]any, len(fields))
+	for _, f := range fields {
+		m[f.Key] = f.Value
+	}
+	l.entries = append(l.entries, logEntry{level: level, msg: msg, fields: m})
 }
 
 func (f *fakeRedisClient) GetBytes(ctx context.Context, key string) ([]byte, error) {
@@ -97,27 +117,34 @@ func TestRedisL2HitNoEmbedder(t *testing.T) {
 func TestRedisErrorsTreatAsMiss(t *testing.T) {
 	ctx := context.Background()
 	mock := &mockEmbedder{vectors: make(map[string][]float64)}
+	logger := &fakeLogger{}
 	redis := &fakeRedisClient{
 		getErr: errors.New("redis down"),
 		setErr: errors.New("redis down"),
 	}
 
-	c, err := NewEmbedderCache(mock, WithRedis(redis, 0, ""))
+	c, err := NewEmbedderCache(mock, WithLogger(logger), WithRedis(redis, 0, ""))
 	require.NoError(t, err)
 
 	got, err := c.Embed(ctx, "x")
 	require.NoError(t, err)
 	assert.Equal(t, 1, mock.callCount, "должен вызвать embedder при Redis ошибке")
 	assert.NotNil(t, got)
+
+	require.GreaterOrEqual(t, len(logger.entries), 1)
+	assert.Equal(t, domain.LogLevelWarn, logger.entries[0].level)
+	assert.Equal(t, "embedder_cache", logger.entries[0].fields["component"])
+	assert.Equal(t, "redis_get", logger.entries[0].fields["operation"])
 }
 
 // TestRedisBadDataTreatAsMiss проверяет treat-as-miss при битых данных Redis (AC-006).
 func TestRedisBadDataTreatAsMiss(t *testing.T) {
 	ctx := context.Background()
 	mock := &mockEmbedder{vectors: make(map[string][]float64)}
+	logger := &fakeLogger{}
 	redis := &fakeRedisClient{store: make(map[string][]byte)}
 
-	c, err := NewEmbedderCache(mock, WithRedis(redis, 0, ""))
+	c, err := NewEmbedderCache(mock, WithLogger(logger), WithRedis(redis, 0, ""))
 	require.NoError(t, err)
 
 	text := "bad"
@@ -129,6 +156,9 @@ func TestRedisBadDataTreatAsMiss(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, mock.callCount, "при битых данных должен вызвать embedder")
 	assert.NotNil(t, got)
+
+	require.GreaterOrEqual(t, len(logger.entries), 1)
+	assert.Equal(t, "redis_decode", logger.entries[0].fields["operation"])
 }
 
 // TestRedisTTLAndPrefix проверяет, что TTL и prefix учитываются при записи (AC-005).
@@ -152,4 +182,3 @@ func TestRedisTTLAndPrefix(t *testing.T) {
 	assert.Equal(t, ttl, redis.lastSetTTL)
 	assert.GreaterOrEqual(t, redis.setCalls, 1)
 }
-

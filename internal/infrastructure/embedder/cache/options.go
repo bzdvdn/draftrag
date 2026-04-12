@@ -3,6 +3,8 @@ package cache
 import (
 	"context"
 	"time"
+
+	"github.com/bzdvdn/draftrag/internal/domain"
 )
 
 const defaultRedisKeyPrefix = "draftrag:embedder:"
@@ -20,6 +22,14 @@ func WithCacheSize(size int) Option {
 			size = 1
 		}
 		c.cacheSize = size
+	}
+}
+
+// WithLogger настраивает опциональный структурированный логгер.
+// nil означает no-op.
+func WithLogger(logger domain.Logger) Option {
+	return func(c *EmbedderCache) {
+		c.logger = logger
 	}
 }
 

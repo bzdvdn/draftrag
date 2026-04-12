@@ -4,8 +4,8 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
-	"log"
 
 	"github.com/bzdvdn/draftrag/internal/domain"
 )
@@ -18,6 +18,7 @@ type EmbedderCache struct {
 	cache     *lruCache
 	redis     *redisCache
 	cacheSize int
+	logger    domain.Logger
 	stats     statsCollector
 }
 
@@ -68,8 +69,24 @@ func (c *EmbedderCache) Embed(ctx context.Context, text string) ([]float64, erro
 			return value, nil
 		}
 		if err != nil {
+			operation := "redis_get"
+			var decodeErr *redisDecodeError
+			if errors.As(err, &decodeErr) {
+				operation = "redis_decode"
+			}
+
+			keyPrefix := ""
+			if c.redis != nil {
+				keyPrefix = c.redis.effectivePrefix()
+			}
+
 			// treat-as-miss: любая ошибка Redis/декодирования не должна ломать Embed
-			log.Printf("[EmbedderCache] Redis read failed (treat-as-miss), falling back to embedder: %v", err)
+			domain.SafeLog(c.logger, ctx, domain.LogLevelWarn, "redis read failed (treat-as-miss)",
+				domain.LogField{Key: "component", Value: "embedder_cache"},
+				domain.LogField{Key: "operation", Value: operation},
+				domain.LogField{Key: "err", Value: err},
+				domain.LogField{Key: "key_prefix", Value: keyPrefix},
+			)
 		}
 	}
 
@@ -85,8 +102,18 @@ func (c *EmbedderCache) Embed(ctx context.Context, text string) ([]float64, erro
 	// Сохраняем в L2 (Redis), если настроен и нет ошибок
 	if c.redis != nil && c.redis.client != nil {
 		if err := c.redis.Set(ctx, key, value); err != nil {
+			keyPrefix := ""
+			if c.redis != nil {
+				keyPrefix = c.redis.effectivePrefix()
+			}
+
 			// treat-as-miss: запись best-effort
-			log.Printf("[EmbedderCache] Redis write failed (best-effort): %v", err)
+			domain.SafeLog(c.logger, ctx, domain.LogLevelWarn, "redis write failed (best-effort)",
+				domain.LogField{Key: "component", Value: "embedder_cache"},
+				domain.LogField{Key: "operation", Value: "redis_set"},
+				domain.LogField{Key: "err", Value: err},
+				domain.LogField{Key: "key_prefix", Value: keyPrefix},
+			)
 		}
 	}
 

@@ -24,6 +24,23 @@ type Chunker = domain.Chunker
 // Hooks — опциональные хуки наблюдаемости для стадий pipeline.
 type Hooks = domain.Hooks
 
+// Logger — опциональный структурированный логгер для инфраструктурных событий (кэш, retry).
+// nil означает no-op.
+type Logger = domain.Logger
+
+// LogLevel — уровень логирования.
+type LogLevel = domain.LogLevel
+
+const (
+	LogLevelDebug = domain.LogLevelDebug
+	LogLevelInfo  = domain.LogLevelInfo
+	LogLevelWarn  = domain.LogLevelWarn
+	LogLevelError = domain.LogLevelError
+)
+
+// LogField — структурированное поле лог-события.
+type LogField = domain.LogField
+
 // ParentIDFilter задаёт фильтрацию retrieval по ParentID.
 type ParentIDFilter = domain.ParentIDFilter
 

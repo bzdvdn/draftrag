@@ -47,6 +47,10 @@ type RetryOptions struct {
 
 	// CBTimeout — время восстановления circuit breaker (0 → 30s).
 	CBTimeout time.Duration
+
+	// Logger — опциональный структурированный логгер для retry/CB событий.
+	// nil означает no-op.
+	Logger Logger
 }
 
 func (o RetryOptions) toInternal() (*resilience.RetryConfig, *resilience.CircuitBreakerConfig) {
@@ -103,7 +107,7 @@ type RetryEmbedder struct {
 func NewRetryEmbedder(e Embedder, opts RetryOptions) *RetryEmbedder {
 	rc, cbc := opts.toInternal()
 	return &RetryEmbedder{
-		RetryEmbedder: resilience.NewRetryEmbedder(e, rc, cbc, nil),
+		RetryEmbedder: resilience.NewRetryEmbedder(e, rc, cbc, nil, opts.Logger),
 	}
 }
 
@@ -123,7 +127,7 @@ type RetryLLMProvider struct {
 func NewRetryLLMProvider(l LLMProvider, opts RetryOptions) *RetryLLMProvider {
 	rc, cbc := opts.toInternal()
 	return &RetryLLMProvider{
-		RetryLLMProvider: resilience.NewRetryLLMProvider(l, rc, cbc, nil),
+		RetryLLMProvider: resilience.NewRetryLLMProvider(l, rc, cbc, nil, opts.Logger),
 	}
 }
 

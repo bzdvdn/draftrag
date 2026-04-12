@@ -120,6 +120,26 @@ embedder := draftrag.NewCachedEmbedder(
 pipeline := draftrag.NewPipeline(store, llm, embedder)
 ```
 
+### Структурированное логирование (опционально)
+
+Для событий деградации (Redis L2) можно подключить структурированный логгер:
+
+```go
+type myLogger struct{}
+
+func (l *myLogger) Log(ctx context.Context, level draftrag.LogLevel, msg string, fields ...draftrag.LogField) {
+    // адаптируйте под slog/zap/logrus
+}
+
+embedder := draftrag.NewCachedEmbedder(
+    base,
+    draftrag.CacheOptions{
+        MaxSize: 5000,
+        Logger:  &myLogger{},
+    },
+)
+```
+
 ### Redis L2 (опционально)
 
 Для горизонтального масштабирования можно включить Redis как second-level cache (L2).

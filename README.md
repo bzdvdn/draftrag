@@ -293,6 +293,23 @@ if err != nil {
 pipeline := draftrag.NewPipeline(store, llm, cached)
 ```
 
+### Структурированное логирование (опционально)
+
+draftRAG — библиотека, поэтому логирование по умолчанию выключено. Для событий деградации (Redis L2, retry/circuit breaker) можно подключить свой структурированный логгер:
+
+```go
+type myLogger struct{}
+
+func (l *myLogger) Log(ctx context.Context, level draftrag.LogLevel, msg string, fields ...draftrag.LogField) {
+    // адаптируйте под slog/zap/logrus
+}
+
+cached, err := draftrag.NewCachedEmbedder(embedder, draftrag.CacheOptions{
+    MaxSize: 1000,
+    Logger:  &myLogger{},
+})
+```
+
 Redis L2 (опционально) включается через адаптер-интерфейс клиента:
 
 ```go

@@ -18,6 +18,10 @@ type CacheOptions struct {
 
 	// Redis — опциональный Redis L2 кэш.
 	Redis RedisCacheOptions
+
+	// Logger — опциональный структурированный логгер для событий кэша.
+	// nil означает no-op.
+	Logger Logger
 }
 
 // RedisCacheClient — адаптер-интерфейс Redis клиента для кэша эмбеддингов.
@@ -72,6 +76,9 @@ func NewCachedEmbedder(e Embedder, opts CacheOptions) (*CachedEmbedder, error) {
 	var cacheOpts []cache.Option
 	if opts.MaxSize > 0 {
 		cacheOpts = append(cacheOpts, cache.WithCacheSize(opts.MaxSize))
+	}
+	if opts.Logger != nil {
+		cacheOpts = append(cacheOpts, cache.WithLogger(opts.Logger))
 	}
 	if opts.Redis.Client != nil {
 		cacheOpts = append(cacheOpts, cache.WithRedis(

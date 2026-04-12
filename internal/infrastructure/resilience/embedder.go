@@ -26,6 +26,9 @@ type RetryEmbedder struct {
 
 	// hooks — опциональный интерфейс для observability.
 	hooks domain.Hooks
+
+	// logger — опциональный структурированный логгер.
+	logger domain.Logger
 }
 
 // NewRetryEmbedder создаёт обёртку для embedder.
@@ -36,6 +39,7 @@ func NewRetryEmbedder(
 	retryConfig *RetryConfig,
 	cbConfig *CircuitBreakerConfig,
 	hooks domain.Hooks,
+	logger domain.Logger,
 ) *RetryEmbedder {
 	if retryConfig == nil {
 		retryConfig = DefaultRetryConfig()
@@ -46,6 +50,7 @@ func NewRetryEmbedder(
 		retryConfig:    retryConfig,
 		circuitBreaker: NewCircuitBreaker(cbConfig),
 		hooks:          hooks,
+		logger:         logger,
 	}
 }
 
@@ -54,6 +59,12 @@ func NewRetryEmbedder(
 func (r *RetryEmbedder) Embed(ctx context.Context, text string) ([]float64, error) {
 	// Проверяем circuit breaker
 	if err := r.circuitBreaker.CanExecute(); err != nil {
+		domain.SafeLog(r.logger, ctx, domain.LogLevelWarn, "circuit breaker rejected",
+			domain.LogField{Key: "component", Value: "resilience_retry"},
+			domain.LogField{Key: "operation", Value: "embed"},
+			domain.LogField{Key: "rejected", Value: true},
+			domain.LogField{Key: "err", Value: err},
+		)
 		r.recordEvent(ctx, "embed", 0, err, true)
 		return nil, fmt.Errorf("circuit breaker: %w", err)
 	}
@@ -83,6 +94,13 @@ func (r *RetryEmbedder) Embed(ctx context.Context, text string) ([]float64, erro
 
 		// Проверяем, стоит ли повторять
 		if !IsRetryable(err) {
+			domain.SafeLog(r.logger, ctx, domain.LogLevelWarn, "non-retryable error",
+				domain.LogField{Key: "component", Value: "resilience_retry"},
+				domain.LogField{Key: "operation", Value: "embed"},
+				domain.LogField{Key: "attempt", Value: attempt},
+				domain.LogField{Key: "rejected", Value: false},
+				domain.LogField{Key: "err", Value: err},
+			)
 			r.circuitBreaker.RecordFailure()
 			r.recordEvent(ctx, "embed", attempt, err, false)
 			return nil, err
@@ -90,6 +108,13 @@ func (r *RetryEmbedder) Embed(ctx context.Context, text string) ([]float64, erro
 
 		// Фиксируем ошибку в circuit breaker и вызываем hooks (кроме последней попытки)
 		if attempt < maxRetries {
+			domain.SafeLog(r.logger, ctx, domain.LogLevelWarn, "retry attempt failed",
+				domain.LogField{Key: "component", Value: "resilience_retry"},
+				domain.LogField{Key: "operation", Value: "embed"},
+				domain.LogField{Key: "attempt", Value: attempt},
+				domain.LogField{Key: "rejected", Value: false},
+				domain.LogField{Key: "err", Value: err},
+			)
 			r.circuitBreaker.RecordFailure()
 			r.recordEvent(ctx, "embed", attempt, err, false)
 		}

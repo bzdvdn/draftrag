@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bzdvdn/draftrag/internal/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/bzdvdn/draftrag/internal/domain"
 )
 
 // MockEmbedder — mock реализация domain.Embedder.
@@ -45,7 +45,7 @@ func TestRetryEmbedder_Success(t *testing.T) {
 	mockEmb := new(MockEmbedder)
 	mockEmb.On("Embed", mock.Anything, "test text").Return([]float64{0.1, 0.2}, nil).Once()
 
-	retryEmb := NewRetryEmbedder(mockEmb, nil, nil, nil)
+	retryEmb := NewRetryEmbedder(mockEmb, nil, nil, nil, nil)
 
 	result, err := retryEmb.Embed(context.Background(), "test text")
 
@@ -73,7 +73,7 @@ func TestRetryEmbedder_RetrySuccess(t *testing.T) {
 			JitterFactor: 0,
 		},
 	}
-	retryEmb := NewRetryEmbedder(mockEmb, config, nil, nil)
+	retryEmb := NewRetryEmbedder(mockEmb, config, nil, nil, nil)
 
 	result, err := retryEmb.Embed(context.Background(), "test text")
 
@@ -100,7 +100,7 @@ func TestRetryEmbedder_MaxRetriesExceeded(t *testing.T) {
 			JitterFactor: 0,
 		},
 	}
-	retryEmb := NewRetryEmbedder(mockEmb, config, nil, nil)
+	retryEmb := NewRetryEmbedder(mockEmb, config, nil, nil, nil)
 
 	result, err := retryEmb.Embed(context.Background(), "test text")
 
@@ -127,7 +127,7 @@ func TestRetryEmbedder_ContextCancellation(t *testing.T) {
 			JitterFactor: 0,
 		},
 	}
-	retryEmb := NewRetryEmbedder(mockEmb, config, nil, nil)
+	retryEmb := NewRetryEmbedder(mockEmb, config, nil, nil, nil)
 
 	// Отменяем контекст через 50ms
 	go func() {
@@ -157,7 +157,7 @@ func TestRetryEmbedder_NonRetryableError(t *testing.T) {
 	config := &RetryConfig{
 		MaxRetries: 3,
 	}
-	retryEmb := NewRetryEmbedder(mockEmb, config, nil, nil)
+	retryEmb := NewRetryEmbedder(mockEmb, config, nil, nil, nil)
 
 	result, err := retryEmb.Embed(context.Background(), "test text")
 
@@ -179,7 +179,7 @@ func TestRetryEmbedder_CircuitBreakerBlocks(t *testing.T) {
 	config := &RetryConfig{
 		MaxRetries: 0, // Без retry
 	}
-	retryEmb := NewRetryEmbedder(mockEmb, config, cbConfig, nil)
+	retryEmb := NewRetryEmbedder(mockEmb, config, cbConfig, nil, nil)
 
 	// Переводим circuit breaker в open
 	retryEmb.circuitBreaker.RecordFailure()
@@ -215,7 +215,7 @@ func TestRetryEmbedder_HooksCalled(t *testing.T) {
 			JitterFactor: 0,
 		},
 	}
-	retryEmb := NewRetryEmbedder(mockEmb, config, nil, mockHooks)
+	retryEmb := NewRetryEmbedder(mockEmb, config, nil, mockHooks, nil)
 
 	retryEmb.Embed(context.Background(), "test text")
 
@@ -235,7 +235,7 @@ func TestRetryEmbedder_HooksCalledOnRejection(t *testing.T) {
 		Threshold: 1,
 		Timeout:   10 * time.Second,
 	}
-	retryEmb := NewRetryEmbedder(mockEmb, nil, cbConfig, mockHooks)
+	retryEmb := NewRetryEmbedder(mockEmb, nil, cbConfig, mockHooks, nil)
 
 	// Переводим в open
 	retryEmb.circuitBreaker.RecordFailure()
@@ -249,7 +249,7 @@ func TestRetryEmbedder_HooksCalledOnRejection(t *testing.T) {
 
 func TestRetryEmbedder_CircuitBreakerState(t *testing.T) {
 	mockEmb := new(MockEmbedder)
-	retryEmb := NewRetryEmbedder(mockEmb, nil, nil, nil)
+	retryEmb := NewRetryEmbedder(mockEmb, nil, nil, nil, nil)
 
 	assert.Equal(t, CircuitClosed, retryEmb.CircuitBreakerState())
 

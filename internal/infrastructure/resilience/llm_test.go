@@ -29,7 +29,7 @@ func TestRetryLLMProvider_Success(t *testing.T) {
 	mockLLM.On("Generate", mock.Anything, "system", "user").
 		Return("response", nil).Once()
 
-	retryLLM := NewRetryLLMProvider(mockLLM, nil, nil, nil)
+	retryLLM := NewRetryLLMProvider(mockLLM, nil, nil, nil, nil)
 
 	result, err := retryLLM.Generate(context.Background(), "system", "user")
 
@@ -55,7 +55,7 @@ func TestRetryLLMProvider_RetryExhausted(t *testing.T) {
 			JitterFactor: 0,
 		},
 	}
-	retryLLM := NewRetryLLMProvider(mockLLM, config, nil, nil)
+	retryLLM := NewRetryLLMProvider(mockLLM, config, nil, nil, nil)
 
 	result, err := retryLLM.Generate(context.Background(), "system", "user")
 
@@ -83,7 +83,7 @@ func TestRetryLLMProvider_ContextCancellation(t *testing.T) {
 			JitterFactor: 0,
 		},
 	}
-	retryLLM := NewRetryLLMProvider(mockLLM, config, nil, nil)
+	retryLLM := NewRetryLLMProvider(mockLLM, config, nil, nil, nil)
 
 	// Отменяем контекст через 50ms
 	go func() {
@@ -113,7 +113,7 @@ func TestRetryLLMProvider_NonRetryableError(t *testing.T) {
 	config := &RetryConfig{
 		MaxRetries: 3,
 	}
-	retryLLM := NewRetryLLMProvider(mockLLM, config, nil, nil)
+	retryLLM := NewRetryLLMProvider(mockLLM, config, nil, nil, nil)
 
 	result, err := retryLLM.Generate(context.Background(), "system", "user")
 
@@ -133,7 +133,7 @@ func TestRetryLLMProvider_CircuitBreakerBlocks(t *testing.T) {
 	config := &RetryConfig{
 		MaxRetries: 0,
 	}
-	retryLLM := NewRetryLLMProvider(mockLLM, config, cbConfig, nil)
+	retryLLM := NewRetryLLMProvider(mockLLM, config, cbConfig, nil, nil)
 
 	// Переводим circuit breaker в open
 	retryLLM.circuitBreaker.RecordFailure()
@@ -168,7 +168,7 @@ func TestRetryLLMProvider_HooksCalled(t *testing.T) {
 			JitterFactor: 0,
 		},
 	}
-	retryLLM := NewRetryLLMProvider(mockLLM, config, nil, mockHooks)
+	retryLLM := NewRetryLLMProvider(mockLLM, config, nil, mockHooks, nil)
 
 	retryLLM.Generate(context.Background(), "system", "user")
 
@@ -188,7 +188,7 @@ func TestRetryLLMProvider_HooksCalledOnRejection(t *testing.T) {
 		Threshold: 1,
 		Timeout:   10 * time.Second,
 	}
-	retryLLM := NewRetryLLMProvider(mockLLM, nil, cbConfig, mockHooks)
+	retryLLM := NewRetryLLMProvider(mockLLM, nil, cbConfig, mockHooks, nil)
 
 	// Переводим в open
 	retryLLM.circuitBreaker.RecordFailure()
@@ -202,7 +202,7 @@ func TestRetryLLMProvider_HooksCalledOnRejection(t *testing.T) {
 
 func TestRetryLLMProvider_CircuitBreakerState(t *testing.T) {
 	mockLLM := new(MockLLMProvider)
-	retryLLM := NewRetryLLMProvider(mockLLM, nil, nil, nil)
+	retryLLM := NewRetryLLMProvider(mockLLM, nil, nil, nil, nil)
 
 	assert.Equal(t, CircuitClosed, retryLLM.CircuitBreakerState())
 
@@ -229,7 +229,7 @@ func TestRetryLLMProvider_RetryThenSuccess(t *testing.T) {
 			JitterFactor: 0,
 		},
 	}
-	retryLLM := NewRetryLLMProvider(mockLLM, config, nil, nil)
+	retryLLM := NewRetryLLMProvider(mockLLM, config, nil, nil, nil)
 
 	result, err := retryLLM.Generate(context.Background(), "system", "user")
 
