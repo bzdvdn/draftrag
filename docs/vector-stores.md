@@ -58,21 +58,26 @@ store := draftrag.NewPGVectorStore(db, draftrag.PGVectorOptions{
 })
 
 // Или с runtime ограничениями:
-store := draftrag.NewPGVectorStoreWithRuntimeOptions(db,
-    draftrag.PGVectorOptions{
+store := draftrag.NewPGVectorStoreWithOptions(db, draftrag.PGVectorStoreOptions{
+    PGVectorOptions: draftrag.PGVectorOptions{
         TableName:          "rag_chunks",
         EmbeddingDimension: 1536,
         IndexMethod:        "hnsw",  // "ivfflat" (по умолчанию) или "hnsw"
         Lists:              100,     // параметр ivfflat
     },
-    draftrag.PGVectorRuntimeOptions{
+    Runtime: draftrag.PGVectorRuntimeOptions{
         SearchTimeout:   2 * time.Second,
         UpsertTimeout:   5 * time.Second,
         MaxTopK:         50,
         MaxContentBytes: 64 * 1024,
     },
-)
+})
 ```
+
+Миграция:
+
+- было: `NewPGVectorStoreWithRuntimeOptions(db, opts, runtime)` (deprecated)
+- стало: `NewPGVectorStoreWithOptions(db, PGVectorStoreOptions{PGVectorOptions: opts, Runtime: runtime})`
 
 ### PGVectorOptions
 

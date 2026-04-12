@@ -32,6 +32,15 @@ type PGVectorOptions struct {
 	Lists int
 }
 
+// PGVectorStoreOptions — единый контейнер опций для NewPGVectorStore*.
+//
+// Объединяет параметры подключения/схемы (PGVectorOptions) и runtime ограничения (PGVectorRuntimeOptions),
+// чтобы публичный API следовал единому options pattern.
+type PGVectorStoreOptions struct {
+	PGVectorOptions
+	Runtime PGVectorRuntimeOptions
+}
+
 // PGVectorRuntimeOptions задаёт лимиты и таймауты выполнения операций VectorStore.
 type PGVectorRuntimeOptions struct {
 	// SearchTimeout — дефолтный таймаут для Search*, если у ctx нет deadline.
@@ -49,22 +58,25 @@ type PGVectorRuntimeOptions struct {
 	MaxContentBytes int
 }
 
-// NewPGVectorStore создаёт pgvector-backed реализацию VectorStore.
+// NewPGVectorStoreWithOptions создаёт pgvector-backed реализацию VectorStore (канонический options pattern).
 //
 // Схема БД не создаётся автоматически: перед использованием примените миграции через MigratePGVector
 // (или SetupPGVector как backward-compatible alias).
 //
 // Если у ctx нет deadline, операции store используют дефолтные таймауты (см. PGVectorRuntimeOptions).
-func NewPGVectorStore(db *sql.DB, opts PGVectorOptions) VectorStore {
+func NewPGVectorStoreWithOptions(db *sql.DB, opts PGVectorStoreOptions) VectorStore {
 	if db == nil {
 		panic("nil db")
 	}
-	normalized, err := normalizePGVectorOptions(opts)
+	normalized, err := normalizePGVectorOptions(opts.PGVectorOptions)
 	if err != nil {
 		panic(err.Error())
 	}
 
-	runtime := normalizePGVectorRuntimeOptions(PGVectorRuntimeOptions{})
+	runtime := normalizePGVectorRuntimeOptions(opts.Runtime)
+	if runtime.MaxTopK < 0 || runtime.MaxParentIDs < 0 || runtime.MaxContentBytes < 0 {
+		panic("invalid PGVectorRuntimeOptions")
+	}
 	internalRuntime := vectorstore.RuntimeOptions{
 		SearchTimeout:   runtime.SearchTimeout,
 		UpsertTimeout:   runtime.UpsertTimeout,
@@ -81,34 +93,24 @@ func NewPGVectorStore(db *sql.DB, opts PGVectorOptions) VectorStore {
 	)
 }
 
-// NewPGVectorStoreWithRuntimeOptions создаёт pgvector-backed реализацию VectorStore с runtime ограничениями.
-func NewPGVectorStoreWithRuntimeOptions(db *sql.DB, opts PGVectorOptions, runtime PGVectorRuntimeOptions) VectorStore {
-	if db == nil {
-		panic("nil db")
-	}
-	normalized, err := normalizePGVectorOptions(opts)
-	if err != nil {
-		panic(err.Error())
-	}
-	runtime = normalizePGVectorRuntimeOptions(runtime)
-	if runtime.MaxTopK < 0 || runtime.MaxParentIDs < 0 || runtime.MaxContentBytes < 0 {
-		panic("invalid PGVectorRuntimeOptions")
-	}
-	internalRuntime := vectorstore.RuntimeOptions{
-		SearchTimeout:   runtime.SearchTimeout,
-		UpsertTimeout:   runtime.UpsertTimeout,
-		DeleteTimeout:   runtime.DeleteTimeout,
-		MaxTopK:         runtime.MaxTopK,
-		MaxParentIDs:    runtime.MaxParentIDs,
-		MaxContentBytes: runtime.MaxContentBytes,
-	}
+// NewPGVectorStore создаёт pgvector-backed реализацию VectorStore.
+//
+// Схема БД не создаётся автоматически: перед использованием примените миграции через MigratePGVector
+// (или SetupPGVector как backward-compatible alias).
+//
+// Если у ctx нет deadline, операции store используют дефолтные таймауты (см. PGVectorRuntimeOptions).
+func NewPGVectorStore(db *sql.DB, opts PGVectorOptions) VectorStore {
+	return NewPGVectorStoreWithOptions(db, PGVectorStoreOptions{PGVectorOptions: opts})
+}
 
-	return vectorstore.NewPGVectorStoreWithRuntimeOptions(
-		db,
-		normalized.TableName,
-		normalized.EmbeddingDimension,
-		internalRuntime,
-	)
+// NewPGVectorStoreWithRuntimeOptions создаёт pgvector-backed реализацию VectorStore с runtime ограничениями.
+//
+// Deprecated: используйте NewPGVectorStoreWithOptions (PGVectorStoreOptions.Runtime).
+func NewPGVectorStoreWithRuntimeOptions(db *sql.DB, opts PGVectorOptions, runtime PGVectorRuntimeOptions) VectorStore {
+	return NewPGVectorStoreWithOptions(db, PGVectorStoreOptions{
+		PGVectorOptions: opts,
+		Runtime:         runtime,
+	})
 }
 
 // SetupPGVector — backward-compatible alias для MigratePGVector.

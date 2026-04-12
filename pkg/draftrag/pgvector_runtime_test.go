@@ -42,10 +42,27 @@ func TestNewPGVectorStoreWithRuntimeOptions_PanicsOnInvalidLimits(t *testing.T) 
 
 	// db не используется до panic, но проверка nil db была бы первой, поэтому используем non-nil.
 	db := &sql.DB{}
-	_ = NewPGVectorStoreWithRuntimeOptions(db, PGVectorOptions{EmbeddingDimension: 1}, PGVectorRuntimeOptions{MaxTopK: -1})
+	_ = NewPGVectorStoreWithOptions(db, PGVectorStoreOptions{
+		PGVectorOptions: PGVectorOptions{EmbeddingDimension: 1},
+		Runtime:         PGVectorRuntimeOptions{MaxTopK: -1},
+	})
 }
 
 // @sk-task T4.2: Integration-тест SearchWithMetadataFilter в pgvector (AC-001, AC-004, DEC-002)
+
+func TestNewPGVectorStoreWithRuntimeOptions_LegacyWrapper_DoesNotPanic(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("unexpected panic: %v", r)
+		}
+	}()
+
+	db := &sql.DB{}
+	store := NewPGVectorStoreWithRuntimeOptions(db, PGVectorOptions{EmbeddingDimension: 1}, PGVectorRuntimeOptions{})
+	if store == nil {
+		t.Fatalf("expected non-nil store")
+	}
+}
 
 // TestPipeline_SearchWithMetadataFilter_Integration проверяет корректность фильтрации по метаданным
 // в реальной БД PostgreSQL+pgvector.
@@ -81,9 +98,12 @@ func TestPipeline_SearchWithMetadataFilter_Integration(t *testing.T) {
 		_, _ = db.ExecContext(context.Background(), "DROP TABLE IF EXISTS "+`"`+tableName+`"`)
 	})
 
-	store := NewPGVectorStoreWithRuntimeOptions(db, opts, PGVectorRuntimeOptions{
-		MaxTopK:      50,
-		MaxParentIDs: 128,
+	store := NewPGVectorStoreWithOptions(db, PGVectorStoreOptions{
+		PGVectorOptions: opts,
+		Runtime: PGVectorRuntimeOptions{
+			MaxTopK:      50,
+			MaxParentIDs: 128,
+		},
 	})
 
 	// Индексируем документы с разными категориями напрямую через store.
