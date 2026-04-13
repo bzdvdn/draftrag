@@ -40,7 +40,7 @@
 | PostgreSQL + pgvector | stable | Production-ready; hybrid search (BM25+semantic), SQL-фильтры, миграции |
 | Qdrant | stable | Production-ready; payload filters, управление коллекциями |
 | ChromaDB | stable | Требует заранее созданной коллекции; фильтры доступны через API |
-| Weaviate | experimental | Публичный API есть, но отдельного дока пока нет; используйте с оглядкой на релиз-ноты |
+| Weaviate | experimental | См. [docs/weaviate.md](weaviate.md); используйте с оглядкой на релиз-ноты |
 
 ### Embedders
 

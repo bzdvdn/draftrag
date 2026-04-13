@@ -147,6 +147,39 @@ docker run -d -p 6333:6333 qdrant/qdrant
 
 ---
 
+## Weaviate
+
+Weaviate-backed store через публичный API `pkg/draftrag`.
+
+Статус: **experimental** (см. `docs/compatibility.md`). Подробная инструкция и troubleshooting: `docs/weaviate.md`.
+
+```go
+opts := draftrag.WeaviateOptions{
+    Host:       "localhost:8080", // обязательно
+    Scheme:     "http",           // "" → http
+    Collection: "MyChunks",       // обязательно (Weaviate class)
+    APIKey:     "",               // опционально (Weaviate Cloud)
+    Timeout:    10 * time.Second, // HTTP таймаут для schema операций
+}
+
+store, err := draftrag.NewWeaviateStore(opts)
+```
+
+### Управление коллекцией (рекомендация для production)
+
+В production schema/создание коллекции обычно делается отдельным шагом деплоя (deploy job/init container), а не при старте сервиса:
+
+```go
+exists, err := draftrag.WeaviateCollectionExists(ctx, opts)
+if !exists {
+    err = draftrag.CreateWeaviateCollection(ctx, opts)
+}
+```
+
+**Поддерживает**: `VectorStore`, `VectorStoreWithFilters`
+
+---
+
 ## ChromaDB
 
 ```go
@@ -171,10 +204,13 @@ docker run -d -p 8000:8000 chromadb/chroma
 
 ## Сравнение
 
-| | In-Memory | pgvector | Qdrant | ChromaDB |
-|---|---|---|---|---|
-| Production | ✗ | ✅ | ✅ | ✅ |
-| Постоянное хранение | ✗ | ✅ | ✅ | ✅ |
-| Metadata filters | ✅ | ✅ | ✅ | ✅ |
-| Hybrid search (BM25) | ✅ | ✅ | ✗ | ✗ |
-| SQL-миграции | — | ✅ | — | — |
+| | In-Memory | pgvector | Qdrant | ChromaDB | Weaviate |
+|---|---|---|---|---|---|
+| Production | ✗ | ✅ | ✅ | ✅ | ⚠️ |
+| Постоянное хранение | ✗ | ✅ | ✅ | ✅ | ✅ |
+| Metadata filters | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Hybrid search (BM25) | ✅ | ✅ | ✗ | ✗ | ✗ |
+| SQL-миграции | — | ✅ | — | — | — |
+| Управление коллекцией | — | — | ✅ | ✗ | ✅ |
+
+⚠️ Weaviate: статус **experimental** — см. `docs/compatibility.md` и `docs/weaviate.md`.
