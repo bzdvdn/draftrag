@@ -18,7 +18,7 @@ argument-hint: [request]
 - Когда для фазы есть связанные scripts — выполняйте их как shell-команды (например `bash ./path/to/script.sh`). Доверяйте stdout и exit-коду скрипта. Не читайте, не анализируйте и не модифицируйте исходный код скриптов. Если скрипт завершился с ошибкой (exit code ≠ 0), сообщите пользователю вывод ошибки и остановитесь.
 
 - Scripts для выполнения (запускать через shell):
-  - `./.speckeep/scripts/check-plan-ready.sh`
+  - `./.speckeep/scripts/check-plan-ready.sh <slug>`
 - Не запускайте `speckeep ... --help`/`speckeep help` для «разведки»; вместо этого опирайтесь на prompt-файл и readiness scripts.
 - обновляйте только релевантные артефакты и кратко сообщайте об итогах и блокерах
 

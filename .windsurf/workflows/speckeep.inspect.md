@@ -12,11 +12,13 @@ trigger: manual
 
 Когда для фазы есть связанные scripts — выполняйте их как shell-команды (например `bash ./path/to/script.sh`). Доверяйте stdout и exit-коду скрипта. Не читайте, не анализируйте и не модифицируйте исходный код скриптов. Если скрипт завершился с ошибкой (exit code ≠ 0), сообщите пользователю вывод ошибки и остановитесь.
 
+Важно: readiness scripts почти всегда требуют `<slug>` первым аргументом. Пример: `bash ./.speckeep/scripts/check-tasks-ready.sh <slug>`.
+
 - Примечание (Windsurf): убедитесь, что hidden/dotfiles индексируются и видны (папка `.speckeep/`). Перед запуском scripts работайте из корня репозитория (где лежит `.speckeep/`): `cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"`.
 - Не запускайте `speckeep ... --help`/`speckeep help` для «разведки»; вместо этого опирайтесь на prompt-файл и readiness scripts.
 
 - Scripts для выполнения (запускать через shell):
-  - `./.speckeep/scripts/check-inspect-ready.sh`
+  - `./.speckeep/scripts/check-inspect-ready.sh <slug>`
   - `./.speckeep/scripts/inspect-spec.sh`
 
 Запрещено:

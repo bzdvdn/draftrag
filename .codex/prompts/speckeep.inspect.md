@@ -14,7 +14,7 @@
 - Не запускайте `speckeep ... --help`/`speckeep help` для «разведки»; вместо этого опирайтесь на prompt-файл и readiness scripts.
 
 - Scripts для выполнения (запускать через shell):
-  - `./.speckeep/scripts/check-inspect-ready.sh`
+  - `./.speckeep/scripts/check-inspect-ready.sh <slug>`
   - `./.speckeep/scripts/inspect-spec.sh`
 
 Запрещено:

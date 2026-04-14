@@ -14,7 +14,7 @@
 - Не запускайте `speckeep ... --help`/`speckeep help` для «разведки»; вместо этого опирайтесь на prompt-файл и readiness scripts.
 
 - Scripts для выполнения (запускать через shell):
-  - `./.speckeep/scripts/check-plan-ready.sh`
+  - `./.speckeep/scripts/check-plan-ready.sh <slug>`
 
 Запрещено:
 - пропускать readiness scripts и переходить к фазе напрямую

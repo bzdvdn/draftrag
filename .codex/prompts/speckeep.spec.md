@@ -14,7 +14,7 @@
 - Не запускайте `speckeep ... --help`/`speckeep help` для «разведки»; вместо этого опирайтесь на prompt-файл и readiness scripts.
 - Для `/speckeep.spec`: до записи любого файла обязательно переключиться/создать feature-ветку `feature/<slug>` (или явное значение `--branch`). Если git недоступен или вы в detached HEAD — остановитесь и сообщите причину.
 - Scripts для выполнения (запускать через shell):
-  - `./.speckeep/scripts/check-spec-ready.sh`
+  - `./.speckeep/scripts/check-spec-ready.sh <slug>`
 
 Запрещено:
 - пропускать readiness scripts и переходить к фазе напрямую

@@ -34,6 +34,8 @@ type QdrantRuntimeOptions struct {
 var _ domain.VectorStore = (*QdrantStore)(nil)
 var _ domain.VectorStoreWithFilters = (*QdrantStore)(nil)
 var _ domain.DocumentStore = (*QdrantStore)(nil)
+var _ domain.HybridSearcher = (*QdrantStore)(nil) // @sk-task T1.1: Добавить assertion для HybridSearcher (AC-001)
+var _ domain.HybridSearcherWithFilters = (*QdrantStore)(nil) // @sk-task T3.1: Добавить assertion для HybridSearcherWithFilters (AC-004)
 
 // NewQdrantStore создаёт новый Qdrant-backed store.
 //
@@ -552,6 +554,478 @@ func (s *QdrantStore) SearchWithMetadataFilter(
 
 	return domain.RetrievalResult{
 		Chunks:     chunks,
+		TotalFound: len(chunks),
+	}, nil
+}
+
+// SearchHybrid выполняет гибридный поиск: семантический + BM25 через Query API Qdrant.
+// Использует Prefetch для multi-vector retrieval и Fusion.RRF для объединения результатов.
+//
+// @sk-task T2.1: Реализовать SearchHybrid с Query API Prefetch и Fusion.RRF (AC-001, AC-002, AC-003, AC-005, AC-006, DEC-001, DEC-002)
+func (s *QdrantStore) SearchHybrid(ctx context.Context, query string, embedding []float64, topK int, config domain.HybridConfig) (domain.RetrievalResult, error) {
+	if ctx == nil {
+		panic("nil context")
+	}
+
+	// Валидируем конфигурацию
+	if err := config.Validate(); err != nil {
+		return domain.RetrievalResult{}, err
+	}
+
+	if strings.TrimSpace(query) == "" {
+		return domain.RetrievalResult{}, errors.New("query is empty")
+	}
+	if topK <= 0 {
+		return domain.RetrievalResult{}, domain.ErrInvalidQueryTopK
+	}
+
+	// Валидация размерности
+	if len(embedding) != s.dimension {
+		return domain.RetrievalResult{}, fmt.Errorf("%w: expected %d, got %d", domain.ErrEmbeddingDimensionMismatch, s.dimension, len(embedding))
+	}
+
+	// Формируем Query API запрос с Prefetch для dense и sparse векторов
+	// Используем topK * 2 для каждого prefetch для fusion
+	searchTopK := topK * 2
+
+	body := map[string]interface{}{
+		"prefetch": []map[string]interface{}{
+			{
+				"prefetch": []map[string]interface{}{
+					{
+						"query": embedding,
+						"using": "dense",
+						"limit": searchTopK,
+					},
+				},
+				"query": embedding,
+				"using": "dense",
+				"limit": searchTopK,
+			},
+			{
+				"query": map[string]interface{}{
+					"indices": []int{},    // Sparse vector indices (BM25)
+					"values":  []float64{}, // Sparse vector values
+				},
+				"using": "sparse",
+				"limit": searchTopK,
+			},
+		},
+		"query": map[string]interface{}{
+			"fusion": map[string]interface{}{
+				"type": "rrf",
+			},
+		},
+	}
+
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return domain.RetrievalResult{}, fmt.Errorf("marshal request: %w", err)
+	}
+
+	// Query API endpoint
+	url := fmt.Sprintf("%s/collections/%s/points/query", s.baseURL, s.collection)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(jsonBody))
+	if err != nil {
+		return domain.RetrievalResult{}, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return domain.RetrievalResult{}, ctxErr
+		}
+		return domain.RetrievalResult{}, fmt.Errorf("qdrant request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		return domain.RetrievalResult{}, fmt.Errorf("qdrant error: status=%d, body=%s", resp.StatusCode, string(body))
+	}
+
+	var result struct {
+		Result []struct {
+			ID      string                 `json:"id"`
+			Score   float64                `json:"score"`
+			Payload map[string]interface{} `json:"payload"`
+		} `json:"result"`
+		Status string `json:"status"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return domain.RetrievalResult{}, fmt.Errorf("decode response: %w", err)
+	}
+
+	chunks := make([]domain.RetrievedChunk, 0, len(result.Result))
+	for _, r := range result.Result {
+		chunk := domain.Chunk{
+			ID: r.ID,
+		}
+
+		if content, ok := r.Payload["content"].(string); ok {
+			chunk.Content = content
+		}
+		if parentID, ok := r.Payload["parent_id"].(string); ok {
+			chunk.ParentID = parentID
+		}
+		if pos, ok := r.Payload["position"].(float64); ok {
+			chunk.Position = int(pos)
+		}
+
+		// Извлечение метаданных
+		chunk.Metadata = make(map[string]string)
+		for k, v := range r.Payload {
+			if len(k) > 9 && k[:9] == "metadata." {
+				if strVal, ok := v.(string); ok {
+					chunk.Metadata[k[9:]] = strVal
+				}
+			}
+		}
+
+		chunks = append(chunks, domain.RetrievedChunk{
+			Chunk: chunk,
+			Score: r.Score,
+		})
+	}
+
+	// Ограничиваем результат до topK
+	if len(chunks) > topK {
+		chunks = chunks[:topK]
+	}
+
+	return domain.RetrievalResult{
+		Chunks:     chunks,
+		QueryText:  query,
+		TotalFound: len(chunks),
+	}, nil
+}
+
+// SearchHybridWithParentIDFilter выполняет гибридный поиск с фильтрацией по ParentID.
+// Использует Query API с Prefetch для multi-vector retrieval и Fusion.RRF для объединения результатов.
+//
+// @sk-task T3.1: Реализовать SearchHybridWithParentIDFilter с фильтрацией (AC-004)
+func (s *QdrantStore) SearchHybridWithParentIDFilter(ctx context.Context, query string, embedding []float64, topK int, config domain.HybridConfig, filter domain.ParentIDFilter) (domain.RetrievalResult, error) {
+	if len(filter.ParentIDs) == 0 {
+		return s.SearchHybrid(ctx, query, embedding, topK, config)
+	}
+
+	if ctx == nil {
+		panic("nil context")
+	}
+
+	// Валидируем конфигурацию
+	if err := config.Validate(); err != nil {
+		return domain.RetrievalResult{}, err
+	}
+
+	if strings.TrimSpace(query) == "" {
+		return domain.RetrievalResult{}, errors.New("query is empty")
+	}
+	if topK <= 0 {
+		return domain.RetrievalResult{}, domain.ErrInvalidQueryTopK
+	}
+
+	// Валидация размерности
+	if len(embedding) != s.dimension {
+		return domain.RetrievalResult{}, fmt.Errorf("%w: expected %d, got %d", domain.ErrEmbeddingDimensionMismatch, s.dimension, len(embedding))
+	}
+
+	// Формируем фильтр "should" для OR по ParentIDs
+	shouldConditions := make([]map[string]interface{}, 0, len(filter.ParentIDs))
+	for _, parentID := range filter.ParentIDs {
+		shouldConditions = append(shouldConditions, map[string]interface{}{
+			"key": "parent_id",
+			"match": map[string]interface{}{
+				"value": parentID,
+			},
+		})
+	}
+
+	// Формируем Query API запрос с Prefetch для dense и sparse векторов
+	searchTopK := topK * 2
+
+	body := map[string]interface{}{
+		"prefetch": []map[string]interface{}{
+			{
+				"prefetch": []map[string]interface{}{
+					{
+						"query": embedding,
+						"using": "dense",
+						"limit": searchTopK,
+						"filter": map[string]interface{}{
+							"should": shouldConditions,
+						},
+					},
+				},
+				"query": embedding,
+				"using": "dense",
+				"limit": searchTopK,
+				"filter": map[string]interface{}{
+					"should": shouldConditions,
+				},
+			},
+			{
+				"query": map[string]interface{}{
+					"indices": []int{},
+					"values":  []float64{},
+				},
+				"using": "sparse",
+				"limit": searchTopK,
+				"filter": map[string]interface{}{
+					"should": shouldConditions,
+				},
+			},
+		},
+		"query": map[string]interface{}{
+			"fusion": map[string]interface{}{
+				"type": "rrf",
+			},
+		},
+	}
+
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return domain.RetrievalResult{}, fmt.Errorf("marshal request: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/collections/%s/points/query", s.baseURL, s.collection)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(jsonBody))
+	if err != nil {
+		return domain.RetrievalResult{}, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return domain.RetrievalResult{}, ctxErr
+		}
+		return domain.RetrievalResult{}, fmt.Errorf("qdrant request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		return domain.RetrievalResult{}, fmt.Errorf("qdrant error: status=%d, body=%s", resp.StatusCode, string(body))
+	}
+
+	var result struct {
+		Result []struct {
+			ID      string                 `json:"id"`
+			Score   float64                `json:"score"`
+			Payload map[string]interface{} `json:"payload"`
+		} `json:"result"`
+		Status string `json:"status"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return domain.RetrievalResult{}, fmt.Errorf("decode response: %w", err)
+	}
+
+	chunks := make([]domain.RetrievedChunk, 0, len(result.Result))
+	for _, r := range result.Result {
+		chunk := domain.Chunk{
+			ID: r.ID,
+		}
+
+		if content, ok := r.Payload["content"].(string); ok {
+			chunk.Content = content
+		}
+		if parentID, ok := r.Payload["parent_id"].(string); ok {
+			chunk.ParentID = parentID
+		}
+		if pos, ok := r.Payload["position"].(float64); ok {
+			chunk.Position = int(pos)
+		}
+
+		chunk.Metadata = make(map[string]string)
+		for k, v := range r.Payload {
+			if len(k) > 9 && k[:9] == "metadata." {
+				if strVal, ok := v.(string); ok {
+					chunk.Metadata[k[9:]] = strVal
+				}
+			}
+		}
+
+		chunks = append(chunks, domain.RetrievedChunk{
+			Chunk: chunk,
+			Score: r.Score,
+		})
+	}
+
+	if len(chunks) > topK {
+		chunks = chunks[:topK]
+	}
+
+	return domain.RetrievalResult{
+		Chunks:     chunks,
+		QueryText:  query,
+		TotalFound: len(chunks),
+	}, nil
+}
+
+// SearchHybridWithMetadataFilter выполняет гибридный поиск с фильтрацией по метаданным.
+// Использует Query API с Prefetch для multi-vector retrieval и Fusion.RRF для объединения результатов.
+//
+// @sk-task T3.1: Реализовать SearchHybridWithMetadataFilter с фильтрацией (AC-004)
+func (s *QdrantStore) SearchHybridWithMetadataFilter(ctx context.Context, query string, embedding []float64, topK int, config domain.HybridConfig, filter domain.MetadataFilter) (domain.RetrievalResult, error) {
+	if len(filter.Fields) == 0 {
+		return s.SearchHybrid(ctx, query, embedding, topK, config)
+	}
+
+	if ctx == nil {
+		panic("nil context")
+	}
+
+	// Валидируем конфигурацию
+	if err := config.Validate(); err != nil {
+		return domain.RetrievalResult{}, err
+	}
+
+	if strings.TrimSpace(query) == "" {
+		return domain.RetrievalResult{}, errors.New("query is empty")
+	}
+	if topK <= 0 {
+		return domain.RetrievalResult{}, domain.ErrInvalidQueryTopK
+	}
+
+	// Валидация размерности
+	if len(embedding) != s.dimension {
+		return domain.RetrievalResult{}, fmt.Errorf("%w: expected %d, got %d", domain.ErrEmbeddingDimensionMismatch, s.dimension, len(embedding))
+	}
+
+	// Формируем фильтр "must" для AND по metadata полям
+	mustConditions := make([]map[string]interface{}, 0, len(filter.Fields))
+	for k, v := range filter.Fields {
+		mustConditions = append(mustConditions, map[string]interface{}{
+			"key": "metadata." + k,
+			"match": map[string]interface{}{
+				"value": v,
+			},
+		})
+	}
+
+	// Формируем Query API запрос с Prefetch для dense и sparse векторов
+	searchTopK := topK * 2
+
+	body := map[string]interface{}{
+		"prefetch": []map[string]interface{}{
+			{
+				"prefetch": []map[string]interface{}{
+					{
+						"query": embedding,
+						"using": "dense",
+						"limit": searchTopK,
+						"filter": map[string]interface{}{
+							"must": mustConditions,
+						},
+					},
+				},
+				"query": embedding,
+				"using": "dense",
+				"limit": searchTopK,
+				"filter": map[string]interface{}{
+					"must": mustConditions,
+				},
+			},
+			{
+				"query": map[string]interface{}{
+					"indices": []int{},
+					"values":  []float64{},
+				},
+				"using": "sparse",
+				"limit": searchTopK,
+				"filter": map[string]interface{}{
+					"must": mustConditions,
+				},
+			},
+		},
+		"query": map[string]interface{}{
+			"fusion": map[string]interface{}{
+				"type": "rrf",
+			},
+		},
+	}
+
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return domain.RetrievalResult{}, fmt.Errorf("marshal request: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/collections/%s/points/query", s.baseURL, s.collection)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(jsonBody))
+	if err != nil {
+		return domain.RetrievalResult{}, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return domain.RetrievalResult{}, ctxErr
+		}
+		return domain.RetrievalResult{}, fmt.Errorf("qdrant request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		return domain.RetrievalResult{}, fmt.Errorf("qdrant error: status=%d, body=%s", resp.StatusCode, string(body))
+	}
+
+	var result struct {
+		Result []struct {
+			ID      string                 `json:"id"`
+			Score   float64                `json:"score"`
+			Payload map[string]interface{} `json:"payload"`
+		} `json:"result"`
+		Status string `json:"status"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return domain.RetrievalResult{}, fmt.Errorf("decode response: %w", err)
+	}
+
+	chunks := make([]domain.RetrievedChunk, 0, len(result.Result))
+	for _, r := range result.Result {
+		chunk := domain.Chunk{
+			ID: r.ID,
+		}
+
+		if content, ok := r.Payload["content"].(string); ok {
+			chunk.Content = content
+		}
+		if parentID, ok := r.Payload["parent_id"].(string); ok {
+			chunk.ParentID = parentID
+		}
+		if pos, ok := r.Payload["position"].(float64); ok {
+			chunk.Position = int(pos)
+		}
+
+		chunk.Metadata = make(map[string]string)
+		for k, v := range r.Payload {
+			if len(k) > 9 && k[:9] == "metadata." {
+				if strVal, ok := v.(string); ok {
+					chunk.Metadata[k[9:]] = strVal
+				}
+			}
+		}
+
+		chunks = append(chunks, domain.RetrievedChunk{
+			Chunk: chunk,
+			Score: r.Score,
+		})
+	}
+
+	if len(chunks) > topK {
+		chunks = chunks[:topK]
+	}
+
+	return domain.RetrievalResult{
+		Chunks:     chunks,
+		QueryText:  query,
 		TotalFound: len(chunks),
 	}, nil
 }

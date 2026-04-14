@@ -14,8 +14,8 @@
 - Не запускайте `speckeep ... --help`/`speckeep help` для «разведки»; вместо этого опирайтесь на prompt-файл и readiness scripts.
 
 - Scripts для выполнения (запускать через shell):
-  - `./.speckeep/scripts/check-verify-ready.sh`
-  - `./.speckeep/scripts/verify-task-state.sh`
+  - `./.speckeep/scripts/check-verify-ready.sh <slug>`
+  - `./.speckeep/scripts/verify-task-state.sh <slug>`
 
 Запрещено:
 - пропускать readiness scripts и переходить к фазе напрямую
