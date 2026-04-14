@@ -1,12 +1,12 @@
 version: 1
 project:
     name: my-project
-    constitution_file: .speckeep/constitution.md
+    constitution_file: CONSTITUTION.md
 runtime:
     shell: sh
 paths:
-    specs_dir: .speckeep/specs
-    archive_dir: .speckeep/archive
+    specs_dir: docs/specs
+    archive_dir: docs/specs-archive
     templates_dir: .speckeep/templates
     scripts_dir: .speckeep/scripts
 language:
