@@ -2,7 +2,7 @@
 trigger: manual
 ---
 
-Следуйте файлу ".speckeep/templates/prompts/constitution.md".
+Сначала откройте и прочитайте файл ".speckeep/templates/prompts/constitution.md" (обязательно). Затем строго следуйте его разделу "Output expectations", включая финальную строку `Готово к: ...` (без замены на «Следующий шаг», без альтернативных фаз, без выдуманных флагов).
 
 Команда: `/speckeep.constitution [request]`
 

@@ -2,7 +2,7 @@
 trigger: manual
 ---
 
-Следуйте файлу ".speckeep/templates/prompts/inspect.md".
+Сначала откройте и прочитайте файл ".speckeep/templates/prompts/inspect.md" (обязательно). Затем строго следуйте его разделу "Output expectations", включая финальную строку `Готово к: ...` (без замены на «Следующий шаг», без альтернативных фаз, без выдуманных флагов).
 
 Команда: `/speckeep.inspect [request]`
 
