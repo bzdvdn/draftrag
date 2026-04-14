@@ -31,6 +31,12 @@ type WeaviateStore struct {
 var _ domain.VectorStore = (*WeaviateStore)(nil)
 var _ domain.VectorStoreWithFilters = (*WeaviateStore)(nil)
 
+// @sk-task T1.1: Добавить assertion для HybridSearcher (AC-001)
+var _ domain.HybridSearcher = (*WeaviateStore)(nil)
+
+// @sk-task T4.1: Добавить assertion для HybridSearcherWithFilters (AC-004, DEC-003)
+var _ domain.HybridSearcherWithFilters = (*WeaviateStore)(nil)
+
 // NewWeaviateStore создаёт WeaviateStore с указанными параметрами.
 // scheme: "http" или "https"; host: "localhost:8080" или аналог.
 func NewWeaviateStore(scheme, host, collection, apiKey string) *WeaviateStore {
@@ -266,6 +272,253 @@ func (s *WeaviateStore) SearchWithMetadataFilter(
 		return domain.RetrievalResult{}, domain.ErrInvalidQueryTopK
 	}
 	return s.searchWithWhere(ctx, embedding, topK, whereMetadataFields(filter.Fields))
+}
+
+// SearchHybrid выполняет гибридный поиск (BM25 + semantic fusion) через Weaviate GraphQL API.
+// Использует bm25 и nearVector с fusion-стратегией (RRF или weighted) в зависимости от HybridConfig.
+//
+// @sk-task T2.1: Реализация SearchHybrid с GraphQL API (AC-001, AC-002, AC-003, AC-005, AC-006, DEC-001, DEC-002, DEC-003)
+func (s *WeaviateStore) SearchHybrid(
+	ctx context.Context,
+	query string,
+	embedding []float64,
+	topK int,
+	config domain.HybridConfig,
+) (domain.RetrievalResult, error) {
+	if ctx == nil {
+		panic("nil context")
+	}
+	if err := ctx.Err(); err != nil {
+		return domain.RetrievalResult{}, err
+	}
+	if err := config.Validate(); err != nil {
+		return domain.RetrievalResult{}, err
+	}
+	if strings.TrimSpace(query) == "" {
+		return domain.RetrievalResult{}, domain.ErrEmptyQueryText
+	}
+	if topK <= 0 {
+		return domain.RetrievalResult{}, domain.ErrInvalidQueryTopK
+	}
+
+	return s.searchHybridGraphQL(ctx, query, embedding, topK, config, "")
+}
+
+// SearchHybridWithParentIDFilter выполняет гибридный поиск с фильтрацией по ParentID.
+// При пустом ParentIDs делегирует в SearchHybrid без WHERE-клаузы.
+//
+// @sk-task T4.1: Реализация SearchHybridWithParentIDFilter (AC-004, DEC-003)
+func (s *WeaviateStore) SearchHybridWithParentIDFilter(
+	ctx context.Context,
+	query string,
+	embedding []float64,
+	topK int,
+	config domain.HybridConfig,
+	filter domain.ParentIDFilter,
+) (domain.RetrievalResult, error) {
+	if len(filter.ParentIDs) == 0 {
+		return s.SearchHybrid(ctx, query, embedding, topK, config)
+	}
+	if ctx == nil {
+		panic("nil context")
+	}
+	if err := ctx.Err(); err != nil {
+		return domain.RetrievalResult{}, err
+	}
+	if err := config.Validate(); err != nil {
+		return domain.RetrievalResult{}, err
+	}
+	if strings.TrimSpace(query) == "" {
+		return domain.RetrievalResult{}, domain.ErrEmptyQueryText
+	}
+	if topK <= 0 {
+		return domain.RetrievalResult{}, domain.ErrInvalidQueryTopK
+	}
+
+	return s.searchHybridGraphQL(ctx, query, embedding, topK, config, whereParentIDs(filter.ParentIDs))
+}
+
+// SearchHybridWithMetadataFilter выполняет гибридный поиск с фильтрацией по метаданным.
+// При пустом filter.Fields делегирует в SearchHybrid без WHERE-клаузы.
+//
+// @sk-task T4.1: Реализация SearchHybridWithMetadataFilter (AC-004, DEC-003)
+func (s *WeaviateStore) SearchHybridWithMetadataFilter(
+	ctx context.Context,
+	query string,
+	embedding []float64,
+	topK int,
+	config domain.HybridConfig,
+	filter domain.MetadataFilter,
+) (domain.RetrievalResult, error) {
+	if len(filter.Fields) == 0 {
+		return s.SearchHybrid(ctx, query, embedding, topK, config)
+	}
+	if ctx == nil {
+		panic("nil context")
+	}
+	if err := ctx.Err(); err != nil {
+		return domain.RetrievalResult{}, err
+	}
+	if err := config.Validate(); err != nil {
+		return domain.RetrievalResult{}, err
+	}
+	if strings.TrimSpace(query) == "" {
+		return domain.RetrievalResult{}, domain.ErrEmptyQueryText
+	}
+	if topK <= 0 {
+		return domain.RetrievalResult{}, domain.ErrInvalidQueryTopK
+	}
+
+	return s.searchHybridGraphQL(ctx, query, embedding, topK, config, whereMetadataFields(filter.Fields))
+}
+
+// searchHybridGraphQL выполняет GraphQL hybrid search запрос с bm25, nearVector и fusion.
+// whereClause — готовая строка вида `where: {...}` или пустая строка для фильтрации.
+//
+// @sk-task T2.1: GraphQL запрос с bm25 и nearVector (AC-002, AC-003, DEC-001)
+func (s *WeaviateStore) searchHybridGraphQL(
+	ctx context.Context,
+	query string,
+	embedding []float64,
+	topK int,
+	config domain.HybridConfig,
+	whereClause string,
+) (domain.RetrievalResult, error) {
+	vecBytes, err := json.Marshal(embedding)
+	if err != nil {
+		return domain.RetrievalResult{}, fmt.Errorf("marshal vector: %w", err)
+	}
+
+	// Формирование hybrid аргументов в зависимости от fusion-стратегии
+	var hybridArgs string
+	if config.UseRRF {
+		// RRF fusion: fusionType: "RankedFusion" с query и vector
+		hybridArgs = fmt.Sprintf(
+			`hybrid: {query: %q, vector: %s, fusionType: "RankedFusion"}`,
+			query, string(vecBytes),
+		)
+	} else {
+		// Weighted fusion: alpha = SemanticWeight (0.0 - 1.0)
+		hybridArgs = fmt.Sprintf(
+			`hybrid: {query: %q, vector: %s, alpha: %f}`,
+			query, string(vecBytes), config.SemanticWeight,
+		)
+	}
+
+	args := fmt.Sprintf("%s, limit: %d", hybridArgs, topK)
+	if whereClause != "" {
+		args += ", " + whereClause
+	}
+
+	gqlQuery := fmt.Sprintf(
+		`{ Get { %s(%s) { chunkId content parentId position chunkMetadata _additional { id score } } } }`,
+		s.collection, args,
+	)
+
+	reqBody := map[string]string{"query": gqlQuery}
+	jsonBody, err := json.Marshal(reqBody)
+	if err != nil {
+		return domain.RetrievalResult{}, fmt.Errorf("marshal request: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/v1/graphql", s.baseURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(jsonBody))
+	if err != nil {
+		return domain.RetrievalResult{}, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	s.setAuthHeader(req)
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return domain.RetrievalResult{}, fmt.Errorf("weaviate request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		return domain.RetrievalResult{}, fmt.Errorf("weaviate error: status=%d, body=%s", resp.StatusCode, string(b))
+	}
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return domain.RetrievalResult{}, fmt.Errorf("read response: %w", err)
+	}
+
+	return s.parseHybridGraphQLResponse(respBody)
+}
+
+// parseHybridGraphQLResponse разбирает ответ Weaviate GraphQL hybrid search в domain.RetrievalResult.
+// Score = _additional.score (fusion score от Weaviate).
+//
+// @sk-task T2.1: Парсинг ответа hybrid search (AC-002, AC-003)
+func (s *WeaviateStore) parseHybridGraphQLResponse(body []byte) (domain.RetrievalResult, error) {
+	var gqlResp struct {
+		Data struct {
+			Get map[string]json.RawMessage `json:"Get"`
+		} `json:"data"`
+		Errors []struct {
+			Message string `json:"message"`
+		} `json:"errors"`
+	}
+
+	if err := json.Unmarshal(body, &gqlResp); err != nil {
+		return domain.RetrievalResult{}, fmt.Errorf("decode response: %w", err)
+	}
+	if len(gqlResp.Errors) > 0 {
+		return domain.RetrievalResult{}, fmt.Errorf("weaviate graphql error: %s", gqlResp.Errors[0].Message)
+	}
+
+	rawCollection, ok := gqlResp.Data.Get[s.collection]
+	if !ok || string(rawCollection) == "null" {
+		return domain.RetrievalResult{Chunks: []domain.RetrievedChunk{}, TotalFound: 0}, nil
+	}
+
+	var objects []struct {
+		ChunkID       string `json:"chunkId"`
+		Content       string `json:"content"`
+		ParentID      string `json:"parentId"`
+		Position      int    `json:"position"`
+		ChunkMetadata string `json:"chunkMetadata"`
+		Additional    struct {
+			ID    string  `json:"id"`
+			Score float64 `json:"score"`
+		} `json:"_additional"`
+	}
+
+	if err := json.Unmarshal(rawCollection, &objects); err != nil {
+		return domain.RetrievalResult{}, fmt.Errorf("decode objects: %w", err)
+	}
+	if len(objects) == 0 {
+		return domain.RetrievalResult{Chunks: []domain.RetrievedChunk{}, TotalFound: 0}, nil
+	}
+
+	chunks := make([]domain.RetrievedChunk, 0, len(objects))
+	for _, obj := range objects {
+		chunk := domain.Chunk{
+			ID:       obj.ChunkID,
+			Content:  obj.Content,
+			ParentID: obj.ParentID,
+			Position: obj.Position,
+		}
+		// Восстановление Metadata из JSON-строки chunkMetadata (DEC-003)
+		if obj.ChunkMetadata != "" && obj.ChunkMetadata != "null" {
+			var meta map[string]string
+			if err := json.Unmarshal([]byte(obj.ChunkMetadata), &meta); err == nil {
+				chunk.Metadata = meta
+			}
+		}
+		chunks = append(chunks, domain.RetrievedChunk{
+			Chunk: chunk,
+			Score: obj.Additional.Score, // Fusion score от Weaviate
+		})
+	}
+
+	return domain.RetrievalResult{
+		Chunks:     chunks,
+		QueryText:  "", // QueryText не заполняется в SearchHybrid
+		TotalFound: len(chunks),
+	}, nil
 }
 
 // searchWithWhere выполняет GraphQL near-vector запрос с опциональным WHERE-фильтром.

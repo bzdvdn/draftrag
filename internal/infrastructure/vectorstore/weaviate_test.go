@@ -258,6 +258,30 @@ func TestWeaviateUuidFromID(t *testing.T) {
 	assert.Len(t, parts[4], 12)
 }
 
+// weaviateHybridSearchResponse формирует тестовый GraphQL-ответ Weaviate hybrid search с одним чанком.
+func weaviateHybridSearchResponse(collection string, chunkID, content, parentID string, position int, metadata map[string]string, score float64) map[string]interface{} {
+	metaJSON, _ := json.Marshal(metadata)
+	return map[string]interface{}{
+		"data": map[string]interface{}{
+			"Get": map[string]interface{}{
+				collection: []map[string]interface{}{
+					{
+						"chunkId":       chunkID,
+						"content":       content,
+						"parentId":      parentID,
+						"position":      position,
+						"chunkMetadata": string(metaJSON),
+						"_additional": map[string]interface{}{
+							"id":    uuidFromID(chunkID),
+							"score": score,
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 // weaviateTestHost извлекает host:port из URL httptest.Server для передачи в NewWeaviateStore.
 func weaviateTestHost(rawURL string) string {
 	if strings.HasPrefix(rawURL, "http://") {
@@ -267,4 +291,392 @@ func weaviateTestHost(rawURL string) string {
 		return rawURL[len("https://"):]
 	}
 	return rawURL
+}
+
+// TestWeaviateSearchHybridRRF проверяет SearchHybrid с RRF fusion (AC-002, AC-003).
+// @sk-test T3.1: TestWeaviateSearchHybridRRF (AC-002, AC-003)
+func TestWeaviateSearchHybridRRF(t *testing.T) {
+	var capturedQuery string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == "/v1/graphql" {
+			var body struct {
+				Query string `json:"query"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			capturedQuery = body.Query
+
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(weaviateHybridSearchResponse(
+				testWeaviateCollection, "c1", "Go concurrency patterns", "doc-1", 0,
+				map[string]string{"category": "go"}, 0.95,
+			))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	store := NewWeaviateStore("http", weaviateTestHost(server.URL), testWeaviateCollection, "")
+
+	config := domain.HybridConfig{
+		SemanticWeight: 0.7,
+		UseRRF:         true,
+		RRFK:           60,
+		BMFinalK:       0,
+	}
+
+	result, err := store.SearchHybrid(context.Background(), "concurrency", []float64{1, 0, 0}, 5, config)
+	require.NoError(t, err)
+	require.Len(t, result.Chunks, 1)
+
+	// AC-002: GraphQL запрос должен содержать bm25 (через query) и nearVector (через vector)
+	assert.Contains(t, capturedQuery, "concurrency", "GraphQL запрос должен содержать query для BM25")
+	assert.Contains(t, capturedQuery, "vector", "GraphQL запрос должен содержать vector для nearVector")
+
+	// AC-003: GraphQL запрос должен содержать fusionType: "RankedFusion" для RRF
+	assert.Contains(t, capturedQuery, "fusionType", "GraphQL запрос должен содержать fusionType")
+	assert.Contains(t, capturedQuery, "RankedFusion", "GraphQL запрос должен использовать RankedFusion для RRF")
+
+	got := result.Chunks[0]
+	assert.Equal(t, "c1", got.Chunk.ID)
+	assert.Equal(t, "Go concurrency patterns", got.Chunk.Content)
+	assert.Equal(t, "doc-1", got.Chunk.ParentID)
+	assert.Equal(t, 0.95, got.Score, "Score должен быть fusion score от Weaviate")
+}
+
+// TestWeaviateSearchHybridWeighted проверяет SearchHybrid с weighted fusion (AC-002, AC-003).
+// @sk-test T3.1: TestWeaviateSearchHybridWeighted (AC-002, AC-003)
+func TestWeaviateSearchHybridWeighted(t *testing.T) {
+	var capturedQuery string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == "/v1/graphql" {
+			var body struct {
+				Query string `json:"query"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			capturedQuery = body.Query
+
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(weaviateHybridSearchResponse(
+				testWeaviateCollection, "c2", "Go channels", "doc-2", 1,
+				map[string]string{"category": "go"}, 0.88,
+			))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	store := NewWeaviateStore("http", weaviateTestHost(server.URL), testWeaviateCollection, "")
+
+	config := domain.HybridConfig{
+		SemanticWeight: 0.7,
+		UseRRF:         false,
+		RRFK:           60,
+		BMFinalK:       0,
+	}
+
+	result, err := store.SearchHybrid(context.Background(), "channels", []float64{0, 1, 0}, 5, config)
+	require.NoError(t, err)
+	require.Len(t, result.Chunks, 1)
+
+	// AC-002: GraphQL запрос должен содержать bm25 (через query) и nearVector (через vector)
+	assert.Contains(t, capturedQuery, "channels", "GraphQL запрос должен содержать query для BM25")
+	assert.Contains(t, capturedQuery, "vector", "GraphQL запрос должен содержать vector для nearVector")
+
+	// AC-003: GraphQL запрос должен содержать alpha для weighted fusion
+	assert.Contains(t, capturedQuery, "alpha", "GraphQL запрос должен содержать alpha для weighted fusion")
+	assert.Contains(t, capturedQuery, "0.7", "GraphQL запрос должен содержать SemanticWeight как alpha")
+
+	got := result.Chunks[0]
+	assert.Equal(t, "c2", got.Chunk.ID)
+	assert.Equal(t, "Go channels", got.Chunk.Content)
+	assert.Equal(t, 0.88, got.Score, "Score должен быть fusion score от Weaviate")
+}
+
+// TestWeaviateSearchHybridInvalidConfig проверяет валидацию HybridConfig (AC-005).
+// @sk-test T3.1: TestWeaviateSearchHybridInvalidConfig (AC-005)
+func TestWeaviateSearchHybridInvalidConfig(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	store := NewWeaviateStore("http", weaviateTestHost(server.URL), testWeaviateCollection, "")
+
+	// SemanticWeight вне диапазона [0,1]
+	config := domain.HybridConfig{
+		SemanticWeight: 1.5,
+		UseRRF:         true,
+		RRFK:           60,
+		BMFinalK:       0,
+	}
+
+	_, err := store.SearchHybrid(context.Background(), "test", []float64{1, 0, 0}, 5, config)
+	require.Error(t, err, "SearchHybrid должен возвращать ошибку при невалидной HybridConfig")
+	assert.Contains(t, err.Error(), "SemanticWeight", "Ошибка должна указывать на SemanticWeight")
+
+	// RRFK < 1
+	config = domain.HybridConfig{
+		SemanticWeight: 0.7,
+		UseRRF:         true,
+		RRFK:           0,
+		BMFinalK:       0,
+	}
+
+	_, err = store.SearchHybrid(context.Background(), "test", []float64{1, 0, 0}, 5, config)
+	require.Error(t, err, "SearchHybrid должен возвращать ошибку при невалидной HybridConfig")
+	assert.Contains(t, err.Error(), "RRFK", "Ошибка должна указывать на RRFK")
+}
+
+// TestWeaviateSearchHybridGraphQLError проверяет обработку ошибок GraphQL API (AC-006).
+// @sk-test T3.1: TestWeaviateSearchHybridGraphQLError (AC-006)
+func TestWeaviateSearchHybridGraphQLError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == "/v1/graphql" {
+			// Возвращаем GraphQL ошибку
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"errors": []map[string]string{
+					{"message": "invalid query syntax"},
+				},
+			})
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	store := NewWeaviateStore("http", weaviateTestHost(server.URL), testWeaviateCollection, "")
+
+	config := domain.DefaultHybridConfig()
+	_, err := store.SearchHybrid(context.Background(), "test", []float64{1, 0, 0}, 5, config)
+	require.Error(t, err, "SearchHybrid должен возвращать ошибку при GraphQL ошибке")
+	assert.Contains(t, err.Error(), "graphql error", "Ошибка должна указывать на GraphQL ошибку")
+	assert.Contains(t, err.Error(), "invalid query syntax", "Ошибка должна содержать сообщение от GraphQL")
+}
+
+// TestWeaviateSearchHybridHTTPError проверяет обработку HTTP ошибок (AC-006).
+// @sk-test T3.1: TestWeaviateSearchHybridHTTPError (AC-006)
+func TestWeaviateSearchHybridHTTPError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == "/v1/graphql" {
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "internal server error"})
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	store := NewWeaviateStore("http", weaviateTestHost(server.URL), testWeaviateCollection, "")
+
+	config := domain.DefaultHybridConfig()
+	_, err := store.SearchHybrid(context.Background(), "test", []float64{1, 0, 0}, 5, config)
+	require.Error(t, err, "SearchHybrid должен возвращать ошибку при HTTP ошибке")
+	assert.Contains(t, err.Error(), "weaviate error", "Ошибка должна указывать на Weaviate ошибку")
+	assert.Contains(t, err.Error(), "500", "Ошибка должна содержать HTTP статус код")
+}
+
+// TestWeaviateSearchHybridEmptyQuery проверяет поведение при пустом query (AC-006).
+// @sk-test T3.1: TestWeaviateSearchHybridEmptyQuery (AC-006)
+func TestWeaviateSearchHybridEmptyQuery(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	store := NewWeaviateStore("http", weaviateTestHost(server.URL), testWeaviateCollection, "")
+
+	config := domain.DefaultHybridConfig()
+	_, err := store.SearchHybrid(context.Background(), "", []float64{1, 0, 0}, 5, config)
+	require.Error(t, err, "SearchHybrid должен возвращать ошибку при пустом query")
+	assert.Equal(t, domain.ErrEmptyQueryText, err, "Ошибка должна быть ErrEmptyQueryText")
+}
+
+// TestWeaviateSearchHybridEmpty проверяет поведение при пустых результатах.
+// @sk-test T3.1: TestWeaviateSearchHybridEmpty (AC-002)
+func TestWeaviateSearchHybridEmpty(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == "/v1/graphql" {
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"data": map[string]interface{}{
+					"Get": map[string]interface{}{
+						testWeaviateCollection: []interface{}{},
+					},
+				},
+			})
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	store := NewWeaviateStore("http", weaviateTestHost(server.URL), testWeaviateCollection, "")
+
+	config := domain.DefaultHybridConfig()
+	result, err := store.SearchHybrid(context.Background(), "test", []float64{1, 0, 0}, 5, config)
+	require.NoError(t, err)
+	assert.Empty(t, result.Chunks, "пустая коллекция должна возвращать пустой результат")
+}
+
+// TestWeaviateSearchHybridWithParentIDFilter проверяет фильтрацию по ParentID в hybrid search (AC-004).
+// @sk-test T5.1: TestWeaviateSearchHybridWithParentIDFilter (AC-004)
+func TestWeaviateSearchHybridWithParentIDFilter(t *testing.T) {
+	var capturedQuery string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == "/v1/graphql" {
+			var body struct {
+				Query string `json:"query"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			capturedQuery = body.Query
+
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(weaviateHybridSearchResponse(
+				testWeaviateCollection, "c1", "Go concurrency", "doc-1", 0,
+				map[string]string{"category": "go"}, 0.92,
+			))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	store := NewWeaviateStore("http", weaviateTestHost(server.URL), testWeaviateCollection, "")
+
+	config := domain.DefaultHybridConfig()
+	filter := domain.ParentIDFilter{ParentIDs: []string{"doc-1"}}
+
+	result, err := store.SearchHybridWithParentIDFilter(context.Background(), "concurrency", []float64{1, 0, 0}, 5, config, filter)
+	require.NoError(t, err)
+	require.Len(t, result.Chunks, 1)
+
+	// AC-004: GraphQL запрос должен содержать WHERE по parentId
+	assert.Contains(t, capturedQuery, "parentId", "GraphQL запрос должен содержать WHERE по parentId")
+	assert.Contains(t, capturedQuery, "doc-1", "GraphQL запрос должен содержать значение parentId")
+
+	got := result.Chunks[0]
+	assert.Equal(t, "c1", got.Chunk.ID)
+	assert.Equal(t, "doc-1", got.Chunk.ParentID)
+}
+
+// TestWeaviateSearchHybridWithParentIDFilterEmpty проверяет делегирование в SearchHybrid при пустом фильтре (AC-004).
+// @sk-test T5.1: TestWeaviateSearchHybridWithParentIDFilterEmpty (AC-004)
+func TestWeaviateSearchHybridWithParentIDFilterEmpty(t *testing.T) {
+	var capturedQuery string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == "/v1/graphql" {
+			var body struct {
+				Query string `json:"query"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			capturedQuery = body.Query
+
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(weaviateHybridSearchResponse(
+				testWeaviateCollection, "c1", "Go concurrency", "doc-1", 0,
+				map[string]string{"category": "go"}, 0.92,
+			))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	store := NewWeaviateStore("http", weaviateTestHost(server.URL), testWeaviateCollection, "")
+
+	config := domain.DefaultHybridConfig()
+	filter := domain.ParentIDFilter{ParentIDs: []string{}}
+
+	result, err := store.SearchHybridWithParentIDFilter(context.Background(), "concurrency", []float64{1, 0, 0}, 5, config, filter)
+	require.NoError(t, err)
+	require.Len(t, result.Chunks, 1)
+
+	// AC-004: при пустом фильтре должен делегировать в SearchHybrid без WHERE
+	assert.NotContains(t, capturedQuery, "where", "GraphQL запрос не должен содержать WHERE при пустом фильтре")
+}
+
+// TestWeaviateSearchHybridWithMetadataFilter проверяет фильтрацию по метаданным в hybrid search (AC-004).
+// @sk-test T5.1: TestWeaviateSearchHybridWithMetadataFilter (AC-004)
+func TestWeaviateSearchHybridWithMetadataFilter(t *testing.T) {
+	var capturedQuery string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == "/v1/graphql" {
+			var body struct {
+				Query string `json:"query"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			capturedQuery = body.Query
+
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(weaviateHybridSearchResponse(
+				testWeaviateCollection, "c2", "Go channels", "doc-2", 1,
+				map[string]string{"category": "go"}, 0.89,
+			))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	store := NewWeaviateStore("http", weaviateTestHost(server.URL), testWeaviateCollection, "")
+
+	config := domain.DefaultHybridConfig()
+	filter := domain.MetadataFilter{Fields: map[string]string{"category": "go"}}
+
+	result, err := store.SearchHybridWithMetadataFilter(context.Background(), "channels", []float64{0, 1, 0}, 5, config, filter)
+	require.NoError(t, err)
+	require.Len(t, result.Chunks, 1)
+
+	// AC-004: GraphQL запрос должен содержать WHERE по meta_* свойствам
+	assert.Contains(t, capturedQuery, "meta_category", "GraphQL запрос должен использовать meta_-префикс для metadata filter")
+	assert.Contains(t, capturedQuery, `"go"`, "GraphQL запрос должен содержать значение фильтра")
+
+	got := result.Chunks[0]
+	assert.Equal(t, "c2", got.Chunk.ID)
+	assert.Equal(t, "go", got.Chunk.Metadata["category"])
+}
+
+// TestWeaviateSearchHybridWithMetadataFilterEmpty проверяет делегирование в SearchHybrid при пустом фильтре (AC-004).
+// @sk-test T5.1: TestWeaviateSearchHybridWithMetadataFilterEmpty (AC-004)
+func TestWeaviateSearchHybridWithMetadataFilterEmpty(t *testing.T) {
+	var capturedQuery string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == "/v1/graphql" {
+			var body struct {
+				Query string `json:"query"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			capturedQuery = body.Query
+
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(weaviateHybridSearchResponse(
+				testWeaviateCollection, "c2", "Go channels", "doc-2", 1,
+				map[string]string{"category": "go"}, 0.89,
+			))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	store := NewWeaviateStore("http", weaviateTestHost(server.URL), testWeaviateCollection, "")
+
+	config := domain.DefaultHybridConfig()
+	filter := domain.MetadataFilter{Fields: map[string]string{}}
+
+	result, err := store.SearchHybridWithMetadataFilter(context.Background(), "channels", []float64{0, 1, 0}, 5, config, filter)
+	require.NoError(t, err)
+	require.Len(t, result.Chunks, 1)
+
+	// AC-004: при пустом фильтре должен делегировать в SearchHybrid без WHERE
+	assert.NotContains(t, capturedQuery, "where", "GraphQL запрос не должен содержать WHERE при пустом фильтре")
 }
