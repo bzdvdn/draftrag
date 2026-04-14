@@ -18,6 +18,12 @@ type Options struct {
 	// DefaultTopK — topK по умолчанию, если в кейсе TopK=0.
 	// Если 0, используется 5.
 	DefaultTopK int
+	// @sk-task T2.3: Добавить флаг EnableNDCG для включения вычисления NDCG (AC-003)
+	EnableNDCG bool
+	// @sk-task T2.3: Добавить флаг EnablePrecision для включения вычисления Precision (AC-003)
+	EnablePrecision bool
+	// @sk-task T2.3: Добавить флаг EnableRecall для включения вычисления Recall (AC-003)
+	EnableRecall bool
 }
 
 // Run прогоняет датасет кейсов и возвращает отчёт с базовыми retrieval-метриками.
@@ -49,6 +55,14 @@ func Run(ctx context.Context, runner RetrievalRunner, cases []Case, opts Options
 		if c.Question == "" {
 			return Report{}, errors.New("case question is empty")
 		}
+
+		// @sk-task T2.5: Валидация ExpectedParentIDs на пустые строки после нормализации (AC-005)
+		for _, id := range c.ExpectedParentIDs {
+			if normalizeID(id) == "" {
+				return Report{}, errors.New("case ExpectedParentIDs contains empty string after normalization")
+			}
+		}
+
 		topK := defaultTopK
 		if c.TopK < 0 {
 			return Report{}, errors.New("case TopK must be >= 0")
@@ -83,7 +97,8 @@ func Run(ctx context.Context, runner RetrievalRunner, cases []Case, opts Options
 		})
 	}
 
-	metrics := computeMetrics(results)
+	// @sk-task T2.5: Передача opts в computeMetrics для условного вычисления метрик (AC-003)
+	metrics := computeMetrics(cases, results, opts)
 	return Report{Metrics: metrics, Cases: results}, nil
 }
 
