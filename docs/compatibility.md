@@ -70,7 +70,7 @@
 | Metadata filters | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Hybrid search (BM25) | ✓ | ✓ | — | — | — |
 | SQL-миграции | n/a | ✓ | n/a | n/a | n/a |
-| Управление коллекцией | n/a | n/a | ✓ | — | ✓ |
+| Управление коллекцией | n/a | n/a | ✓ | ✓ | ✓ |
 
 ### LLM providers
 

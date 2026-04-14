@@ -86,13 +86,13 @@ func TestChromaDBCreateCollection(t *testing.T) {
 		Dimension:  768,
 	}
 
-	err := CreateChromaDBCollection(context.Background(), opts)
+	err := CreateChromaCollection(context.Background(), opts)
 	require.NoError(t, err)
 }
 
 // T3.2 Тест CreateCollection с валидацией
 func TestChromaDBCreateCollection_Validation(t *testing.T) {
-	err := CreateChromaDBCollection(context.Background(), ChromaDBOptions{
+	err := CreateChromaCollection(context.Background(), ChromaDBOptions{
 		Collection: "",
 		Dimension:  768,
 	})
@@ -119,7 +119,7 @@ func TestChromaDBDeleteCollection(t *testing.T) {
 		Collection: "test_collection",
 	}
 
-	err := DeleteChromaDBCollection(context.Background(), opts)
+	err := DeleteChromaCollection(context.Background(), opts)
 	require.NoError(t, err)
 }
 
@@ -139,12 +139,12 @@ func TestChromaDBDeleteCollection_NotFound(t *testing.T) {
 	}
 
 	// 404 не должен возвращать ошибку — коллекция уже удалена
-	err := DeleteChromaDBCollection(context.Background(), opts)
+	err := DeleteChromaCollection(context.Background(), opts)
 	require.NoError(t, err)
 }
 
-// T3.4 Тест CollectionExists (коллекция есть) — AC-003
-func TestChromaDBCollectionExists(t *testing.T) {
+// T3.4 Тест ChromaCollectionExists (коллекция есть) — AC-003
+func TestChromaCollectionExists(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		require.Equal(t, "/api/v1/collections/test_collection", r.URL.Path)
 		require.Equal(t, http.MethodGet, r.Method)
@@ -163,13 +163,13 @@ func TestChromaDBCollectionExists(t *testing.T) {
 		Collection: "test_collection",
 	}
 
-	exists, err := ChromaDBCollectionExists(context.Background(), opts)
+	exists, err := ChromaCollectionExists(context.Background(), opts)
 	require.NoError(t, err)
 	assert.True(t, exists)
 }
 
-// T3.4 Тест CollectionExists (коллекции нет) — AC-004
-func TestChromaDBCollectionExists_NotFound(t *testing.T) {
+// T3.4 Тест ChromaCollectionExists (коллекции нет) — AC-004
+func TestChromaCollectionExists_NotFound(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		require.Equal(t, "/api/v1/collections/nonexistent", r.URL.Path)
 		require.Equal(t, http.MethodGet, r.Method)
@@ -186,7 +186,7 @@ func TestChromaDBCollectionExists_NotFound(t *testing.T) {
 		Collection: "nonexistent",
 	}
 
-	exists, err := ChromaDBCollectionExists(context.Background(), opts)
+	exists, err := ChromaCollectionExists(context.Background(), opts)
 	require.NoError(t, err)
 	assert.False(t, exists)
 }
@@ -209,7 +209,7 @@ func TestChromaDBCreateCollection_ContextTimeout(t *testing.T) {
 		Dimension:  768,
 	}
 
-	err := CreateChromaDBCollection(ctx, opts)
+	err := CreateChromaCollection(ctx, opts)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "context deadline exceeded")
 }
@@ -230,13 +230,13 @@ func TestChromaDBDeleteCollection_ContextTimeout(t *testing.T) {
 		Collection: "test_collection",
 	}
 
-	err := DeleteChromaDBCollection(ctx, opts)
+	err := DeleteChromaCollection(ctx, opts)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "context deadline exceeded")
 }
 
-// T3.5 Тест контекстной отмены для CollectionExists — AC-006
-func TestChromaDBCollectionExists_ContextTimeout(t *testing.T) {
+// T3.5 Тест контекстной отмены для ChromaCollectionExists — AC-006
+func TestChromaCollectionExists_ContextTimeout(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(100 * time.Millisecond)
 		w.WriteHeader(http.StatusOK)
@@ -251,7 +251,7 @@ func TestChromaDBCollectionExists_ContextTimeout(t *testing.T) {
 		Collection: "test_collection",
 	}
 
-	_, err := ChromaDBCollectionExists(ctx, opts)
+	_, err := ChromaCollectionExists(ctx, opts)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "context deadline exceeded")
 }

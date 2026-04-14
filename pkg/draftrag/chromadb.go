@@ -37,7 +37,7 @@ func (o ChromaDBOptions) Validate() error {
 
 // NewChromaDBStore создаёт ChromaDB-backed реализацию VectorStore.
 //
-// Коллекция должна быть создана заранее. Для управления коллекциями используйте CreateChromaDBCollection.
+// Коллекция должна быть создана заранее. Для управления коллекциями используйте CreateChromaCollection.
 func NewChromaDBStore(opts ChromaDBOptions) (VectorStore, error) {
 	if err := opts.Validate(); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrInvalidVectorStoreConfig, err)
@@ -45,10 +45,10 @@ func NewChromaDBStore(opts ChromaDBOptions) (VectorStore, error) {
 	return vectorstore.NewChromaStore(opts.BaseURL, opts.Collection, opts.Dimension), nil
 }
 
-// CreateChromaDBCollection создаёт коллекцию в ChromaDB.
+// CreateChromaCollection создаёт коллекцию в ChromaDB.
 //
 // Использует POST /api/v1/collections с указанным именем и размерностью.
-func CreateChromaDBCollection(ctx context.Context, opts ChromaDBOptions) error {
+func CreateChromaCollection(ctx context.Context, opts ChromaDBOptions) error {
 	if err := opts.Validate(); err != nil {
 		return fmt.Errorf("invalid options: %w", err)
 	}
@@ -99,10 +99,10 @@ func CreateChromaDBCollection(ctx context.Context, opts ChromaDBOptions) error {
 	return nil
 }
 
-// DeleteChromaDBCollection удаляет коллекцию из ChromaDB.
+// DeleteChromaCollection удаляет коллекцию из ChromaDB.
 //
 // Использует DELETE /api/v1/collections/{name}. 404 считается успехом (идемпотентность).
-func DeleteChromaDBCollection(ctx context.Context, opts ChromaDBOptions) error {
+func DeleteChromaCollection(ctx context.Context, opts ChromaDBOptions) error {
 	if opts.Collection == "" {
 		return fmt.Errorf("collection name is required")
 	}
@@ -143,10 +143,10 @@ func DeleteChromaDBCollection(ctx context.Context, opts ChromaDBOptions) error {
 	return nil
 }
 
-// ChromaDBCollectionExists проверяет существование коллекции в ChromaDB.
+// ChromaCollectionExists проверяет существование коллекции в ChromaDB.
 //
 // Использует GET /api/v1/collections/{name}. Возвращает true при статусе 200, false при 404.
-func ChromaDBCollectionExists(ctx context.Context, opts ChromaDBOptions) (bool, error) {
+func ChromaCollectionExists(ctx context.Context, opts ChromaDBOptions) (bool, error) {
 	if opts.Collection == "" {
 		return false, fmt.Errorf("collection name is required")
 	}
