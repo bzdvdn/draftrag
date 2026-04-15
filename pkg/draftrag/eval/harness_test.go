@@ -96,7 +96,7 @@ func TestComputeNDCG(t *testing.T) {
 			name:     "partial ranking",
 			expected: []string{"A", "B", "C"},
 			retrieved: []string{"A", "X", "B"},
-			want:     0.0, // будет вычислено по формуле
+			want:     0.7039180890341348, // DCG=1.5, Ideal DCG≈2.1309, NDCG≈0.7039
 		},
 		{
 			name:     "empty expected",

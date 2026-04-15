@@ -407,7 +407,7 @@ func TestMilvusSearchHybrid_Weighted(t *testing.T) {
 	defer srv.Close()
 
 	store := NewMilvusStore(srv.URL, "docs", "")
-	config := domain.HybridConfig{UseRRF: false}
+	config := domain.HybridConfig{UseRRF: false, RRFK: 60}
 	_, err := store.SearchHybrid(context.Background(), "test query", []float64{0.1}, 5, config)
 	if err != nil {
 		t.Fatalf("SearchHybrid error: %v", err)
