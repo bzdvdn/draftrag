@@ -39,6 +39,12 @@ var _ domain.VectorStore = (*MilvusStore)(nil)
 var _ domain.VectorStoreWithFilters = (*MilvusStore)(nil)
 var _ domain.DocumentStore = (*MilvusStore)(nil)
 
+// Compile-time проверки: MilvusStore реализует HybridSearcher и HybridSearcherWithFilters.
+// @sk-task T1.1: Добавить assertion для HybridSearcher (AC-001, DEC-001)
+var _ domain.HybridSearcher = (*MilvusStore)(nil)
+// @sk-task T1.2: Добавить assertion для HybridSearcherWithFilters (AC-004, DEC-001)
+var _ domain.HybridSearcherWithFilters = (*MilvusStore)(nil)
+
 // NewMilvusStore создаёт MilvusStore с указанными параметрами.
 // baseURL: полный URL к Milvus REST API, напр. "http://localhost:19121".
 // token: Bearer-токен для Authorization; передайте пустую строку если аутентификация не нужна (DEC-002).
@@ -259,4 +265,237 @@ func (s *MilvusStore) SearchWithMetadataFilter(ctx context.Context, embedding []
 		filterExpr = strings.Join(parts, " && ")
 	}
 	return s.doSearch(ctx, embedding, topK, filterExpr)
+}
+
+// SearchHybrid выполняет гибридный поиск: BM25 (sparse) + semantic (dense).
+// Валидирует HybridConfig, создаёт AnnSearchRequest для text_sparse и text_dense,
+// вызывает hybrid_search() через POST /v2/vectordb/entities/hybrid_search (DEC-002).
+// @sk-task T2.1: Реализовать SearchHybrid с Multi-Vector Search API (AC-001, AC-002, AC-003, AC-005, AC-006, DEC-001, DEC-002)
+func (s *MilvusStore) SearchHybrid(ctx context.Context, query string, embedding []float64, topK int, config domain.HybridConfig) (domain.RetrievalResult, error) {
+	// Валидация HybridConfig перед выполнением поиска (AC-005)
+	if err := config.Validate(); err != nil {
+		return domain.RetrievalResult{}, fmt.Errorf("milvus: invalid hybrid config: %w", err)
+	}
+
+	// Создаём AnnSearchRequest для BM25 (sparse) и dense векторов (DEC-002)
+	sparseRequest := map[string]any{
+		"data":     []string{query},
+		"annsField": "text_sparse",
+		"limit":    topK,
+	}
+	denseRequest := map[string]any{
+		"data":     [][]float64{embedding},
+		"annsField": "text_dense",
+		"limit":    topK,
+		"param":    map[string]any{"nprobe": 10},
+	}
+	requests := []map[string]any{sparseRequest, denseRequest}
+
+	// Выбор rerank strategy на основе HybridConfig.UseRRF (AC-003)
+	var rerank string
+	if config.UseRRF {
+		rerank = "rrf"
+	} else {
+		rerank = "weighted"
+	}
+
+	body := map[string]any{
+		"collectionName": s.collection,
+		"requests":       requests,
+		"ranker": map[string]any{
+			"type":  rerank,
+			"params": map[string]any{
+				"k": config.RRFK,
+			},
+		},
+		"topK": topK,
+	}
+
+	data, err := s.doRequest(ctx, "/v2/vectordb/entities/hybrid_search", body)
+	if err != nil {
+		return domain.RetrievalResult{}, err
+	}
+
+	return parseMilvusHybridSearchData(data)
+}
+
+// parseMilvusHybridSearchData десериализует поле data из ответа Milvus hybrid_search в domain.RetrievalResult.
+// Пустой data или null → пустой слайс, не ошибка (AC-006).
+// metadata десериализуется из JSON-объекта в map[string]string (DEC-003).
+// @sk-task T2.2: Реализовать парсинг ответа hybrid_search() (AC-002, AC-006)
+func parseMilvusHybridSearchData(data json.RawMessage) (domain.RetrievalResult, error) {
+	if len(data) == 0 || string(data) == "null" {
+		return domain.RetrievalResult{Chunks: []domain.RetrievedChunk{}}, nil
+	}
+
+	var response struct {
+		Results []struct {
+			ID       string          `json:"id"`
+			Text     string          `json:"text"`
+			ParentID string          `json:"parent_id"`
+			Metadata json.RawMessage `json:"metadata"`
+			Score    float64         `json:"score"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(data, &response); err != nil {
+		return domain.RetrievalResult{}, fmt.Errorf("milvus: decode hybrid search results: %w", err)
+	}
+	if len(response.Results) == 0 {
+		return domain.RetrievalResult{Chunks: []domain.RetrievedChunk{}}, nil
+	}
+
+	chunks := make([]domain.RetrievedChunk, 0, len(response.Results))
+	for _, item := range response.Results {
+		chunk := domain.Chunk{
+			ID:       item.ID,
+			Content:  item.Text,
+			ParentID: item.ParentID,
+		}
+		// DEC-003: десериализовать metadata из JSON-объекта в map[string]string
+		if len(item.Metadata) > 0 && string(item.Metadata) != "null" {
+			var meta map[string]string
+			if err := json.Unmarshal(item.Metadata, &meta); err == nil {
+				chunk.Metadata = meta
+			}
+		}
+		chunks = append(chunks, domain.RetrievedChunk{
+			Chunk: chunk,
+			Score: item.Score,
+		})
+	}
+	return domain.RetrievalResult{
+		Chunks:     chunks,
+		TotalFound: len(chunks),
+	}, nil
+}
+
+// SearchHybridWithParentIDFilter выполняет гибридный поиск с фильтрацией по parentId.
+// Добавляет expr фильтр в AnnSearchRequest для text_sparse и text_dense (DEC-003).
+// При пустом ParentIDs делегирует в SearchHybrid без фильтра.
+// @sk-task T3.1: Реализовать SearchHybridWithParentIDFilter с фильтрацией (AC-004, DEC-003)
+func (s *MilvusStore) SearchHybridWithParentIDFilter(ctx context.Context, query string, embedding []float64, topK int, config domain.HybridConfig, filter domain.ParentIDFilter) (domain.RetrievalResult, error) {
+	// При пустом фильтре делегируем в SearchHybrid без фильтрации
+	if len(filter.ParentIDs) == 0 {
+		return s.SearchHybrid(ctx, query, embedding, topK, config)
+	}
+
+	// Валидация HybridConfig перед выполнением поиска (AC-005)
+	if err := config.Validate(); err != nil {
+		return domain.RetrievalResult{}, fmt.Errorf("milvus: invalid hybrid config: %w", err)
+	}
+
+	// Создаём AnnSearchRequest для BM25 (sparse) и dense векторов с expr фильтром (DEC-003)
+	quoted := make([]string, len(filter.ParentIDs))
+	for i, id := range filter.ParentIDs {
+		quoted[i] = `"` + id + `"`
+	}
+	expr := `parent_id in [` + strings.Join(quoted, ",") + `]`
+
+	sparseRequest := map[string]any{
+		"data":     []string{query},
+		"annsField": "text_sparse",
+		"limit":    topK,
+		"expr":     expr,
+	}
+	denseRequest := map[string]any{
+		"data":     [][]float64{embedding},
+		"annsField": "text_dense",
+		"limit":    topK,
+		"param":    map[string]any{"nprobe": 10},
+		"expr":     expr,
+	}
+	requests := []map[string]any{sparseRequest, denseRequest}
+
+	// Выбор rerank strategy на основе HybridConfig.UseRRF (AC-003)
+	var rerank string
+	if config.UseRRF {
+		rerank = "rrf"
+	} else {
+		rerank = "weighted"
+	}
+
+	body := map[string]any{
+		"collectionName": s.collection,
+		"requests":       requests,
+		"ranker": map[string]any{
+			"type":  rerank,
+			"params": map[string]any{
+				"k": config.RRFK,
+			},
+		},
+		"topK": topK,
+	}
+
+	data, err := s.doRequest(ctx, "/v2/vectordb/entities/hybrid_search", body)
+	if err != nil {
+		return domain.RetrievalResult{}, err
+	}
+
+	return parseMilvusHybridSearchData(data)
+}
+
+// SearchHybridWithMetadataFilter выполняет гибридный поиск с фильтрацией по metadata.
+// Добавляет expr фильтр в AnnSearchRequest для text_sparse и text_dense (DEC-003).
+// При пустом Fields делегирует в SearchHybrid без фильтра.
+// @sk-task T3.2: Реализовать SearchHybridWithMetadataFilter с фильтрацией (AC-004, DEC-003)
+func (s *MilvusStore) SearchHybridWithMetadataFilter(ctx context.Context, query string, embedding []float64, topK int, config domain.HybridConfig, filter domain.MetadataFilter) (domain.RetrievalResult, error) {
+	// При пустом фильтре делегируем в SearchHybrid без фильтрации
+	if len(filter.Fields) == 0 {
+		return s.SearchHybrid(ctx, query, embedding, topK, config)
+	}
+
+	// Валидация HybridConfig перед выполнением поиска (AC-005)
+	if err := config.Validate(); err != nil {
+		return domain.RetrievalResult{}, fmt.Errorf("milvus: invalid hybrid config: %w", err)
+	}
+
+	// Создаём expr фильтр для metadata (DEC-003)
+	parts := make([]string, 0, len(filter.Fields))
+	for k, v := range filter.Fields {
+		parts = append(parts, fmt.Sprintf(`metadata["%s"] == "%s"`, k, v))
+	}
+	expr := strings.Join(parts, " && ")
+
+	// Создаём AnnSearchRequest для BM25 (sparse) и dense векторов с expr фильтром (DEC-003)
+	sparseRequest := map[string]any{
+		"data":     []string{query},
+		"annsField": "text_sparse",
+		"limit":    topK,
+		"expr":     expr,
+	}
+	denseRequest := map[string]any{
+		"data":     [][]float64{embedding},
+		"annsField": "text_dense",
+		"limit":    topK,
+		"param":    map[string]any{"nprobe": 10},
+		"expr":     expr,
+	}
+	requests := []map[string]any{sparseRequest, denseRequest}
+
+	// Выбор rerank strategy на основе HybridConfig.UseRRF (AC-003)
+	var rerank string
+	if config.UseRRF {
+		rerank = "rrf"
+	} else {
+		rerank = "weighted"
+	}
+
+	body := map[string]any{
+		"collectionName": s.collection,
+		"requests":       requests,
+		"ranker": map[string]any{
+			"type":  rerank,
+			"params": map[string]any{
+				"k": config.RRFK,
+			},
+		},
+		"topK": topK,
+	}
+
+	data, err := s.doRequest(ctx, "/v2/vectordb/entities/hybrid_search", body)
+	if err != nil {
+		return domain.RetrievalResult{}, err
+	}
+
+	return parseMilvusHybridSearchData(data)
 }

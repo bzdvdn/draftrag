@@ -360,3 +360,272 @@ func TestMilvusBearerToken(t *testing.T) {
 		t.Errorf("Authorization заголовок не должен добавляться при пустом token, got %q", capturedHeader)
 	}
 }
+
+// TestMilvusSearchHybrid_RRF проверяет, что SearchHybrid использует RRF fusion при UseRRF=true.
+// @sk-test T4.1: TestSearchHybridRRF (AC-003)
+func TestMilvusSearchHybrid_RRF(t *testing.T) {
+	var capturedBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedBody = readBody(t, r)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, milvusOKResp(map[string]any{"results": []any{}}))
+	}))
+	defer srv.Close()
+
+	store := NewMilvusStore(srv.URL, "docs", "")
+	config := domain.HybridConfig{UseRRF: true, RRFK: 60}
+	_, err := store.SearchHybrid(context.Background(), "test query", []float64{0.1}, 5, config)
+	if err != nil {
+		t.Fatalf("SearchHybrid error: %v", err)
+	}
+
+	ranker, ok := capturedBody["ranker"].(map[string]any)
+	if !ok {
+		t.Fatal("ranker поле отсутствует в теле запроса")
+	}
+	if ranker["type"] != "rrf" {
+		t.Errorf("ranker.type = %v, want rrf", ranker["type"])
+	}
+	params, ok := ranker["params"].(map[string]any)
+	if !ok {
+		t.Fatal("ranker.params отсутствует")
+	}
+	if params["k"] != float64(60) {
+		t.Errorf("ranker.params.k = %v, want 60", params["k"])
+	}
+}
+
+// TestMilvusSearchHybrid_Weighted проверяет, что SearchHybrid использует weighted fusion при UseRRF=false.
+// @sk-test T4.1: TestSearchHybridWeighted (AC-003)
+func TestMilvusSearchHybrid_Weighted(t *testing.T) {
+	var capturedBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedBody = readBody(t, r)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, milvusOKResp(map[string]any{"results": []any{}}))
+	}))
+	defer srv.Close()
+
+	store := NewMilvusStore(srv.URL, "docs", "")
+	config := domain.HybridConfig{UseRRF: false}
+	_, err := store.SearchHybrid(context.Background(), "test query", []float64{0.1}, 5, config)
+	if err != nil {
+		t.Fatalf("SearchHybrid error: %v", err)
+	}
+
+	ranker, ok := capturedBody["ranker"].(map[string]any)
+	if !ok {
+		t.Fatal("ranker поле отсутствует в теле запроса")
+	}
+	if ranker["type"] != "weighted" {
+		t.Errorf("ranker.type = %v, want weighted", ranker["type"])
+	}
+}
+
+// TestMilvusSearchHybrid_InvalidConfig проверяет, что невалидная HybridConfig возвращает ошибку.
+// @sk-test T4.1: TestSearchHybridInvalidConfig (AC-005)
+func TestMilvusSearchHybrid_InvalidConfig(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, milvusOKResp(map[string]any{"results": []any{}}))
+	}))
+	defer srv.Close()
+
+	store := NewMilvusStore(srv.URL, "docs", "")
+	config := domain.HybridConfig{SemanticWeight: 1.5} // невалидно (> 1.0)
+	_, err := store.SearchHybrid(context.Background(), "test query", []float64{0.1}, 5, config)
+	if err == nil {
+		t.Fatal("ожидалась ошибка при невалидной HybridConfig, получен nil")
+	}
+	if !strings.Contains(err.Error(), "invalid hybrid config") {
+		t.Errorf("ошибка должна содержать 'invalid hybrid config', got: %v", err)
+	}
+}
+
+// TestMilvusSearchHybrid_APIError проверяет, что ошибки Milvus API обрабатываются информативно.
+// @sk-test T4.1: TestSearchHybridAPIError (AC-006)
+func TestMilvusSearchHybrid_APIError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, milvusErrResp(100, "index not found"))
+	}))
+	defer srv.Close()
+
+	store := NewMilvusStore(srv.URL, "docs", "")
+	config := domain.HybridConfig{UseRRF: true, RRFK: 60}
+	_, err := store.SearchHybrid(context.Background(), "test query", []float64{0.1}, 5, config)
+	if err == nil {
+		t.Fatal("ожидалась ошибка при code != 0, получен nil")
+	}
+	if !strings.Contains(err.Error(), "code=100") {
+		t.Errorf("ошибка должна содержать code=100, got: %v", err)
+	}
+}
+
+// TestMilvusSearchHybrid_EmptyResults проверяет поведение при пустой коллекции.
+// @sk-test T4.2: TestSearchHybridEmptyResults (AC-002)
+func TestMilvusSearchHybrid_EmptyResults(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, milvusOKResp(map[string]any{"results": []any{}}))
+	}))
+	defer srv.Close()
+
+	store := NewMilvusStore(srv.URL, "docs", "")
+	config := domain.HybridConfig{UseRRF: true, RRFK: 60}
+	result, err := store.SearchHybrid(context.Background(), "test query", []float64{0.1}, 5, config)
+	if err != nil {
+		t.Fatalf("SearchHybrid error: %v", err)
+	}
+	if len(result.Chunks) != 0 {
+		t.Errorf("expected empty chunks, got %d", len(result.Chunks))
+	}
+}
+
+// TestMilvusSearchHybridWithParentIDFilter_WithParentIDs проверяет фильтрацию по parentId.
+// @sk-test T4.3: TestSearchHybridWithParentIDFilter (AC-004)
+func TestMilvusSearchHybridWithParentIDFilter_WithParentIDs(t *testing.T) {
+	var capturedBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedBody = readBody(t, r)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, milvusOKResp(map[string]any{"results": []any{}}))
+	}))
+	defer srv.Close()
+
+	store := NewMilvusStore(srv.URL, "docs", "")
+	config := domain.HybridConfig{UseRRF: true, RRFK: 60}
+	filter := domain.ParentIDFilter{ParentIDs: []string{"a", "b"}}
+	_, err := store.SearchHybridWithParentIDFilter(context.Background(), "test query", []float64{0.1}, 5, config, filter)
+	if err != nil {
+		t.Fatalf("SearchHybridWithParentIDFilter error: %v", err)
+	}
+
+	requests, ok := capturedBody["requests"].([]any)
+	if !ok || len(requests) != 2 {
+		t.Fatal("requests должен содержать два элемента")
+	}
+	// Проверяем, что оба запроса имеют expr фильтр
+	for _, req := range requests {
+		reqMap, ok := req.(map[string]any)
+		if !ok {
+			t.Fatal("request должен быть map[string]any")
+		}
+		expr, ok := reqMap["expr"].(string)
+		if !ok {
+			t.Fatal("expr поле отсутствует в запросе")
+		}
+		if expr != `parent_id in ["a","b"]` {
+			t.Errorf("expr = %q, want parent_id in [\"a\",\"b\"]", expr)
+		}
+	}
+}
+
+// TestMilvusSearchHybridWithParentIDFilter_EmptyParentIDs проверяет делегирование при пустом фильтре.
+// @sk-test T4.3: TestSearchHybridWithParentIDFilterEmpty (AC-004)
+func TestMilvusSearchHybridWithParentIDFilter_EmptyParentIDs(t *testing.T) {
+	var capturedBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedBody = readBody(t, r)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, milvusOKResp(map[string]any{"results": []any{}}))
+	}))
+	defer srv.Close()
+
+	store := NewMilvusStore(srv.URL, "docs", "")
+	config := domain.HybridConfig{UseRRF: true, RRFK: 60}
+	filter := domain.ParentIDFilter{}
+	_, err := store.SearchHybridWithParentIDFilter(context.Background(), "test query", []float64{0.1}, 5, config, filter)
+	if err != nil {
+		t.Fatalf("SearchHybridWithParentIDFilter error: %v", err)
+	}
+
+	requests, ok := capturedBody["requests"].([]any)
+	if !ok || len(requests) != 2 {
+		t.Fatal("requests должен содержать два элемента")
+	}
+	// Проверяем, что запросы НЕ имеют expr фильтр при пустом ParentIDs
+	for _, req := range requests {
+		reqMap, ok := req.(map[string]any)
+		if !ok {
+			t.Fatal("request должен быть map[string]any")
+		}
+		if _, hasExpr := reqMap["expr"]; hasExpr {
+			t.Error("expr поле не должно присутствовать при пустом ParentIDs")
+		}
+	}
+}
+
+// TestMilvusSearchHybridWithMetadataFilter_WithFields проверяет фильтрацию по metadata.
+// @sk-test T4.4: TestSearchHybridWithMetadataFilter (AC-004)
+func TestMilvusSearchHybridWithMetadataFilter_WithFields(t *testing.T) {
+	var capturedBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedBody = readBody(t, r)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, milvusOKResp(map[string]any{"results": []any{}}))
+	}))
+	defer srv.Close()
+
+	store := NewMilvusStore(srv.URL, "docs", "")
+	config := domain.HybridConfig{UseRRF: true, RRFK: 60}
+	filter := domain.MetadataFilter{Fields: map[string]string{"source": "wiki"}}
+	_, err := store.SearchHybridWithMetadataFilter(context.Background(), "test query", []float64{0.1}, 5, config, filter)
+	if err != nil {
+		t.Fatalf("SearchHybridWithMetadataFilter error: %v", err)
+	}
+
+	requests, ok := capturedBody["requests"].([]any)
+	if !ok || len(requests) != 2 {
+		t.Fatal("requests должен содержать два элемента")
+	}
+	// Проверяем, что оба запроса имеют expr фильтр
+	for _, req := range requests {
+		reqMap, ok := req.(map[string]any)
+		if !ok {
+			t.Fatal("request должен быть map[string]any")
+		}
+		expr, ok := reqMap["expr"].(string)
+		if !ok {
+			t.Fatal("expr поле отсутствует в запросе")
+		}
+		if expr != `metadata["source"] == "wiki"` {
+			t.Errorf("expr = %q, want metadata[\"source\"] == \"wiki\"", expr)
+		}
+	}
+}
+
+// TestMilvusSearchHybridWithMetadataFilter_EmptyFields проверяет делегирование при пустом фильтре.
+// @sk-test T4.4: TestSearchHybridWithMetadataFilterEmpty (AC-004)
+func TestMilvusSearchHybridWithMetadataFilter_EmptyFields(t *testing.T) {
+	var capturedBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedBody = readBody(t, r)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, milvusOKResp(map[string]any{"results": []any{}}))
+	}))
+	defer srv.Close()
+
+	store := NewMilvusStore(srv.URL, "docs", "")
+	config := domain.HybridConfig{UseRRF: true, RRFK: 60}
+	filter := domain.MetadataFilter{}
+	_, err := store.SearchHybridWithMetadataFilter(context.Background(), "test query", []float64{0.1}, 5, config, filter)
+	if err != nil {
+		t.Fatalf("SearchHybridWithMetadataFilter error: %v", err)
+	}
+
+	requests, ok := capturedBody["requests"].([]any)
+	if !ok || len(requests) != 2 {
+		t.Fatal("requests должен содержать два элемента")
+	}
+	// Проверяем, что запросы НЕ имеют expr фильтр при пустом Fields
+	for _, req := range requests {
+		reqMap, ok := req.(map[string]any)
+		if !ok {
+			t.Fatal("request должен быть map[string]any")
+		}
+		if _, hasExpr := reqMap["expr"]; hasExpr {
+			t.Error("expr поле не должно присутствовать при пустом Fields")
+		}
+	}
+}
