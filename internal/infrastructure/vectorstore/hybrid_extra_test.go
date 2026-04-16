@@ -80,7 +80,6 @@ func TestCalculateWeightedScore_EmptyInputs(t *testing.T) {
 	}
 }
 
-
 func TestCalculateWeightedScore_NegativeWeight(t *testing.T) {
 	semantic := []domain.RetrievedChunk{
 		{
@@ -191,8 +190,8 @@ func TestFuseResults_BMFinalK(t *testing.T) {
 	bm25 := []domain.RetrievedChunk{}
 
 	config := domain.HybridConfig{
-		UseRRF:    true,
-		RRFK:      60,
+		UseRRF:   true,
+		RRFK:     60,
 		BMFinalK: 2, // ограничиваем до 2
 	}
 

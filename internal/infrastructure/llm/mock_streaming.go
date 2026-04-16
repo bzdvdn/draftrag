@@ -24,7 +24,7 @@ type MockStreamingLLM struct {
 }
 
 // Generate возвращает мок-результат или ошибку.
-func (m *MockStreamingLLM) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
+func (m *MockStreamingLLM) Generate(_ context.Context, _, _ string) (string, error) {
 	if m.GenerateErr != nil {
 		return "", m.GenerateErr
 	}
@@ -32,7 +32,7 @@ func (m *MockStreamingLLM) Generate(ctx context.Context, systemPrompt, userMessa
 }
 
 // GenerateStream возвращает канал с токенами и опциональную задержку.
-func (m *MockStreamingLLM) GenerateStream(ctx context.Context, systemPrompt, userMessage string) (<-chan string, error) {
+func (m *MockStreamingLLM) GenerateStream(ctx context.Context, _, _ string) (<-chan string, error) {
 	if m.Err != nil {
 		return nil, m.Err
 	}
@@ -76,12 +76,12 @@ type MockStreamingLLMWithCancel struct {
 }
 
 // Generate возвращает пустую строку.
-func (m *MockStreamingLLMWithCancel) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
+func (m *MockStreamingLLMWithCancel) Generate(_ context.Context, _, _ string) (string, error) {
 	return "", nil
 }
 
 // GenerateStream возвращает канал, который не закрывается сам.
-func (m *MockStreamingLLMWithCancel) GenerateStream(ctx context.Context, systemPrompt, userMessage string) (<-chan string, error) {
+func (m *MockStreamingLLMWithCancel) GenerateStream(ctx context.Context, _, _ string) (<-chan string, error) {
 	ch := make(chan string)
 
 	go func() {
@@ -118,7 +118,7 @@ type NonStreamingLLM struct {
 }
 
 // Generate возвращает мок-результат.
-func (m *NonStreamingLLM) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
+func (m *NonStreamingLLM) Generate(_ context.Context, _, _ string) (string, error) {
 	if m.Err != nil {
 		return "", m.Err
 	}

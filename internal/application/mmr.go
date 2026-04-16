@@ -121,17 +121,17 @@ func selectMMR(
 }
 
 func maxCosineToSelected(embedding []float64, selected []mmrCandidate) float64 {
-	max := math.Inf(-1)
+	maxVal := math.Inf(-1)
 	for _, s := range selected {
 		v := cosine(embedding, s.rc.Chunk.Embedding)
-		if v > max {
-			max = v
+		if v > maxVal {
+			maxVal = v
 		}
 	}
-	if max == math.Inf(-1) {
+	if maxVal == math.Inf(-1) {
 		return 0
 	}
-	return max
+	return maxVal
 }
 
 func cosine(a, b []float64) float64 {

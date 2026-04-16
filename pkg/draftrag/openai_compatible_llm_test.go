@@ -27,7 +27,7 @@ func TestOpenAICompatibleLLM_ConfigValidation(t *testing.T) {
 func TestOpenAICompatibleLLM_RedactsAPIKey(t *testing.T) {
 	apiKey := "secret-key"
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		_, _ = w.Write([]byte("bad request: " + apiKey))
 	}))

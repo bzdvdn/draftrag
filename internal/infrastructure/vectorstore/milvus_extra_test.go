@@ -22,7 +22,7 @@ func TestMilvusStore_ChunkValidation(t *testing.T) {
 		ParentID: "doc1",
 		Position: 0,
 	}
-	
+
 	err := chunk.Validate()
 	if err == nil {
 		t.Fatal("expected error for empty ID")
@@ -39,7 +39,7 @@ func TestMilvusStore_MetadataMapping(t *testing.T) {
 		Metadata:  map[string]string{"source": "wiki", "lang": "ru"},
 		Embedding: []float64{0.1, 0.2, 0.3},
 	}
-	
+
 	// Проверяем, что метаданные содержат ожидаемые поля
 	if chunk.Metadata["source"] != "wiki" {
 		t.Errorf("expected source=wiki, got %s", chunk.Metadata["source"])
@@ -59,7 +59,7 @@ func TestMilvusStore_HybridConfig_Validation(t *testing.T) {
 		RRFK:           60,
 		SemanticWeight: 0.7,
 	}
-	
+
 	err := config.Validate()
 	if err != nil {
 		t.Fatalf("expected valid config, got error: %v", err)
@@ -71,7 +71,7 @@ func TestMilvusStore_HybridConfig_InvalidRRFK(t *testing.T) {
 		UseRRF: true,
 		RRFK:   0, // невалидно
 	}
-	
+
 	err := config.Validate()
 	if err == nil {
 		t.Fatal("expected error for invalid RRFK, got nil")
@@ -83,7 +83,7 @@ func TestMilvusStore_HybridConfig_InvalidSemanticWeight(t *testing.T) {
 		UseRRF:         false,
 		SemanticWeight: 1.5, // невалидно
 	}
-	
+
 	err := config.Validate()
 	if err == nil {
 		t.Fatal("expected error for invalid SemanticWeight, got nil")
@@ -95,11 +95,11 @@ func TestMilvusStore_ParentIDFilter(t *testing.T) {
 	filter := domain.ParentIDFilter{
 		ParentIDs: []string{"doc1", "doc2", "doc3"},
 	}
-	
+
 	if len(filter.ParentIDs) != 3 {
 		t.Errorf("expected 3 parent IDs, got %d", len(filter.ParentIDs))
 	}
-	
+
 	if filter.ParentIDs[0] != "doc1" {
 		t.Errorf("expected doc1, got %s", filter.ParentIDs[0])
 	}
@@ -113,11 +113,11 @@ func TestMilvusStore_MetadataFilter(t *testing.T) {
 			"lang":   "ru",
 		},
 	}
-	
+
 	if len(filter.Fields) != 2 {
 		t.Errorf("expected 2 fields, got %d", len(filter.Fields))
 	}
-	
+
 	if filter.Fields["source"] != "wiki" {
 		t.Errorf("expected source=wiki, got %s", filter.Fields["source"])
 	}
@@ -126,11 +126,11 @@ func TestMilvusStore_MetadataFilter(t *testing.T) {
 func TestMilvusStore_EmbeddingVector(t *testing.T) {
 	// Проверка работы с embedding-векторами
 	embedding := []float64{0.1, 0.2, 0.3, 0.4}
-	
+
 	if len(embedding) != 4 {
 		t.Errorf("expected 4 dimensions, got %d", len(embedding))
 	}
-	
+
 	if embedding[0] != 0.1 {
 		t.Errorf("expected 0.1, got %f", embedding[0])
 	}
@@ -152,7 +152,7 @@ func TestMilvusStore_RetrievalResult(t *testing.T) {
 		QueryText:  "test query",
 		TotalFound: 1,
 	}
-	
+
 	if len(result.Chunks) != 1 {
 		t.Errorf("expected 1 chunk, got %d", len(result.Chunks))
 	}

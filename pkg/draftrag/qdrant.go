@@ -97,7 +97,7 @@ func CreateCollection(ctx context.Context, opts QdrantOptions) error {
 	if err != nil {
 		return fmt.Errorf("qdrant request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -128,27 +128,7 @@ func DeleteCollection(ctx context.Context, opts QdrantOptions) error {
 	client := &http.Client{Timeout: timeout}
 
 	reqURL := fmt.Sprintf("%s/collections/%s", url, opts.Collection)
-	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, reqURL, nil)
-	if err != nil {
-		return fmt.Errorf("create request: %w", err)
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("qdrant request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		// 404 допустим — коллекция уже не существует
-		if resp.StatusCode == http.StatusNotFound {
-			return nil
-		}
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("qdrant error: status=%d, body=%s", resp.StatusCode, string(body))
-	}
-
-	return nil
+	return deleteCollectionHTTP(ctx, client, reqURL, "qdrant")
 }
 
 // CollectionExists проверяет существование коллекции в Qdrant.
@@ -181,7 +161,7 @@ func CollectionExists(ctx context.Context, opts QdrantOptions) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("qdrant request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)

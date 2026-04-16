@@ -12,7 +12,7 @@ type captureLLM struct {
 	systemPrompt string
 }
 
-func (l *captureLLM) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
+func (l *captureLLM) Generate(_ context.Context, systemPrompt, _ string) (string, error) {
 	l.systemPrompt = systemPrompt
 	return "ok", nil
 }

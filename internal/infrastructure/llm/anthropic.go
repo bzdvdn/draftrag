@@ -64,8 +64,8 @@ type anthropicStreamEvent struct {
 	} `json:"delta"`
 }
 
-// @ds-task T1.2: Структура клиента и конструктор (DEC-001)
 // ClaudeLLM реализует нативный клиент для Anthropic Messages API.
+// @ds-task T1.2: Структура клиента и конструктор (DEC-001)
 type ClaudeLLM struct {
 	httpClient       *http.Client
 	baseURL          string
@@ -109,8 +109,10 @@ func NewClaudeLLM(
 	}
 }
 
-// @ds-task T1.3: Generate реализация (AC-001, AC-002, AC-003)
 // Generate генерирует текстовый ответ на основе system и user сообщений.
+// @ds-task T1.3: Generate реализация (AC-001, AC-002, AC-003)
+//
+//nolint:gocyclo // Валидация, HTTP, редакция и парсинг ответа в одном методе для читабельности.
 func (c *ClaudeLLM) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
 	if ctx == nil {
 		panic("nil context")
@@ -160,7 +162,7 @@ func (c *ClaudeLLM) Generate(ctx context.Context, systemPrompt, userMessage stri
 		}
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		snippet, _ := readBodySnippet(resp.Body, maxErrorBodyBytes)
@@ -182,9 +184,11 @@ func (c *ClaudeLLM) Generate(ctx context.Context, systemPrompt, userMessage stri
 	return "", errors.New("invalid anthropic response: missing content text")
 }
 
-// @ds-task T2.2: GenerateStream реализация (AC-004)
 // GenerateStream генерирует ответ токен за токеном через SSE streaming.
 // Возвращает канал для чтения текстовых чанков; канал закрывается при завершении или ошибке.
+// @ds-task T2.2: GenerateStream реализация (AC-004)
+//
+//nolint:gocyclo // SSE-парсинг и обработка ошибок/контекста держим вместе.
 func (c *ClaudeLLM) GenerateStream(ctx context.Context, systemPrompt, userMessage string) (<-chan string, error) {
 	if ctx == nil {
 		panic("nil context")
@@ -238,7 +242,7 @@ func (c *ClaudeLLM) GenerateStream(ctx context.Context, systemPrompt, userMessag
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		snippet, _ := readBodySnippet(resp.Body, maxErrorBodyBytes)
 		snippet = domain.RedactSecrets(snippet, c.apiKey, "Bearer "+c.apiKey)
 		return nil, fmt.Errorf("anthropic stream request failed: status=%d body=%q", resp.StatusCode, snippet)
@@ -247,7 +251,7 @@ func (c *ClaudeLLM) GenerateStream(ctx context.Context, systemPrompt, userMessag
 	tokenChan := make(chan string, 10)
 
 	go func() {
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		defer close(tokenChan)
 
 		reader := io.LimitReader(resp.Body, maxSSEBufferBytes)

@@ -99,8 +99,25 @@ func (e *OpenAICompatibleEmbedder) Embed(ctx context.Context, text string) ([]fl
 		}
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
+	return e.parseEmbeddingResponse(resp)
+}
+
+func buildEmbeddingsURL(base string) (string, error) {
+	parsed, err := url.Parse(base)
+	if err != nil {
+		return "", fmt.Errorf("invalid BaseURL: %w", err)
+	}
+	if parsed.Scheme == "" || parsed.Host == "" {
+		return "", errors.New("invalid BaseURL: scheme and host are required")
+	}
+	parsed.Path = strings.TrimRight(parsed.Path, "/")
+	endpoint := parsed.ResolveReference(&url.URL{Path: openAIEmbeddingsPath})
+	return endpoint.String(), nil
+}
+
+func (e *OpenAICompatibleEmbedder) parseEmbeddingResponse(resp *http.Response) ([]float64, error) {
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		snippet, _ := readBodySnippet(resp.Body, maxErrorBodyBytes)
 		snippet = domain.RedactSecrets(snippet, e.apiKey, "Bearer "+e.apiKey)
@@ -118,26 +135,20 @@ func (e *OpenAICompatibleEmbedder) Embed(ctx context.Context, text string) ([]fl
 	if len(embedding) == 0 {
 		return nil, errors.New("invalid embeddings response: empty embedding")
 	}
-	for i, v := range embedding {
-		if math.IsNaN(v) || math.IsInf(v, 0) {
-			return nil, fmt.Errorf("invalid embeddings response: non-finite value at index %d", i)
-		}
-	}
 
+	if err := validateFiniteVector(embedding, "invalid embeddings response"); err != nil {
+		return nil, err
+	}
 	return embedding, nil
 }
 
-func buildEmbeddingsURL(base string) (string, error) {
-	parsed, err := url.Parse(base)
-	if err != nil {
-		return "", fmt.Errorf("invalid BaseURL: %w", err)
+func validateFiniteVector(vector []float64, prefix string) error {
+	for i, v := range vector {
+		if math.IsNaN(v) || math.IsInf(v, 0) {
+			return fmt.Errorf("%s: non-finite value at index %d", prefix, i)
+		}
 	}
-	if parsed.Scheme == "" || parsed.Host == "" {
-		return "", errors.New("invalid BaseURL: scheme and host are required")
-	}
-	parsed.Path = strings.TrimRight(parsed.Path, "/")
-	endpoint := parsed.ResolveReference(&url.URL{Path: openAIEmbeddingsPath})
-	return endpoint.String(), nil
+	return nil
 }
 
 func readBodySnippet(r io.Reader, limit int64) (string, error) {

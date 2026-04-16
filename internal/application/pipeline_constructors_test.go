@@ -11,33 +11,33 @@ import (
 
 type mockVectorStore struct{}
 
-func (m *mockVectorStore) Upsert(ctx context.Context, chunk domain.Chunk) error {
+func (m *mockVectorStore) Upsert(_ context.Context, _ domain.Chunk) error {
 	return nil
 }
 
-func (m *mockVectorStore) Delete(ctx context.Context, id string) error {
+func (m *mockVectorStore) Delete(_ context.Context, _ string) error {
 	return nil
 }
 
-func (m *mockVectorStore) Search(ctx context.Context, embedding []float64, topK int) (domain.RetrievalResult, error) {
+func (m *mockVectorStore) Search(_ context.Context, _ []float64, _ int) (domain.RetrievalResult, error) {
 	return domain.RetrievalResult{}, nil
 }
 
 type mockLLMProvider struct{}
 
-func (m *mockLLMProvider) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
+func (m *mockLLMProvider) Generate(_ context.Context, _, _ string) (string, error) {
 	return "response", nil
 }
 
 type mockEmbedder struct{}
 
-func (m *mockEmbedder) Embed(ctx context.Context, text string) ([]float64, error) {
+func (m *mockEmbedder) Embed(_ context.Context, _ string) ([]float64, error) {
 	return []float64{0.1, 0.2}, nil
 }
 
 type testChunker struct{} // используем другое имя чтобы избежать конфликта с batch_test.go
 
-func (m *testChunker) Chunk(ctx context.Context, doc domain.Document) ([]domain.Chunk, error) {
+func (m *testChunker) Chunk(_ context.Context, doc domain.Document) ([]domain.Chunk, error) {
 	return []domain.Chunk{
 		{
 			ID:       "c1",
@@ -321,10 +321,10 @@ func TestNewPipelineWithConfig_IndexBatchRateLimit(t *testing.T) {
 
 type mockHooks struct{}
 
-func (m *mockHooks) StageStart(ctx context.Context, ev domain.StageStartEvent) {
+func (m *mockHooks) StageStart(_ context.Context, _ domain.StageStartEvent) {
 	// no-op
 }
 
-func (m *mockHooks) StageEnd(ctx context.Context, ev domain.StageEndEvent) {
+func (m *mockHooks) StageEnd(_ context.Context, _ domain.StageEndEvent) {
 	// no-op
 }

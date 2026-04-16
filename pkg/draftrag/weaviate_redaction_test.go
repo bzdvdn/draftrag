@@ -12,7 +12,7 @@ import (
 func TestWeaviate_RedactsAPIKeyFromErrorBody(t *testing.T) {
 	apiKey := "secret-key"
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		_, _ = w.Write([]byte("unauthorized: " + apiKey))
 	}))

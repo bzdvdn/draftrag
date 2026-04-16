@@ -16,13 +16,6 @@ func (m *mockLLM) Generate(_ context.Context, _, _ string) (string, error) {
 	return m.reply, nil
 }
 
-// errLLM всегда возвращает ошибку.
-type errLLM struct{}
-
-func (errLLM) Generate(_ context.Context, _, _ string) (string, error) {
-	return "", errors.New("llm error")
-}
-
 // fixedEmbedder возвращает фиксированный вектор.
 type fixedEmbedder struct{ vec []float64 }
 
@@ -224,7 +217,7 @@ func TestSearchBuilder_MultiQuery_Answer(t *testing.T) {
 type noFilterStore struct{}
 
 func (noFilterStore) Upsert(_ context.Context, _ domain.Chunk) error { return nil }
-func (noFilterStore) Delete(_ context.Context, _ string) error        { return nil }
+func (noFilterStore) Delete(_ context.Context, _ string) error       { return nil }
 func (noFilterStore) Search(_ context.Context, _ []float64, _ int) (domain.RetrievalResult, error) {
 	return domain.RetrievalResult{}, nil
 }

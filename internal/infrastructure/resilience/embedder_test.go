@@ -217,7 +217,7 @@ func TestRetryEmbedder_HooksCalled(t *testing.T) {
 	}
 	retryEmb := NewRetryEmbedder(mockEmb, config, nil, mockHooks, nil)
 
-	retryEmb.Embed(context.Background(), "test text")
+	_, _ = retryEmb.Embed(context.Background(), "test text")
 
 	// Должно быть по 2 вызова StageStart и StageEnd (по одному на попытку)
 	mockHooks.AssertNumberOfCalls(t, "StageStart", 2)
@@ -240,7 +240,7 @@ func TestRetryEmbedder_HooksCalledOnRejection(t *testing.T) {
 	// Переводим в open
 	retryEmb.circuitBreaker.RecordFailure()
 
-	retryEmb.Embed(context.Background(), "test text")
+	_, _ = retryEmb.Embed(context.Background(), "test text")
 
 	// Должен быть вызов hooks для rejected запроса
 	mockHooks.AssertNumberOfCalls(t, "StageStart", 1)

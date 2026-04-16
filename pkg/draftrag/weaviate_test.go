@@ -143,7 +143,7 @@ func TestWeaviateAuthMissingHeader(t *testing.T) {
 
 // TestWeaviateError404 проверяет, что 404 обрабатывается корректно для WeaviateCollectionExists.
 func TestWeaviateError404(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "collection not found"})
 	}))
@@ -158,7 +158,7 @@ func TestWeaviateError404(t *testing.T) {
 
 // TestWeaviateError500 проверяет, что 500 возвращается как явная ошибка.
 func TestWeaviateError500(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "internal server error"})
 	}))
@@ -186,7 +186,7 @@ func TestWeaviateNetworkError(t *testing.T) {
 
 // TestWeaviateContextCancellation проверяет context cancellation.
 func TestWeaviateContextCancellation(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		// Задержка для проверки таймаута
 		time.Sleep(100 * time.Millisecond)
 		w.WriteHeader(http.StatusOK)
@@ -210,7 +210,7 @@ func TestWeaviateContextCancellation(t *testing.T) {
 
 // TestWeaviateContextCancellationDelete проверяет context cancellation для DeleteWeaviateCollection.
 func TestWeaviateContextCancellationDelete(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		time.Sleep(100 * time.Millisecond)
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -233,7 +233,7 @@ func TestWeaviateContextCancellationDelete(t *testing.T) {
 
 // TestWeaviateContextCancellationExists проверяет context cancellation для WeaviateCollectionExists.
 func TestWeaviateContextCancellationExists(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		time.Sleep(100 * time.Millisecond)
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -290,7 +290,7 @@ func TestWeaviateCollectionExistsSuccess(t *testing.T) {
 
 // TestWeaviateCollectionExistsError проверяет error case для WeaviateCollectionExists.
 func TestWeaviateCollectionExistsError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer server.Close()
@@ -304,7 +304,7 @@ func TestWeaviateCollectionExistsError(t *testing.T) {
 
 // TestDeleteWeaviateCollectionError проверяет error case для DeleteWeaviateCollection.
 func TestDeleteWeaviateCollectionError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer server.Close()

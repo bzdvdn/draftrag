@@ -17,30 +17,30 @@ func init() {
 
 type denyDBDriver struct{}
 
-func (denyDBDriver) Open(name string) (driver.Conn, error) {
+func (denyDBDriver) Open(_ string) (driver.Conn, error) {
 	return denyDBConn{}, nil
 }
 
 type denyDBConn struct{}
 
-func (denyDBConn) Prepare(query string) (driver.Stmt, error) { return denyStmt{}, nil }
-func (denyDBConn) Close() error                              { return nil }
-func (denyDBConn) Begin() (driver.Tx, error)                 { return denyTx{}, nil }
+func (denyDBConn) Prepare(_ string) (driver.Stmt, error) { return denyStmt{}, nil }
+func (denyDBConn) Close() error                          { return nil }
+func (denyDBConn) Begin() (driver.Tx, error)             { return denyTx{}, nil }
 
-func (denyDBConn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
+func (denyDBConn) ExecContext(_ context.Context, _ string, _ []driver.NamedValue) (driver.Result, error) {
 	return nil, errDBUsed
 }
 
-func (denyDBConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+func (denyDBConn) QueryContext(_ context.Context, _ string, _ []driver.NamedValue) (driver.Rows, error) {
 	return nil, errDBUsed
 }
 
 type denyStmt struct{}
 
-func (denyStmt) Close() error                                    { return nil }
-func (denyStmt) NumInput() int                                   { return -1 }
-func (denyStmt) Exec(args []driver.Value) (driver.Result, error) { return nil, errDBUsed }
-func (denyStmt) Query(args []driver.Value) (driver.Rows, error)  { return nil, errDBUsed }
+func (denyStmt) Close() error                                 { return nil }
+func (denyStmt) NumInput() int                                { return -1 }
+func (denyStmt) Exec(_ []driver.Value) (driver.Result, error) { return nil, errDBUsed }
+func (denyStmt) Query(_ []driver.Value) (driver.Rows, error)  { return nil, errDBUsed }
 
 type denyTx struct{}
 
@@ -52,7 +52,7 @@ func TestPGVector_DimensionMismatch_ErrorIs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := NewPGVectorStore(db, PGVectorOptions{
 		TableName:          "draftrag_chunks",

@@ -39,7 +39,7 @@ func TestChromaStore_DeleteByParentID_SendsWhereFilter(t *testing.T) {
 }
 
 func TestChromaStore_DeleteByParentID_ServerError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "bad", http.StatusBadRequest)
 	}))
 	defer server.Close()

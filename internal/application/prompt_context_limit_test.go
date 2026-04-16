@@ -11,15 +11,15 @@ type fixedSearchStore struct {
 	result domain.RetrievalResult
 }
 
-func (fixedSearchStore) Upsert(ctx context.Context, chunk domain.Chunk) error { return nil }
-func (fixedSearchStore) Delete(ctx context.Context, id string) error          { return nil }
-func (s fixedSearchStore) Search(ctx context.Context, embedding []float64, topK int) (domain.RetrievalResult, error) {
+func (fixedSearchStore) Upsert(_ context.Context, _ domain.Chunk) error { return nil }
+func (fixedSearchStore) Delete(_ context.Context, _ string) error       { return nil }
+func (s fixedSearchStore) Search(_ context.Context, _ []float64, _ int) (domain.RetrievalResult, error) {
 	return s.result, nil
 }
 
 type fixedEmbedder struct{}
 
-func (fixedEmbedder) Embed(ctx context.Context, text string) ([]float64, error) {
+func (fixedEmbedder) Embed(_ context.Context, _ string) ([]float64, error) {
 	return []float64{1, 2, 3}, nil
 }
 
@@ -27,7 +27,7 @@ type captureUserMessageLLM struct {
 	userMessage string
 }
 
-func (l *captureUserMessageLLM) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
+func (l *captureUserMessageLLM) Generate(_ context.Context, _, userMessage string) (string, error) {
 	l.userMessage = userMessage
 	return "ok", nil
 }

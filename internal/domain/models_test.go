@@ -314,6 +314,8 @@ func TestHybridConfig_Validate_BMFinalK(t *testing.T) {
 }
 
 func TestNoopLogger(t *testing.T) {
+	t.Parallel()
+
 	logger := NoopLogger()
 	ctx := context.Background()
 
@@ -322,11 +324,15 @@ func TestNoopLogger(t *testing.T) {
 }
 
 func TestSafeLog_NilLogger(t *testing.T) {
+	t.Parallel()
+
 	// SafeLog с nil logger не должен паниковать
-	SafeLog(nil, context.Background(), LogLevelInfo, "test", LogField{Key: "k", Value: "v"})
+	SafeLog(context.Background(), nil, LogLevelInfo, "test", LogField{Key: "k", Value: "v"})
 }
 
 func TestSafeLog_PanicInLogger(t *testing.T) {
+	t.Parallel()
+
 	panicLogger := struct {
 		Logger
 	}{
@@ -334,12 +340,12 @@ func TestSafeLog_PanicInLogger(t *testing.T) {
 	}
 
 	// SafeLog должен защищать от паники в логгере
-	SafeLog(panicLogger, context.Background(), LogLevelInfo, "test", LogField{Key: "k", Value: "v"})
+	SafeLog(context.Background(), panicLogger, LogLevelInfo, "test", LogField{Key: "k", Value: "v"})
 }
 
 type panicLoggerImpl struct{}
 
-func (panicLoggerImpl) Log(ctx context.Context, level LogLevel, msg string, fields ...LogField) {
+func (panicLoggerImpl) Log(_ context.Context, _ LogLevel, _ string, _ ...LogField) {
 	panic("logger panic")
 }
 

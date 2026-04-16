@@ -4,9 +4,9 @@ import (
 	"sync/atomic"
 )
 
-// CacheStats содержит метрики работы кэша.
+// Stats содержит метрики работы кэша.
 // @ds-task T1.3: Структура для сбора статистики кэша (AC-007)
-type CacheStats struct {
+type Stats struct {
 	Hits      uint64 // количество попаданий в кэш
 	Misses    uint64 // количество промахов
 	Evictions uint64 // количество вытесненных записей
@@ -15,7 +15,7 @@ type CacheStats struct {
 // HitRate возвращает долю попаданий в кэш (от 0 до 1).
 // Возвращает 0, если не было ни одного обращения.
 // @ds-task T1.3: Метод вычисления hit rate (AC-007)
-func (s CacheStats) HitRate() float64 {
+func (s Stats) HitRate() float64 {
 	total := s.Hits + s.Misses
 	if total == 0 {
 		return 0
@@ -50,8 +50,8 @@ func (s *statsCollector) RecordEviction() {
 
 // Stats возвращает текущие метрики кэша.
 // @ds-task T1.3: Метод получения статистики (AC-007)
-func (s *statsCollector) Stats() CacheStats {
-	return CacheStats{
+func (s *statsCollector) Stats() Stats {
+	return Stats{
 		Hits:      s.hits.Load(),
 		Misses:    s.misses.Load(),
 		Evictions: s.evictions.Load(),

@@ -121,7 +121,7 @@ func TestMilvusSearch(t *testing.T) {
 		{"id": "c1", "text": "first", "parent_id": "p1", "metadata": map[string]string{"lang": "ru"}, "distance": 0.9},
 		{"id": "c2", "text": "second", "parent_id": "p2", "metadata": nil, "distance": 0.7},
 	}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = io.WriteString(w, milvusOKResp(respData))
 	}))
@@ -152,7 +152,7 @@ func TestMilvusSearch(t *testing.T) {
 // TestMilvusSearchEmptyResult проверяет, что пустой data возвращает пустой слайс без ошибки.
 // @sk-task T4.1: тест AC-003 (edge case)
 func TestMilvusSearchEmptyResult(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = io.WriteString(w, milvusOKResp([]any{}))
 	}))
@@ -294,7 +294,7 @@ func TestMilvusDeleteByParentID(t *testing.T) {
 // TestMilvusDoRequest_CodeError проверяет, что ненулевой code в теле → ошибка с code/msg (AC-008).
 // @sk-task T4.1: тест AC-008 (code != 0)
 func TestMilvusDoRequest_CodeError(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = io.WriteString(w, milvusErrResp(65535, "collection not found"))
 	}))
@@ -318,7 +318,7 @@ func TestMilvusDoRequest_CodeError(t *testing.T) {
 // TestMilvusDoRequest_HTTP5xx проверяет, что HTTP 5xx → ошибка (AC-008).
 // @sk-task T4.1: тест AC-008 (HTTP 5xx)
 func TestMilvusDoRequest_HTTP5xx(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = io.WriteString(w, "internal error")
 	}))
@@ -425,7 +425,7 @@ func TestMilvusSearchHybrid_Weighted(t *testing.T) {
 // TestMilvusSearchHybrid_InvalidConfig проверяет, что невалидная HybridConfig возвращает ошибку.
 // @sk-test T4.1: TestSearchHybridInvalidConfig (AC-005)
 func TestMilvusSearchHybrid_InvalidConfig(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = io.WriteString(w, milvusOKResp(map[string]any{"results": []any{}}))
 	}))
@@ -445,7 +445,7 @@ func TestMilvusSearchHybrid_InvalidConfig(t *testing.T) {
 // TestMilvusSearchHybrid_APIError проверяет, что ошибки Milvus API обрабатываются информативно.
 // @sk-test T4.1: TestSearchHybridAPIError (AC-006)
 func TestMilvusSearchHybrid_APIError(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = io.WriteString(w, milvusErrResp(100, "index not found"))
 	}))
@@ -465,7 +465,7 @@ func TestMilvusSearchHybrid_APIError(t *testing.T) {
 // TestMilvusSearchHybrid_EmptyResults проверяет поведение при пустой коллекции.
 // @sk-test T4.2: TestSearchHybridEmptyResults (AC-002)
 func TestMilvusSearchHybrid_EmptyResults(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = io.WriteString(w, milvusOKResp(map[string]any{"results": []any{}}))
 	}))

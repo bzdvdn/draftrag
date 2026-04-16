@@ -253,6 +253,31 @@ func NewPipelineWithChunker(
 	return NewPipelineWithConfig(store, llm, embedder, PipelineConfig{Chunker: chunker})
 }
 
+func (p *Pipeline) indexChunks(ctx context.Context, operation string, chunks []domain.Chunk) error {
+	for _, chunk := range chunks {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
+		embedStart := time.Now()
+		p.hookStart(ctx, operation, domain.HookStageEmbed)
+		embedding, err := p.embedder.Embed(ctx, chunk.Content)
+		p.hookEnd(ctx, operation, domain.HookStageEmbed, embedStart, err)
+		if err != nil {
+			return err
+		}
+		chunk.Embedding = embedding
+
+		if err := chunk.Validate(); err != nil {
+			return err
+		}
+		if err := p.store.Upsert(ctx, chunk); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Index индексирует документы (v1: один чанк на документ).
 func (p *Pipeline) Index(ctx context.Context, docs []domain.Document) error {
 	if ctx == nil {
@@ -275,26 +300,8 @@ func (p *Pipeline) Index(ctx context.Context, docs []domain.Document) error {
 			if err != nil {
 				return err
 			}
-			for _, chunk := range chunks {
-				if err := ctx.Err(); err != nil {
-					return err
-				}
-
-				embedStart := time.Now()
-				p.hookStart(ctx, "Index", domain.HookStageEmbed)
-				embedding, err := p.embedder.Embed(ctx, chunk.Content)
-				p.hookEnd(ctx, "Index", domain.HookStageEmbed, embedStart, err)
-				if err != nil {
-					return err
-				}
-				chunk.Embedding = embedding
-
-				if err := chunk.Validate(); err != nil {
-					return err
-				}
-				if err := p.store.Upsert(ctx, chunk); err != nil {
-					return err
-				}
+			if err := p.indexChunks(ctx, "Index", chunks); err != nil {
+				return err
 			}
 			continue
 		}
@@ -338,8 +345,12 @@ func (p *Pipeline) IndexBatch(ctx context.Context, docs []domain.Document, batch
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if batchSize <= 0 {
-		batchSize = p.indexConcurrency
+
+	// batchSize в публичном API трактуем как “сколько документов обрабатывать параллельно”.
+	// Если не задан — используем дефолт pipeline.
+	concurrency := p.indexConcurrency
+	if batchSize > 0 {
+		concurrency = batchSize
 	}
 
 	result := &domain.IndexBatchResult{
@@ -350,7 +361,7 @@ func (p *Pipeline) IndexBatch(ctx context.Context, docs []domain.Document, batch
 	var wg sync.WaitGroup
 
 	// Семафор для ограничения concurrency
-	semaphore := make(chan struct{}, p.indexConcurrency)
+	semaphore := make(chan struct{}, concurrency)
 
 	// Rate limiter: token bucket
 	// @ds-task T2.2: Token bucket rate limiter для вызовов Embed (AC-002, DEC-002)
@@ -646,7 +657,6 @@ func rrfMergeMultiple(lists []domain.RetrievalResult, topK int) domain.Retrieval
 	return domain.RetrievalResult{Chunks: merged}
 }
 
-
 // processDocumentForBatch обрабатывает один документ для batch-индексации.
 // Выполняет chunking (если настроен), embedding и upsert всех чанков.
 //
@@ -660,29 +670,7 @@ func (p *Pipeline) processDocumentForBatch(ctx context.Context, doc domain.Docum
 		if err != nil {
 			return err
 		}
-
-		for _, chunk := range chunks {
-			if err := ctx.Err(); err != nil {
-				return err
-			}
-
-			embedStart := time.Now()
-			p.hookStart(ctx, "IndexBatch", domain.HookStageEmbed)
-			embedding, err := p.embedder.Embed(ctx, chunk.Content)
-			p.hookEnd(ctx, "IndexBatch", domain.HookStageEmbed, embedStart, err)
-			if err != nil {
-				return err
-			}
-			chunk.Embedding = embedding
-
-			if err := chunk.Validate(); err != nil {
-				return err
-			}
-			if err := p.store.Upsert(ctx, chunk); err != nil {
-				return err
-			}
-		}
-		return nil
+		return p.indexChunks(ctx, "IndexBatch", chunks)
 	}
 
 	// Legacy path: один чанк на документ
@@ -705,10 +693,7 @@ func (p *Pipeline) processDocumentForBatch(ctx context.Context, doc domain.Docum
 		return err
 	}
 
-	if err := p.store.Upsert(ctx, chunk); err != nil {
-		return err
-	}
-	return nil
+	return p.store.Upsert(ctx, chunk)
 }
 
 // Query выполняет поиск по вопросу и возвращает RetrievalResult.

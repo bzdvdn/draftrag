@@ -51,7 +51,7 @@ func TestQdrantStore_DeleteByParentID_SendsFilter(t *testing.T) {
 }
 
 func TestQdrantStore_DeleteByParentID_ServerError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 	}))
 	defer server.Close()

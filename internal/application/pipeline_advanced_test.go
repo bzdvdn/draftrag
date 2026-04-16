@@ -175,7 +175,7 @@ type hybridSearcher struct {
 	mockVectorStore
 }
 
-func (m *hybridSearcher) SearchHybrid(ctx context.Context, query string, embedding []float64, topK int, config domain.HybridConfig) (domain.RetrievalResult, error) {
+func (m *hybridSearcher) SearchHybrid(_ context.Context, _ string, _ []float64, _ int, _ domain.HybridConfig) (domain.RetrievalResult, error) {
 	return domain.RetrievalResult{}, nil
 }
 

@@ -11,8 +11,10 @@ import (
 	"time"
 )
 
+const testAPIKey = "secret-key"
+
 func TestOpenAICompatibleResponsesLLM_Generate_Success_OutputText(t *testing.T) {
-	apiKey := "secret-key"
+	apiKey := testAPIKey
 	model := "test-model"
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -64,9 +66,9 @@ func TestOpenAICompatibleResponsesLLM_Generate_Success_OutputText(t *testing.T) 
 }
 
 func TestOpenAICompatibleResponsesLLM_Generate_Success_FallbackOutput(t *testing.T) {
-	apiKey := "secret-key"
+	apiKey := testAPIKey
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"output": []any{
@@ -95,9 +97,9 @@ func TestOpenAICompatibleResponsesLLM_Generate_Success_FallbackOutput(t *testing
 }
 
 func TestOpenAICompatibleResponsesLLM_Generate_Non200_RedactsAPIKey(t *testing.T) {
-	apiKey := "secret-key"
+	apiKey := testAPIKey
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		_, _ = w.Write([]byte("bad request: " + apiKey))
 	}))
@@ -114,9 +116,9 @@ func TestOpenAICompatibleResponsesLLM_Generate_Non200_RedactsAPIKey(t *testing.T
 }
 
 func TestOpenAICompatibleResponsesLLM_Generate_InvalidJSON(t *testing.T) {
-	apiKey := "secret-key"
+	apiKey := testAPIKey
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte("{not-json"))
 	}))
@@ -130,9 +132,9 @@ func TestOpenAICompatibleResponsesLLM_Generate_InvalidJSON(t *testing.T) {
 }
 
 func TestOpenAICompatibleResponsesLLM_Generate_MissingText(t *testing.T) {
-	apiKey := "secret-key"
+	apiKey := testAPIKey
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{})
 	}))
@@ -146,10 +148,10 @@ func TestOpenAICompatibleResponsesLLM_Generate_MissingText(t *testing.T) {
 }
 
 func TestOpenAICompatibleResponsesLLM_Generate_ContextCancel(t *testing.T) {
-	apiKey := "secret-key"
+	apiKey := testAPIKey
 
 	unblock := make(chan struct{})
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		<-unblock
 	}))
 	t.Cleanup(func() {
@@ -173,10 +175,10 @@ func TestOpenAICompatibleResponsesLLM_Generate_ContextCancel(t *testing.T) {
 }
 
 func TestOpenAICompatibleResponsesLLM_Generate_ContextDeadline(t *testing.T) {
-	apiKey := "secret-key"
+	apiKey := testAPIKey
 
 	unblock := make(chan struct{})
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		<-unblock
 	}))
 	t.Cleanup(func() {
@@ -200,7 +202,7 @@ func TestOpenAICompatibleResponsesLLM_Generate_ContextDeadline(t *testing.T) {
 }
 
 func TestOpenAICompatibleResponsesLLM_Generate_IncludesOptions(t *testing.T) {
-	apiKey := "secret-key"
+	apiKey := testAPIKey
 	temp := 0.7
 	maxTokens := 123
 
@@ -234,7 +236,7 @@ func TestOpenAICompatibleResponsesLLM_Generate_IncludesOptions(t *testing.T) {
 // TestGenerateStream_Success проверяет успешное SSE streaming.
 // @sk-task T3.1: Тест GenerateStream с мок HTTP server (SSE) (AC-001, AC-005)
 func TestGenerateStream_Success(t *testing.T) {
-	apiKey := "secret-key"
+	apiKey := testAPIKey
 	model := "test-model"
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -258,7 +260,7 @@ func TestGenerateStream_Success(t *testing.T) {
 		}
 
 		for _, event := range events {
-			w.Write([]byte(event))
+			_, _ = w.Write([]byte(event))
 			w.(http.Flusher).Flush()
 		}
 	}))
@@ -283,15 +285,15 @@ func TestGenerateStream_Success(t *testing.T) {
 // TestGenerateStream_ContextCancellation проверяет обработку отмены контекста.
 // @sk-task T3.1: Тест context cancellation без утечек (AC-003, RQ-005)
 func TestGenerateStream_ContextCancellation(t *testing.T) {
-	apiKey := "secret-key"
+	apiKey := testAPIKey
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.WriteHeader(http.StatusOK)
 
 		// Отправляем события с задержкой
 		for i := 0; i < 10; i++ {
-			w.Write([]byte(`data: {"delta":{"text":"token"}}` + "\n\n"))
+			_, _ = w.Write([]byte(`data: {"delta":{"text":"token"}}` + "\n\n"))
 			w.(http.Flusher).Flush()
 			time.Sleep(10 * time.Millisecond)
 		}
@@ -323,11 +325,11 @@ func TestGenerateStream_ContextCancellation(t *testing.T) {
 // TestGenerateStream_Non200 проверяет обработку ошибок HTTP.
 // @sk-task T3.1: Тест обработки ошибок streaming'а (AC-005, RQ-006)
 func TestGenerateStream_Non200(t *testing.T) {
-	apiKey := "secret-key"
+	apiKey := testAPIKey
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"error":"invalid api key"}`))
+		_, _ = w.Write([]byte(`{"error":"invalid api key"}`))
 	}))
 	t.Cleanup(srv.Close)
 

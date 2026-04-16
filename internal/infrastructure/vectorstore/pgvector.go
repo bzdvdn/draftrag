@@ -253,53 +253,10 @@ func (s *PGVectorStore) Search(ctx context.Context, embedding []float64, topK in
 	if err != nil {
 		return domain.RetrievalResult{}, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
-	var (
-		results    []domain.RetrievedChunk
-		totalFound int
-	)
-
-	for rows.Next() {
-		if err := ctx.Err(); err != nil {
-			return domain.RetrievalResult{}, err
-		}
-
-		var (
-			id       string
-			parentID string
-			content  string
-			position int
-			vec      pgvector.Vector
-			score    float64
-			total    int
-		)
-
-		if err := rows.Scan(&id, &parentID, &content, &position, &vec, &score, &total); err != nil {
-			return domain.RetrievalResult{}, err
-		}
-
-		if totalFound == 0 {
-			totalFound = total
-		}
-
-		if math.IsNaN(score) || math.IsInf(score, 0) {
-			return domain.RetrievalResult{}, errors.New("invalid score from database")
-		}
-
-		results = append(results, domain.RetrievedChunk{
-			Chunk: domain.Chunk{
-				ID:        id,
-				Content:   content,
-				ParentID:  parentID,
-				Embedding: float64FromPGVector(vec),
-				Position:  position,
-			},
-			Score: clampScore(score),
-		})
-	}
-
-	if err := rows.Err(); err != nil {
+	results, totalFound, err := scanPGVectorSearchRows(ctx, rows)
+	if err != nil {
 		return domain.RetrievalResult{}, err
 	}
 
@@ -363,53 +320,10 @@ func (s *PGVectorStore) SearchWithFilter(
 	if err != nil {
 		return domain.RetrievalResult{}, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
-	var (
-		results    []domain.RetrievedChunk
-		totalFound int
-	)
-
-	for rows.Next() {
-		if err := ctx.Err(); err != nil {
-			return domain.RetrievalResult{}, err
-		}
-
-		var (
-			id       string
-			parentID string
-			content  string
-			position int
-			vec      pgvector.Vector
-			score    float64
-			total    int
-		)
-
-		if err := rows.Scan(&id, &parentID, &content, &position, &vec, &score, &total); err != nil {
-			return domain.RetrievalResult{}, err
-		}
-
-		if totalFound == 0 {
-			totalFound = total
-		}
-
-		if math.IsNaN(score) || math.IsInf(score, 0) {
-			return domain.RetrievalResult{}, errors.New("invalid score from database")
-		}
-
-		results = append(results, domain.RetrievedChunk{
-			Chunk: domain.Chunk{
-				ID:        id,
-				Content:   content,
-				ParentID:  parentID,
-				Embedding: float64FromPGVector(vec),
-				Position:  position,
-			},
-			Score: clampScore(score),
-		})
-	}
-
-	if err := rows.Err(); err != nil {
+	results, totalFound, err := scanPGVectorSearchRows(ctx, rows)
+	if err != nil {
 		return domain.RetrievalResult{}, err
 	}
 
@@ -471,57 +385,10 @@ func (s *PGVectorStore) SearchWithMetadataFilter(
 	if err != nil {
 		return domain.RetrievalResult{}, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
-	var (
-		results    []domain.RetrievedChunk
-		totalFound int
-	)
-
-	for rows.Next() {
-		if err := ctx.Err(); err != nil {
-			return domain.RetrievalResult{}, err
-		}
-
-		var (
-			id           string
-			parentID     string
-			content      string
-			position     int
-			vec          pgvector.Vector
-			metadataJSON []byte
-			score        float64
-			total        int
-		)
-
-		if err := rows.Scan(&id, &parentID, &content, &position, &vec, &metadataJSON, &score, &total); err != nil {
-			return domain.RetrievalResult{}, err
-		}
-
-		if totalFound == 0 {
-			totalFound = total
-		}
-
-		if math.IsNaN(score) || math.IsInf(score, 0) {
-			return domain.RetrievalResult{}, errors.New("invalid score from database")
-		}
-
-		metadata := decodeMetadata(metadataJSON)
-
-		results = append(results, domain.RetrievedChunk{
-			Chunk: domain.Chunk{
-				ID:        id,
-				Content:   content,
-				ParentID:  parentID,
-				Embedding: float64FromPGVector(vec),
-				Position:  position,
-				Metadata:  metadata,
-			},
-			Score: clampScore(score),
-		})
-	}
-
-	if err := rows.Err(); err != nil {
+	results, totalFound, err := scanRetrievedChunks(ctx, rows)
+	if err != nil {
 		return domain.RetrievalResult{}, err
 	}
 
@@ -573,8 +440,21 @@ func (s *PGVectorStore) SearchBM25(ctx context.Context, query string, topK int) 
 	if err != nil {
 		return domain.RetrievalResult{}, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
+	results, totalFound, err := scanRetrievedChunks(ctx, rows)
+	if err != nil {
+		return domain.RetrievalResult{}, err
+	}
+
+	return domain.RetrievalResult{
+		Chunks:     results,
+		QueryText:  query,
+		TotalFound: totalFound,
+	}, nil
+}
+
+func scanRetrievedChunks(ctx context.Context, rows *sql.Rows) ([]domain.RetrievedChunk, int, error) {
 	var (
 		results    []domain.RetrievedChunk
 		totalFound int
@@ -582,7 +462,7 @@ func (s *PGVectorStore) SearchBM25(ctx context.Context, query string, topK int) 
 
 	for rows.Next() {
 		if err := ctx.Err(); err != nil {
-			return domain.RetrievalResult{}, err
+			return nil, 0, err
 		}
 
 		var (
@@ -597,7 +477,7 @@ func (s *PGVectorStore) SearchBM25(ctx context.Context, query string, topK int) 
 		)
 
 		if err := rows.Scan(&id, &parentID, &content, &position, &vec, &metadataJSON, &score, &total); err != nil {
-			return domain.RetrievalResult{}, err
+			return nil, 0, err
 		}
 
 		if totalFound == 0 {
@@ -605,7 +485,7 @@ func (s *PGVectorStore) SearchBM25(ctx context.Context, query string, topK int) 
 		}
 
 		if math.IsNaN(score) || math.IsInf(score, 0) {
-			return domain.RetrievalResult{}, errors.New("invalid score from database")
+			return nil, 0, errors.New("invalid score from database")
 		}
 
 		metadata := decodeMetadata(metadataJSON)
@@ -624,14 +504,10 @@ func (s *PGVectorStore) SearchBM25(ctx context.Context, query string, topK int) 
 	}
 
 	if err := rows.Err(); err != nil {
-		return domain.RetrievalResult{}, err
+		return nil, 0, err
 	}
 
-	return domain.RetrievalResult{
-		Chunks:     results,
-		QueryText:  query,
-		TotalFound: totalFound,
-	}, nil
+	return results, totalFound, nil
 }
 
 // SearchHybrid выполняет гибридный поиск: семантический + BM25.
@@ -897,57 +773,10 @@ func (s *PGVectorStore) searchBM25WithParentIDFilter(ctx context.Context, query 
 	if err != nil {
 		return domain.RetrievalResult{}, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
-	var (
-		results    []domain.RetrievedChunk
-		totalFound int
-	)
-
-	for rows.Next() {
-		if err := ctx.Err(); err != nil {
-			return domain.RetrievalResult{}, err
-		}
-
-		var (
-			id           string
-			parentID     string
-			content      string
-			position     int
-			vec          pgvector.Vector
-			metadataJSON []byte
-			score        float64
-			total        int
-		)
-
-		if err := rows.Scan(&id, &parentID, &content, &position, &vec, &metadataJSON, &score, &total); err != nil {
-			return domain.RetrievalResult{}, err
-		}
-
-		if totalFound == 0 {
-			totalFound = total
-		}
-
-		if math.IsNaN(score) || math.IsInf(score, 0) {
-			return domain.RetrievalResult{}, errors.New("invalid score from database")
-		}
-
-		metadata := decodeMetadata(metadataJSON)
-
-		results = append(results, domain.RetrievedChunk{
-			Chunk: domain.Chunk{
-				ID:        id,
-				Content:   content,
-				ParentID:  parentID,
-				Embedding: float64FromPGVector(vec),
-				Position:  position,
-				Metadata:  metadata,
-			},
-			Score: clampScore(score),
-		})
-	}
-
-	if err := rows.Err(); err != nil {
+	results, totalFound, err := scanRetrievedChunks(ctx, rows)
+	if err != nil {
 		return domain.RetrievalResult{}, err
 	}
 
@@ -981,6 +810,7 @@ func (s *PGVectorStore) searchBM25WithMetadataFilter(ctx context.Context, query 
 
 	filterJSON := encodeMetadata(filter.Fields)
 
+	//nolint:gosec // Table identifier is validated/quoted and can't be passed as a query argument.
 	sqlQuery := fmt.Sprintf(
 		`SELECT id, parent_id, content, position, embedding, metadata,
 		        ts_rank_cd(content_tsv, plainto_tsquery('english', $1), 32) AS score,
@@ -997,57 +827,10 @@ func (s *PGVectorStore) searchBM25WithMetadataFilter(ctx context.Context, query 
 	if err != nil {
 		return domain.RetrievalResult{}, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
-	var (
-		results    []domain.RetrievedChunk
-		totalFound int
-	)
-
-	for rows.Next() {
-		if err := ctx.Err(); err != nil {
-			return domain.RetrievalResult{}, err
-		}
-
-		var (
-			id           string
-			parentID     string
-			content      string
-			position     int
-			vec          pgvector.Vector
-			metadataJSON []byte
-			score        float64
-			total        int
-		)
-
-		if err := rows.Scan(&id, &parentID, &content, &position, &vec, &metadataJSON, &score, &total); err != nil {
-			return domain.RetrievalResult{}, err
-		}
-
-		if totalFound == 0 {
-			totalFound = total
-		}
-
-		if math.IsNaN(score) || math.IsInf(score, 0) {
-			return domain.RetrievalResult{}, errors.New("invalid score from database")
-		}
-
-		metadata := decodeMetadata(metadataJSON)
-
-		results = append(results, domain.RetrievedChunk{
-			Chunk: domain.Chunk{
-				ID:        id,
-				Content:   content,
-				ParentID:  parentID,
-				Embedding: float64FromPGVector(vec),
-				Position:  position,
-				Metadata:  metadata,
-			},
-			Score: clampScore(score),
-		})
-	}
-
-	if err := rows.Err(); err != nil {
+	results, totalFound, err := scanRetrievedChunks(ctx, rows)
+	if err != nil {
 		return domain.RetrievalResult{}, err
 	}
 
@@ -1082,6 +865,58 @@ func decodeMetadata(b []byte) map[string]string {
 		return nil
 	}
 	return m
+}
+
+func scanPGVectorSearchRows(ctx context.Context, rows *sql.Rows) ([]domain.RetrievedChunk, int, error) {
+	var (
+		results    []domain.RetrievedChunk
+		totalFound int
+	)
+
+	for rows.Next() {
+		if err := ctx.Err(); err != nil {
+			return nil, 0, err
+		}
+
+		var (
+			id       string
+			parentID string
+			content  string
+			position int
+			vec      pgvector.Vector
+			score    float64
+			total    int
+		)
+
+		if err := rows.Scan(&id, &parentID, &content, &position, &vec, &score, &total); err != nil {
+			return nil, 0, err
+		}
+
+		if totalFound == 0 {
+			totalFound = total
+		}
+
+		if math.IsNaN(score) || math.IsInf(score, 0) {
+			return nil, 0, errors.New("invalid score from database")
+		}
+
+		results = append(results, domain.RetrievedChunk{
+			Chunk: domain.Chunk{
+				ID:        id,
+				Content:   content,
+				ParentID:  parentID,
+				Embedding: float64FromPGVector(vec),
+				Position:  position,
+			},
+			Score: clampScore(score),
+		})
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+
+	return results, totalFound, nil
 }
 
 func withDefaultTimeout(ctx context.Context, timeout time.Duration) (context.Context, func()) {

@@ -55,6 +55,7 @@ type Report struct {
 	Cases   []CaseResult
 }
 
+// MarshalJSON реализует сериализацию Report в JSON.
 // @sk-task T2.4: MarshalJSON реализует сериализацию Report в JSON (AC-006)
 func (r Report) MarshalJSON() ([]byte, error) {
 	type Alias Report

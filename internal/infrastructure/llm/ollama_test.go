@@ -51,7 +51,7 @@ func TestOllamaLLM_Generate_Success(t *testing.T) {
 		if len(req.Messages) == 0 {
 			t.Error("messages array is empty")
 		}
-		if req.Messages[len(req.Messages)-1].Role != "user" {
+		if req.Messages[len(req.Messages)-1].Role != roleUser {
 			t.Errorf("expected last role=user, got %s", req.Messages[len(req.Messages)-1].Role)
 		}
 
@@ -65,7 +65,7 @@ func TestOllamaLLM_Generate_Success(t *testing.T) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -110,15 +110,16 @@ func TestOllamaLLM_Generate_NilContext(t *testing.T) {
 		}
 	}()
 
-	client.Generate(nil, "System", "User")
+	//nolint:staticcheck // Нам нужно передать nil context, чтобы проверить, что метод паникует.
+	_, _ = client.Generate(nil, "System", "User")
 }
 
 // @sk-task T3.1: Тест на HTTP ошибки (AC-003)
 func TestOllamaLLM_Generate_HTTPError(t *testing.T) {
 	// Мок-сервер, возвращающий ошибку 404
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(`{"error": "model not found"}`))
+		_, _ = w.Write([]byte(`{"error": "model not found"}`))
 	}))
 	defer server.Close()
 
@@ -137,10 +138,10 @@ func TestOllamaLLM_Generate_HTTPError(t *testing.T) {
 // @sk-task T3.1: Тест на таймаут контекста (AC-004)
 func TestOllamaLLM_Generate_ContextTimeout(t *testing.T) {
 	// Мок-сервер с задержкой
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		time.Sleep(100 * time.Millisecond)
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(ollamaChatResponse{
+		_ = json.NewEncoder(w).Encode(ollamaChatResponse{
 			Message: ollamaMessage{Role: "assistant", Content: "Late response"},
 		})
 	}))
@@ -166,7 +167,7 @@ func TestOllamaLLM_Generate_ContextTimeout(t *testing.T) {
 
 // @sk-task T3.1: Тест на пустой ответ от модели (краевой случай)
 func TestOllamaLLM_Generate_EmptyResponse(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		resp := ollamaChatResponse{
 			Message: ollamaMessage{
 				Role:    "assistant",
@@ -175,7 +176,7 @@ func TestOllamaLLM_Generate_EmptyResponse(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -230,8 +231,13 @@ func TestOllamaLLM_Generate_WithSystemPrompt(t *testing.T) {
 	var capturedReq ollamaChatRequest
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := io.ReadAll(r.Body)
-		json.Unmarshal(body, &capturedReq)
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read request body: %v", err)
+		}
+		if err := json.Unmarshal(body, &capturedReq); err != nil {
+			t.Fatalf("unmarshal request: %v", err)
+		}
 
 		resp := ollamaChatResponse{
 			Message: ollamaMessage{
@@ -241,7 +247,7 @@ func TestOllamaLLM_Generate_WithSystemPrompt(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -274,8 +280,13 @@ func TestOllamaLLM_Generate_WithParameters(t *testing.T) {
 	var capturedReq ollamaChatRequest
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := io.ReadAll(r.Body)
-		json.Unmarshal(body, &capturedReq)
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read request body: %v", err)
+		}
+		if err := json.Unmarshal(body, &capturedReq); err != nil {
+			t.Fatalf("unmarshal request: %v", err)
+		}
 
 		resp := ollamaChatResponse{
 			Message: ollamaMessage{
@@ -285,7 +296,7 @@ func TestOllamaLLM_Generate_WithParameters(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 

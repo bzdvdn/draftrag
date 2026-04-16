@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/bzdvdn/draftrag/internal/domain"
@@ -31,10 +32,76 @@ type ChromaRuntimeOptions struct {
 	MaxTopK       int
 }
 
+type chromaQueryResponse struct {
+	IDs       [][]string            `json:"ids"`
+	Distances [][]float64           `json:"distances"`
+	Metadatas [][]map[string]string `json:"metadatas"`
+	Documents [][]string            `json:"documents"`
+}
+
+func chromaToRetrievalResult(result chromaQueryResponse) domain.RetrievalResult {
+	// ChromaDB возвращает массив результатов для каждого query_embedding.
+	// Для одиночного запроса берём result[0].
+	if len(result.IDs) == 0 || len(result.IDs[0]) == 0 {
+		return domain.RetrievalResult{
+			Chunks:     []domain.RetrievedChunk{},
+			TotalFound: 0,
+		}
+	}
+
+	chunks := make([]domain.RetrievedChunk, 0, len(result.IDs[0]))
+	for i, id := range result.IDs[0] {
+		chunk := domain.Chunk{ID: id}
+
+		if len(result.Metadatas) > 0 && len(result.Metadatas[0]) > i {
+			meta := result.Metadatas[0][i]
+			if parentID, ok := meta["parent_id"]; ok {
+				chunk.ParentID = parentID
+			}
+			if content, ok := meta["content"]; ok {
+				chunk.Content = content
+			}
+			if posStr, ok := meta["position"]; ok {
+				if pos, err := strconv.Atoi(posStr); err == nil {
+					chunk.Position = pos
+				}
+			}
+			chunk.Metadata = make(map[string]string)
+			for k, v := range meta {
+				if k != "parent_id" && k != "content" && k != "position" {
+					chunk.Metadata[k] = v
+				}
+			}
+		}
+
+		// Content из documents если не был в metadata.
+		if chunk.Content == "" && len(result.Documents) > 0 && len(result.Documents[0]) > i {
+			chunk.Content = result.Documents[0][i]
+		}
+
+		score := 0.0
+		if len(result.Distances) > 0 && len(result.Distances[0]) > i {
+			// cosine distance -> similarity score: 1 - distance
+			score = 1.0 - result.Distances[0][i]
+		}
+
+		chunks = append(chunks, domain.RetrievedChunk{
+			Chunk: chunk,
+			Score: score,
+		})
+	}
+
+	return domain.RetrievalResult{
+		Chunks:     chunks,
+		TotalFound: len(chunks),
+	}
+}
+
 // Compile-time проверка интерфейсов
 var _ domain.VectorStore = (*ChromaStore)(nil)
 var _ domain.VectorStoreWithFilters = (*ChromaStore)(nil)
 var _ domain.DocumentStore = (*ChromaStore)(nil)
+
 // @ds-task T2.3: Compile-time assertion для CollectionManager (AC-006)
 var _ domain.CollectionManager = (*ChromaStore)(nil)
 
@@ -111,7 +178,7 @@ func (s *ChromaStore) Upsert(ctx context.Context, chunk domain.Chunk) error {
 	if err != nil {
 		return fmt.Errorf("chromadb request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(resp.Body)
@@ -125,10 +192,7 @@ func (s *ChromaStore) Upsert(ctx context.Context, chunk domain.Chunk) error {
 //
 // @ds-task T2.3: Реализовать Delete через HTTP POST /api/v1/collections/{name}/delete (AC-004, RQ-004)
 func (s *ChromaStore) Delete(ctx context.Context, id string) error {
-	if ctx == nil {
-		panic("nil context")
-	}
-	if err := ctx.Err(); err != nil {
+	if err := ensureContext(ctx); err != nil {
 		return err
 	}
 
@@ -136,35 +200,16 @@ func (s *ChromaStore) Delete(ctx context.Context, id string) error {
 		return domain.ErrEmptyChunkID
 	}
 
-	body := map[string]interface{}{
-		"ids": []string{id},
-	}
-
-	jsonBody, err := json.Marshal(body)
-	if err != nil {
-		return fmt.Errorf("marshal request: %w", err)
-	}
-
 	url := fmt.Sprintf("%s/api/v1/collections/%s/delete", s.baseURL, s.collection)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(jsonBody))
-	if err != nil {
-		return fmt.Errorf("create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := s.client.Do(req)
-	if err != nil {
-		return fmt.Errorf("chromadb request: %w", err)
-	}
-	defer resp.Body.Close()
-
 	// ChromaDB возвращает 200 даже если ID не существует (idempotent)
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("chromadb error: status=%d, body=%s", resp.StatusCode, string(body))
-	}
-
-	return nil
+	return doJSONAndExpectStatus(
+		ctx, s.client,
+		http.MethodPost, url,
+		map[string]any{"ids": []string{id}},
+		http.StatusOK,
+		"chromadb",
+		"chromadb",
+	)
 }
 
 // DeleteByParentID удаляет все документы с указанным parent_id через ChromaDB where-фильтр.
@@ -198,7 +243,7 @@ func (s *ChromaStore) DeleteByParentID(ctx context.Context, parentID string) err
 	if err != nil {
 		return fmt.Errorf("chromadb request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// ChromaDB возвращает 200 даже если документы не найдены (idempotent)
 	if resp.StatusCode != http.StatusOK {
@@ -250,82 +295,20 @@ func (s *ChromaStore) Search(ctx context.Context, embedding []float64, topK int)
 	if err != nil {
 		return domain.RetrievalResult{}, fmt.Errorf("chromadb request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return domain.RetrievalResult{}, fmt.Errorf("chromadb error: status=%d, body=%s", resp.StatusCode, string(body))
 	}
 
-	var result struct {
-		IDs        [][]string  `json:"ids"`
-		Distances  [][]float64 `json:"distances"`
-		Metadatas  [][]map[string]string `json:"metadatas"`
-		Documents  [][]string  `json:"documents"`
-	}
+	var result chromaQueryResponse
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return domain.RetrievalResult{}, fmt.Errorf("decode response: %w", err)
 	}
 
-	// ChromaDB возвращает массив результатов для каждого query_embedding
-	// Для одиночного запроса берём result[0]
-	if len(result.IDs) == 0 || len(result.IDs[0]) == 0 {
-		return domain.RetrievalResult{
-			Chunks:     []domain.RetrievedChunk{},
-			TotalFound: 0,
-		}, nil
-	}
-
-	chunks := make([]domain.RetrievedChunk, 0, len(result.IDs[0]))
-	for i, id := range result.IDs[0] {
-		chunk := domain.Chunk{
-			ID: id,
-		}
-
-		// Извлечение из metadata
-		if len(result.Metadatas) > 0 && len(result.Metadatas[0]) > i {
-			meta := result.Metadatas[0][i]
-			if parentID, ok := meta["parent_id"]; ok {
-				chunk.ParentID = parentID
-			}
-			if content, ok := meta["content"]; ok {
-				chunk.Content = content
-			}
-			if posStr, ok := meta["position"]; ok {
-				fmt.Sscanf(posStr, "%d", &chunk.Position)
-			}
-			// Копирование остальных метаданных
-			chunk.Metadata = make(map[string]string)
-			for k, v := range meta {
-				if k != "parent_id" && k != "content" && k != "position" {
-					chunk.Metadata[k] = v
-				}
-			}
-		}
-
-		// Content из documents если не был в metadata
-		if chunk.Content == "" && len(result.Documents) > 0 && len(result.Documents[0]) > i {
-			chunk.Content = result.Documents[0][i]
-		}
-
-		// Score: ChromaDB возвращает distance (cosine distance), конвертируем в similarity score
-		score := 0.0
-		if len(result.Distances) > 0 && len(result.Distances[0]) > i {
-			// cosine distance -> similarity score: 1 - distance
-			score = 1.0 - result.Distances[0][i]
-		}
-
-		chunks = append(chunks, domain.RetrievedChunk{
-			Chunk: chunk,
-			Score: score,
-		})
-	}
-
-	return domain.RetrievalResult{
-		Chunks:     chunks,
-		TotalFound: len(chunks),
-	}, nil
+	return chromaToRetrievalResult(result), nil
 }
 
 // SearchWithFilter выполняет поиск с фильтрацией по ParentID.
@@ -395,73 +378,20 @@ func (s *ChromaStore) SearchWithFilter(
 	if err != nil {
 		return domain.RetrievalResult{}, fmt.Errorf("chromadb request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return domain.RetrievalResult{}, fmt.Errorf("chromadb error: status=%d, body=%s", resp.StatusCode, string(body))
 	}
 
-	var result struct {
-		IDs       [][]string  `json:"ids"`
-		Distances [][]float64 `json:"distances"`
-		Metadatas [][]map[string]string `json:"metadatas"`
-		Documents [][]string  `json:"documents"`
-	}
+	var result chromaQueryResponse
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return domain.RetrievalResult{}, fmt.Errorf("decode response: %w", err)
 	}
 
-	if len(result.IDs) == 0 || len(result.IDs[0]) == 0 {
-		return domain.RetrievalResult{
-			Chunks:     []domain.RetrievedChunk{},
-			TotalFound: 0,
-		}, nil
-	}
-
-	chunks := make([]domain.RetrievedChunk, 0, len(result.IDs[0]))
-	for i, id := range result.IDs[0] {
-		chunk := domain.Chunk{ID: id}
-
-		if len(result.Metadatas) > 0 && len(result.Metadatas[0]) > i {
-			meta := result.Metadatas[0][i]
-			if parentID, ok := meta["parent_id"]; ok {
-				chunk.ParentID = parentID
-			}
-			if content, ok := meta["content"]; ok {
-				chunk.Content = content
-			}
-			if posStr, ok := meta["position"]; ok {
-				fmt.Sscanf(posStr, "%d", &chunk.Position)
-			}
-			chunk.Metadata = make(map[string]string)
-			for k, v := range meta {
-				if k != "parent_id" && k != "content" && k != "position" {
-					chunk.Metadata[k] = v
-				}
-			}
-		}
-
-		if chunk.Content == "" && len(result.Documents) > 0 && len(result.Documents[0]) > i {
-			chunk.Content = result.Documents[0][i]
-		}
-
-		score := 0.0
-		if len(result.Distances) > 0 && len(result.Distances[0]) > i {
-			score = 1.0 - result.Distances[0][i]
-		}
-
-		chunks = append(chunks, domain.RetrievedChunk{
-			Chunk: chunk,
-			Score: score,
-		})
-	}
-
-	return domain.RetrievalResult{
-		Chunks:     chunks,
-		TotalFound:  len(chunks),
-	}, nil
+	return chromaToRetrievalResult(result), nil
 }
 
 // SearchWithMetadataFilter выполняет поиск с фильтрацией по полям метаданных.
@@ -521,7 +451,7 @@ func (s *ChromaStore) SearchWithMetadataFilter(
 	if err != nil {
 		return domain.RetrievalResult{}, fmt.Errorf("chromadb request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Автосоздание коллекции при 404 (DEC-002: делегируем публичному CreateCollection)
 	if resp.StatusCode == http.StatusNotFound {
@@ -535,7 +465,7 @@ func (s *ChromaStore) SearchWithMetadataFilter(
 		if err != nil {
 			return domain.RetrievalResult{}, fmt.Errorf("chromadb request (retry): %w", err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -543,66 +473,13 @@ func (s *ChromaStore) SearchWithMetadataFilter(
 		return domain.RetrievalResult{}, fmt.Errorf("chromadb error: status=%d, body=%s", resp.StatusCode, string(body))
 	}
 
-	var result struct {
-		IDs       [][]string  `json:"ids"`
-		Distances [][]float64 `json:"distances"`
-		Metadatas [][]map[string]string `json:"metadatas"`
-		Documents [][]string  `json:"documents"`
-	}
+	var result chromaQueryResponse
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return domain.RetrievalResult{}, fmt.Errorf("decode response: %w", err)
 	}
 
-	if len(result.IDs) == 0 || len(result.IDs[0]) == 0 {
-		return domain.RetrievalResult{
-			Chunks:     []domain.RetrievedChunk{},
-			TotalFound: 0,
-		}, nil
-	}
-
-	chunks := make([]domain.RetrievedChunk, 0, len(result.IDs[0]))
-	for i, id := range result.IDs[0] {
-		chunk := domain.Chunk{ID: id}
-
-		if len(result.Metadatas) > 0 && len(result.Metadatas[0]) > i {
-			meta := result.Metadatas[0][i]
-			if parentID, ok := meta["parent_id"]; ok {
-				chunk.ParentID = parentID
-			}
-			if content, ok := meta["content"]; ok {
-				chunk.Content = content
-			}
-			if posStr, ok := meta["position"]; ok {
-				fmt.Sscanf(posStr, "%d", &chunk.Position)
-			}
-			chunk.Metadata = make(map[string]string)
-			for k, v := range meta {
-				if k != "parent_id" && k != "content" && k != "position" {
-					chunk.Metadata[k] = v
-				}
-			}
-		}
-
-		if chunk.Content == "" && len(result.Documents) > 0 && len(result.Documents[0]) > i {
-			chunk.Content = result.Documents[0][i]
-		}
-
-		score := 0.0
-		if len(result.Distances) > 0 && len(result.Distances[0]) > i {
-			score = 1.0 - result.Distances[0][i]
-		}
-
-		chunks = append(chunks, domain.RetrievedChunk{
-			Chunk: chunk,
-			Score: score,
-		})
-	}
-
-	return domain.RetrievalResult{
-		Chunks:     chunks,
-		TotalFound:  len(chunks),
-	}, nil
+	return chromaToRetrievalResult(result), nil
 }
 
 // CreateCollection создаёт коллекцию в ChromaDB.
@@ -635,7 +512,7 @@ func (s *ChromaStore) CreateCollection(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("chromadb request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(resp.Body)
@@ -661,7 +538,7 @@ func (s *ChromaStore) DeleteCollection(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("chromadb: request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusNoContent, http.StatusNotFound:
@@ -689,7 +566,7 @@ func (s *ChromaStore) CollectionExists(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("chromadb: request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	switch resp.StatusCode {
 	case http.StatusOK:

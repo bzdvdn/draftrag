@@ -27,9 +27,9 @@ type milvusBaseResponse struct {
 // Паттерн аналогичен WeaviateStore и QdrantStore в этом пакете.
 // @ds-task T1.1: Создать структуру MilvusStore (AC-007, DEC-001)
 type MilvusStore struct {
-	baseURL    string       // базовый URL к Milvus REST, напр. "http://localhost:19121"
-	collection string       // имя коллекции Milvus
-	token      string       // Bearer-токен; пустая строка — без аутентификации (DEC-002)
+	baseURL    string // базовый URL к Milvus REST, напр. "http://localhost:19121"
+	collection string // имя коллекции Milvus
+	token      string // Bearer-токен; пустая строка — без аутентификации (DEC-002)
 	client     *http.Client
 }
 
@@ -42,6 +42,7 @@ var _ domain.DocumentStore = (*MilvusStore)(nil)
 // Compile-time проверки: MilvusStore реализует HybridSearcher и HybridSearcherWithFilters.
 // @sk-task T1.1: Добавить assertion для HybridSearcher (AC-001, DEC-001)
 var _ domain.HybridSearcher = (*MilvusStore)(nil)
+
 // @sk-task T1.2: Добавить assertion для HybridSearcherWithFilters (AC-004, DEC-001)
 var _ domain.HybridSearcherWithFilters = (*MilvusStore)(nil)
 
@@ -84,7 +85,7 @@ func (s *MilvusStore) doRequest(ctx context.Context, path string, body any) (jso
 	if err != nil {
 		return nil, fmt.Errorf("milvus: request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -279,15 +280,15 @@ func (s *MilvusStore) SearchHybrid(ctx context.Context, query string, embedding 
 
 	// Создаём AnnSearchRequest для BM25 (sparse) и dense векторов (DEC-002)
 	sparseRequest := map[string]any{
-		"data":     []string{query},
+		"data":      []string{query},
 		"annsField": "text_sparse",
-		"limit":    topK,
+		"limit":     topK,
 	}
 	denseRequest := map[string]any{
-		"data":     [][]float64{embedding},
+		"data":      [][]float64{embedding},
 		"annsField": "text_dense",
-		"limit":    topK,
-		"param":    map[string]any{"nprobe": 10},
+		"limit":     topK,
+		"param":     map[string]any{"nprobe": 10},
 	}
 	requests := []map[string]any{sparseRequest, denseRequest}
 
@@ -303,7 +304,7 @@ func (s *MilvusStore) SearchHybrid(ctx context.Context, query string, embedding 
 		"collectionName": s.collection,
 		"requests":       requests,
 		"ranker": map[string]any{
-			"type":  rerank,
+			"type": rerank,
 			"params": map[string]any{
 				"k": config.RRFK,
 			},
@@ -392,17 +393,17 @@ func (s *MilvusStore) SearchHybridWithParentIDFilter(ctx context.Context, query 
 	expr := `parent_id in [` + strings.Join(quoted, ",") + `]`
 
 	sparseRequest := map[string]any{
-		"data":     []string{query},
+		"data":      []string{query},
 		"annsField": "text_sparse",
-		"limit":    topK,
-		"expr":     expr,
+		"limit":     topK,
+		"expr":      expr,
 	}
 	denseRequest := map[string]any{
-		"data":     [][]float64{embedding},
+		"data":      [][]float64{embedding},
 		"annsField": "text_dense",
-		"limit":    topK,
-		"param":    map[string]any{"nprobe": 10},
-		"expr":     expr,
+		"limit":     topK,
+		"param":     map[string]any{"nprobe": 10},
+		"expr":      expr,
 	}
 	requests := []map[string]any{sparseRequest, denseRequest}
 
@@ -418,7 +419,7 @@ func (s *MilvusStore) SearchHybridWithParentIDFilter(ctx context.Context, query 
 		"collectionName": s.collection,
 		"requests":       requests,
 		"ranker": map[string]any{
-			"type":  rerank,
+			"type": rerank,
 			"params": map[string]any{
 				"k": config.RRFK,
 			},
@@ -458,17 +459,17 @@ func (s *MilvusStore) SearchHybridWithMetadataFilter(ctx context.Context, query 
 
 	// Создаём AnnSearchRequest для BM25 (sparse) и dense векторов с expr фильтром (DEC-003)
 	sparseRequest := map[string]any{
-		"data":     []string{query},
+		"data":      []string{query},
 		"annsField": "text_sparse",
-		"limit":    topK,
-		"expr":     expr,
+		"limit":     topK,
+		"expr":      expr,
 	}
 	denseRequest := map[string]any{
-		"data":     [][]float64{embedding},
+		"data":      [][]float64{embedding},
 		"annsField": "text_dense",
-		"limit":    topK,
-		"param":    map[string]any{"nprobe": 10},
-		"expr":     expr,
+		"limit":     topK,
+		"param":     map[string]any{"nprobe": 10},
+		"expr":      expr,
 	}
 	requests := []map[string]any{sparseRequest, denseRequest}
 
@@ -484,7 +485,7 @@ func (s *MilvusStore) SearchHybridWithMetadataFilter(ctx context.Context, query 
 		"collectionName": s.collection,
 		"requests":       requests,
 		"ranker": map[string]any{
-			"type":  rerank,
+			"type": rerank,
 			"params": map[string]any{
 				"k": config.RRFK,
 			},

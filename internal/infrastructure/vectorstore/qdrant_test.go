@@ -14,17 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// @sk-task T1.2: Базовый mock HTTP server для тестирования (DEC-001)
-func setupMockQdrantServer(t *testing.T) (*httptest.Server, *QdrantStore) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Базовый handler, будет переопределён в тестах
-		http.Error(w, "not implemented", http.StatusNotImplemented)
-	}))
-
-	store := NewQdrantStore(server.URL, "test_collection", 3)
-	return server, store
-}
-
 // @sk-task T3.1: Тест Search с mock server (AC-001)
 func TestQdrantStore_Search(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -69,7 +58,7 @@ func TestQdrantStore_Search(t *testing.T) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -125,7 +114,7 @@ func TestQdrantStore_UpsertDelete(t *testing.T) {
 				assert.Equal(t, "value1", payload["metadata.key1"])
 
 				w.WriteHeader(http.StatusOK)
-				json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok"})
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok"})
 			}
 
 		case "/collections/test_collection/points/delete":
@@ -141,7 +130,7 @@ func TestQdrantStore_UpsertDelete(t *testing.T) {
 				assert.Contains(t, points, "chunk1")
 
 				w.WriteHeader(http.StatusOK)
-				json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok"})
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok"})
 			}
 		}
 	}))
@@ -213,7 +202,7 @@ func TestQdrantStore_SearchWithParentIDFilter(t *testing.T) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -282,7 +271,7 @@ func TestQdrantStore_SearchWithMetadataFilter(t *testing.T) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -308,9 +297,9 @@ func TestQdrantStore_SearchWithMetadataFilter(t *testing.T) {
 // @sk-task T3.3: Тест обработки ошибок API (AC-006)
 func TestQdrantStore_APIErrors(t *testing.T) {
 	t.Run("collection not found", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"status": map[string]interface{}{
 					"error": "Collection test_collection not found",
 				},
@@ -327,9 +316,9 @@ func TestQdrantStore_APIErrors(t *testing.T) {
 	})
 
 	t.Run("bad request", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"status": map[string]interface{}{
 					"error": "Wrong input: Vector dimension 5 does not match",
 				},
@@ -348,7 +337,7 @@ func TestQdrantStore_APIErrors(t *testing.T) {
 }
 
 func TestQdrantStore_EmptyResults(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		resp := map[string]interface{}{
 			"result": []map[string]interface{}{},
 			"status": "ok",
@@ -356,7 +345,7 @@ func TestQdrantStore_EmptyResults(t *testing.T) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -370,7 +359,7 @@ func TestQdrantStore_EmptyResults(t *testing.T) {
 }
 
 func TestQdrantStore_ContextTimeout(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		time.Sleep(100 * time.Millisecond)
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -438,7 +427,7 @@ func TestQdrantStore_SearchHybrid(t *testing.T) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -463,9 +452,9 @@ func TestQdrantStore_SearchHybrid(t *testing.T) {
 
 // @sk-test T2.2: TestSearchHybrid валидация HybridConfig (AC-005)
 func TestQdrantStore_SearchHybrid_Validation(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"result": []map[string]interface{}{},
 			"status": "ok",
 		})
@@ -497,9 +486,9 @@ func TestQdrantStore_SearchHybrid_Validation(t *testing.T) {
 // @sk-test T2.2: TestSearchHybrid обработка ошибок Query API (AC-006)
 func TestQdrantStore_SearchHybrid_APIErrors(t *testing.T) {
 	t.Run("Query API error", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"status": map[string]interface{}{
 					"error": "Query execution failed",
 				},
@@ -517,7 +506,7 @@ func TestQdrantStore_SearchHybrid_APIErrors(t *testing.T) {
 	})
 
 	t.Run("context timeout", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			time.Sleep(100 * time.Millisecond)
 			w.WriteHeader(http.StatusOK)
 		}))
@@ -577,7 +566,7 @@ func TestQdrantStore_SearchHybridWithParentIDFilter(t *testing.T) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -642,7 +631,7 @@ func TestQdrantStore_SearchHybridWithMetadataFilter(t *testing.T) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -669,10 +658,10 @@ func TestQdrantStore_SearchHybridWithMetadataFilter(t *testing.T) {
 
 // @sk-test T4.1: TestSearchHybridWithParentIDFilter пустой фильтр (AC-004)
 func TestQdrantStore_SearchHybridWithParentIDFilter_EmptyFilter(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		// При пустом фильтре должен вызываться обычный SearchHybrid
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"result": []map[string]interface{}{},
 			"status": "ok",
 		})
@@ -696,9 +685,9 @@ func TestQdrantStore_SearchHybridWithParentIDFilter_EmptyFilter(t *testing.T) {
 
 // @sk-test T4.1: TestSearchHybridWithMetadataFilter пустой фильтр (AC-004)
 func TestQdrantStore_SearchHybridWithMetadataFilter_EmptyFilter(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"result": []map[string]interface{}{},
 			"status": "ok",
 		})

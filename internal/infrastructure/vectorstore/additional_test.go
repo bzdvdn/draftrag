@@ -9,7 +9,7 @@ import (
 
 func TestInMemoryStore_ContextCancellation_Search(t *testing.T) {
 	store := NewInMemoryStore()
-	
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
@@ -22,7 +22,7 @@ func TestInMemoryStore_ContextCancellation_Search(t *testing.T) {
 
 func TestInMemoryStore_ContextCancellation_Upsert(t *testing.T) {
 	store := NewInMemoryStore()
-	
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
@@ -42,7 +42,7 @@ func TestInMemoryStore_ContextCancellation_Upsert(t *testing.T) {
 
 func TestInMemoryStore_ContextCancellation_Delete(t *testing.T) {
 	store := NewInMemoryStore()
-	
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
@@ -54,7 +54,7 @@ func TestInMemoryStore_ContextCancellation_Delete(t *testing.T) {
 
 func TestInMemoryStore_ContextCancellation_DeleteByParentID(t *testing.T) {
 	store := NewInMemoryStore()
-	
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
@@ -66,7 +66,7 @@ func TestInMemoryStore_ContextCancellation_DeleteByParentID(t *testing.T) {
 
 func TestInMemoryStore_ContextCancellation_SearchWithFilter(t *testing.T) {
 	store := NewInMemoryStore()
-	
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
@@ -80,7 +80,7 @@ func TestInMemoryStore_ContextCancellation_SearchWithFilter(t *testing.T) {
 
 func TestInMemoryStore_ContextCancellation_SearchWithMetadataFilter(t *testing.T) {
 	store := NewInMemoryStore()
-	
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
@@ -94,7 +94,7 @@ func TestInMemoryStore_ContextCancellation_SearchWithMetadataFilter(t *testing.T
 
 func TestInMemoryStore_NilContext_Panic(t *testing.T) {
 	store := NewInMemoryStore()
-	
+
 	// Проверяем, что nil context вызывает panic
 	defer func() {
 		if r := recover(); r == nil {
@@ -103,6 +103,7 @@ func TestInMemoryStore_NilContext_Panic(t *testing.T) {
 	}()
 
 	queryEmbedding := []float64{1.0, 0.0, 0.0}
+	//nolint:staticcheck // Нам нужно передать nil context, чтобы проверить, что метод паникует.
 	_, _ = store.Search(nil, queryEmbedding, 5)
 }
 
@@ -135,4 +136,3 @@ func TestCosineSimilarity_NegativeValues(t *testing.T) {
 		t.Errorf("expected ~1.0 for identical negative vectors, got %f", result)
 	}
 }
-

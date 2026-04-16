@@ -12,27 +12,27 @@ import (
 
 type errorVectorStore struct{}
 
-func (m *errorVectorStore) Upsert(ctx context.Context, chunk domain.Chunk) error {
+func (m *errorVectorStore) Upsert(_ context.Context, _ domain.Chunk) error {
 	return errors.New("upsert failed")
 }
 
-func (m *errorVectorStore) Delete(ctx context.Context, id string) error {
+func (m *errorVectorStore) Delete(_ context.Context, _ string) error {
 	return errors.New("delete failed")
 }
 
-func (m *errorVectorStore) Search(ctx context.Context, embedding []float64, topK int) (domain.RetrievalResult, error) {
+func (m *errorVectorStore) Search(_ context.Context, _ []float64, _ int) (domain.RetrievalResult, error) {
 	return domain.RetrievalResult{}, errors.New("search failed")
 }
 
 type errorLLMProvider struct{}
 
-func (m *errorLLMProvider) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
+func (m *errorLLMProvider) Generate(_ context.Context, _, _ string) (string, error) {
 	return "", errors.New("generate failed")
 }
 
 type errorEmbedder struct{}
 
-func (m *errorEmbedder) Embed(ctx context.Context, text string) ([]float64, error) {
+func (m *errorEmbedder) Embed(_ context.Context, _ string) ([]float64, error) {
 	return nil, errors.New("embed failed")
 }
 
@@ -182,7 +182,7 @@ func TestPipeline_Query_Success(t *testing.T) {
 	}
 	// mockVectorStore возвращает пустой result
 	if len(result.Chunks) == 0 {
-		// это ожидаемо для mock
+		t.Log("пустой result ожидаем для mockVectorStore")
 	}
 }
 

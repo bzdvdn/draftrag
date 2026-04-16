@@ -11,11 +11,11 @@ type vectorStoreWithFilters struct {
 	mockVectorStore
 }
 
-func (m *vectorStoreWithFilters) SearchWithFilter(ctx context.Context, embedding []float64, topK int, filter domain.ParentIDFilter) (domain.RetrievalResult, error) {
+func (m *vectorStoreWithFilters) SearchWithFilter(_ context.Context, _ []float64, _ int, _ domain.ParentIDFilter) (domain.RetrievalResult, error) {
 	return domain.RetrievalResult{}, nil
 }
 
-func (m *vectorStoreWithFilters) SearchWithMetadataFilter(ctx context.Context, embedding []float64, topK int, filter domain.MetadataFilter) (domain.RetrievalResult, error) {
+func (m *vectorStoreWithFilters) SearchWithMetadataFilter(_ context.Context, _ []float64, _ int, _ domain.MetadataFilter) (domain.RetrievalResult, error) {
 	return domain.RetrievalResult{}, nil
 }
 
@@ -185,7 +185,7 @@ type documentStore struct {
 	mockVectorStore
 }
 
-func (m *documentStore) DeleteByParentID(ctx context.Context, parentID string) error {
+func (m *documentStore) DeleteByParentID(_ context.Context, _ string) error {
 	return nil
 }
 

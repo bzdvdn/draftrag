@@ -31,6 +31,7 @@ type Logger = domain.Logger
 // LogLevel — уровень логирования.
 type LogLevel = domain.LogLevel
 
+// Уровни логирования.
 const (
 	LogLevelDebug = domain.LogLevelDebug
 	LogLevelInfo  = domain.LogLevelInfo

@@ -81,7 +81,7 @@ func (c *EmbedderCache) Embed(ctx context.Context, text string) ([]float64, erro
 			}
 
 			// treat-as-miss: любая ошибка Redis/декодирования не должна ломать Embed
-			domain.SafeLog(c.logger, ctx, domain.LogLevelWarn, "redis read failed (treat-as-miss)",
+			domain.SafeLog(ctx, c.logger, domain.LogLevelWarn, "redis read failed (treat-as-miss)",
 				domain.LogField{Key: "component", Value: "embedder_cache"},
 				domain.LogField{Key: "operation", Value: operation},
 				domain.LogField{Key: "err", Value: err},
@@ -108,7 +108,7 @@ func (c *EmbedderCache) Embed(ctx context.Context, text string) ([]float64, erro
 			}
 
 			// treat-as-miss: запись best-effort
-			domain.SafeLog(c.logger, ctx, domain.LogLevelWarn, "redis write failed (best-effort)",
+			domain.SafeLog(ctx, c.logger, domain.LogLevelWarn, "redis write failed (best-effort)",
 				domain.LogField{Key: "component", Value: "embedder_cache"},
 				domain.LogField{Key: "operation", Value: "redis_set"},
 				domain.LogField{Key: "err", Value: err},
@@ -130,6 +130,6 @@ func (c *EmbedderCache) hashKey(text string) string {
 
 // Stats возвращает текущие метрики кэша.
 // @ds-task T2.5: Метод получения статистики (AC-007)
-func (c *EmbedderCache) Stats() CacheStats {
+func (c *EmbedderCache) Stats() Stats {
 	return c.stats.Stats()
 }

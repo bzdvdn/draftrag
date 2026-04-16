@@ -2,7 +2,6 @@ package draftrag
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -46,24 +45,13 @@ func NewOllamaEmbedder(opts OllamaEmbedderOptions) Embedder {
 }
 
 func (e *ollamaEmbedder) Embed(ctx context.Context, text string) ([]float64, error) {
-	if ctx == nil {
-		panic("nil context")
-	}
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	if strings.TrimSpace(text) == "" {
-		return nil, errors.New("text is empty")
-	}
-	if err := validateOllamaEmbedderOptions(e.opts); err != nil {
-		return nil, err
-	}
-	if e.opts.Timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, e.opts.Timeout)
-		defer cancel()
-	}
-	return e.impl.Embed(ctx, text)
+	return embedWithValidation(
+		ctx,
+		text,
+		e.opts.Timeout,
+		func() error { return validateOllamaEmbedderOptions(e.opts) },
+		e.impl.Embed,
+	)
 }
 
 func validateOllamaEmbedderOptions(opts OllamaEmbedderOptions) error {

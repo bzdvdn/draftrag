@@ -24,7 +24,7 @@ type QdrantStore struct {
 	client     *http.Client
 }
 
-// RuntimeOptions задаёт ограничения и таймауты для QdrantStore.
+// QdrantRuntimeOptions задаёт ограничения и таймауты для QdrantStore.
 type QdrantRuntimeOptions struct {
 	SearchTimeout time.Duration
 	UpsertTimeout time.Duration
@@ -32,11 +32,97 @@ type QdrantRuntimeOptions struct {
 	MaxTopK       int
 }
 
+type qdrantPoint struct {
+	ID      string                 `json:"id"`
+	Score   float64                `json:"score"`
+	Payload map[string]interface{} `json:"payload"`
+}
+
+type qdrantSearchResponse struct {
+	Result []qdrantPoint `json:"result"`
+	Status string        `json:"status"`
+}
+
+func qdrantToRetrievedChunks(points []qdrantPoint) []domain.RetrievedChunk {
+	chunks := make([]domain.RetrievedChunk, 0, len(points))
+	for _, point := range points {
+		chunk := domain.Chunk{ID: point.ID}
+
+		if content, ok := point.Payload["content"].(string); ok {
+			chunk.Content = content
+		}
+		if parentID, ok := point.Payload["parent_id"].(string); ok {
+			chunk.ParentID = parentID
+		}
+		if pos, ok := point.Payload["position"].(float64); ok {
+			chunk.Position = int(pos)
+		}
+
+		chunk.Metadata = make(map[string]string)
+		for k, v := range point.Payload {
+			if len(k) > 9 && k[:9] == "metadata." {
+				if strVal, ok := v.(string); ok {
+					chunk.Metadata[k[9:]] = strVal
+				}
+			}
+		}
+
+		chunks = append(chunks, domain.RetrievedChunk{
+			Chunk: chunk,
+			Score: point.Score,
+		})
+	}
+	return chunks
+}
+
+func qdrantHybridQueryBody(embedding []float64, searchTopK int, filterKind string, conditions []map[string]interface{}) map[string]interface{} {
+	filter := map[string]interface{}{
+		filterKind: conditions,
+	}
+
+	densePrefetch := map[string]interface{}{
+		"prefetch": []map[string]interface{}{
+			{
+				"query":  embedding,
+				"using":  "dense",
+				"limit":  searchTopK,
+				"filter": filter,
+			},
+		},
+		"query":  embedding,
+		"using":  "dense",
+		"limit":  searchTopK,
+		"filter": filter,
+	}
+
+	sparsePrefetch := map[string]interface{}{
+		"query": map[string]interface{}{
+			"indices": []int{},
+			"values":  []float64{},
+		},
+		"using":  "sparse",
+		"limit":  searchTopK,
+		"filter": filter,
+	}
+
+	return map[string]interface{}{
+		"prefetch": []map[string]interface{}{
+			densePrefetch,
+			sparsePrefetch,
+		},
+		"query": map[string]interface{}{
+			"fusion": map[string]interface{}{
+				"type": "rrf",
+			},
+		},
+	}
+}
+
 // Compile-time проверка интерфейсов
 var _ domain.VectorStore = (*QdrantStore)(nil)
 var _ domain.VectorStoreWithFilters = (*QdrantStore)(nil)
 var _ domain.DocumentStore = (*QdrantStore)(nil)
-var _ domain.HybridSearcher = (*QdrantStore)(nil) // @sk-task T1.1: Добавить assertion для HybridSearcher (AC-001)
+var _ domain.HybridSearcher = (*QdrantStore)(nil)            // @sk-task T1.1: Добавить assertion для HybridSearcher (AC-001)
 var _ domain.HybridSearcherWithFilters = (*QdrantStore)(nil) // @sk-task T3.1: Добавить assertion для HybridSearcherWithFilters (AC-004)
 
 // NewQdrantStore создаёт новый Qdrant-backed store.
@@ -118,7 +204,7 @@ func (s *QdrantStore) Upsert(ctx context.Context, chunk domain.Chunk) error {
 	if err != nil {
 		return fmt.Errorf("qdrant request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -132,10 +218,7 @@ func (s *QdrantStore) Upsert(ctx context.Context, chunk domain.Chunk) error {
 //
 // @ds-task T2.1: Реализовать Delete через HTTP POST /collections/{name}/points/delete (AC-004)
 func (s *QdrantStore) Delete(ctx context.Context, id string) error {
-	if ctx == nil {
-		panic("nil context")
-	}
-	if err := ctx.Err(); err != nil {
+	if err := ensureContext(ctx); err != nil {
 		return err
 	}
 
@@ -143,34 +226,15 @@ func (s *QdrantStore) Delete(ctx context.Context, id string) error {
 		return domain.ErrEmptyChunkID
 	}
 
-	body := map[string]interface{}{
-		"points": []string{id},
-	}
-
-	jsonBody, err := json.Marshal(body)
-	if err != nil {
-		return fmt.Errorf("marshal request: %w", err)
-	}
-
 	url := fmt.Sprintf("%s/collections/%s/points/delete?wait=true", s.baseURL, s.collection)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(jsonBody))
-	if err != nil {
-		return fmt.Errorf("create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := s.client.Do(req)
-	if err != nil {
-		return fmt.Errorf("qdrant request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("qdrant error: status=%d, body=%s", resp.StatusCode, string(body))
-	}
-
-	return nil
+	return doJSONAndExpectStatus(
+		ctx, s.client,
+		http.MethodPost, url,
+		map[string]any{"points": []string{id}},
+		http.StatusOK,
+		"qdrant",
+		"qdrant",
+	)
 }
 
 // DeleteByParentID удаляет все точки с указанным parent_id через Qdrant filter API.
@@ -211,7 +275,7 @@ func (s *QdrantStore) DeleteByParentID(ctx context.Context, parentID string) err
 	if err != nil {
 		return fmt.Errorf("qdrant request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)
@@ -262,57 +326,20 @@ func (s *QdrantStore) Search(ctx context.Context, embedding []float64, topK int)
 	if err != nil {
 		return domain.RetrievalResult{}, fmt.Errorf("qdrant request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return domain.RetrievalResult{}, fmt.Errorf("qdrant error: status=%d, body=%s", resp.StatusCode, string(body))
 	}
 
-	var result struct {
-		Result []struct {
-			ID      string                 `json:"id"`
-			Score   float64                `json:"score"`
-			Payload map[string]interface{} `json:"payload"`
-		} `json:"result"`
-		Status string `json:"status"`
-	}
+	var result qdrantSearchResponse
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return domain.RetrievalResult{}, fmt.Errorf("decode response: %w", err)
 	}
 
-	chunks := make([]domain.RetrievedChunk, 0, len(result.Result))
-	for _, r := range result.Result {
-		chunk := domain.Chunk{
-			ID: r.ID,
-		}
-
-		if content, ok := r.Payload["content"].(string); ok {
-			chunk.Content = content
-		}
-		if parentID, ok := r.Payload["parent_id"].(string); ok {
-			chunk.ParentID = parentID
-		}
-		if pos, ok := r.Payload["position"].(float64); ok {
-			chunk.Position = int(pos)
-		}
-
-		// Извлечение метаданных
-		chunk.Metadata = make(map[string]string)
-		for k, v := range r.Payload {
-			if len(k) > 9 && k[:9] == "metadata." {
-				if strVal, ok := v.(string); ok {
-					chunk.Metadata[k[9:]] = strVal
-				}
-			}
-		}
-
-		chunks = append(chunks, domain.RetrievedChunk{
-			Chunk: chunk,
-			Score: r.Score,
-		})
-	}
+	chunks := qdrantToRetrievedChunks(result.Result)
 
 	return domain.RetrievalResult{
 		Chunks:     chunks,
@@ -383,56 +410,20 @@ func (s *QdrantStore) SearchWithFilter(
 	if err != nil {
 		return domain.RetrievalResult{}, fmt.Errorf("qdrant request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return domain.RetrievalResult{}, fmt.Errorf("qdrant error: status=%d, body=%s", resp.StatusCode, string(body))
 	}
 
-	var result struct {
-		Result []struct {
-			ID      string                 `json:"id"`
-			Score   float64                `json:"score"`
-			Payload map[string]interface{} `json:"payload"`
-		} `json:"result"`
-		Status string `json:"status"`
-	}
+	var result qdrantSearchResponse
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return domain.RetrievalResult{}, fmt.Errorf("decode response: %w", err)
 	}
 
-	chunks := make([]domain.RetrievedChunk, 0, len(result.Result))
-	for _, r := range result.Result {
-		chunk := domain.Chunk{
-			ID: r.ID,
-		}
-
-		if content, ok := r.Payload["content"].(string); ok {
-			chunk.Content = content
-		}
-		if parentID, ok := r.Payload["parent_id"].(string); ok {
-			chunk.ParentID = parentID
-		}
-		if pos, ok := r.Payload["position"].(float64); ok {
-			chunk.Position = int(pos)
-		}
-
-		chunk.Metadata = make(map[string]string)
-		for k, v := range r.Payload {
-			if len(k) > 9 && k[:9] == "metadata." {
-				if strVal, ok := v.(string); ok {
-					chunk.Metadata[k[9:]] = strVal
-				}
-			}
-		}
-
-		chunks = append(chunks, domain.RetrievedChunk{
-			Chunk: chunk,
-			Score: r.Score,
-		})
-	}
+	chunks := qdrantToRetrievedChunks(result.Result)
 
 	return domain.RetrievalResult{
 		Chunks:     chunks,
@@ -503,56 +494,20 @@ func (s *QdrantStore) SearchWithMetadataFilter(
 	if err != nil {
 		return domain.RetrievalResult{}, fmt.Errorf("qdrant request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return domain.RetrievalResult{}, fmt.Errorf("qdrant error: status=%d, body=%s", resp.StatusCode, string(body))
 	}
 
-	var result struct {
-		Result []struct {
-			ID      string                 `json:"id"`
-			Score   float64                `json:"score"`
-			Payload map[string]interface{} `json:"payload"`
-		} `json:"result"`
-		Status string `json:"status"`
-	}
+	var result qdrantSearchResponse
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return domain.RetrievalResult{}, fmt.Errorf("decode response: %w", err)
 	}
 
-	chunks := make([]domain.RetrievedChunk, 0, len(result.Result))
-	for _, r := range result.Result {
-		chunk := domain.Chunk{
-			ID: r.ID,
-		}
-
-		if content, ok := r.Payload["content"].(string); ok {
-			chunk.Content = content
-		}
-		if parentID, ok := r.Payload["parent_id"].(string); ok {
-			chunk.ParentID = parentID
-		}
-		if pos, ok := r.Payload["position"].(float64); ok {
-			chunk.Position = int(pos)
-		}
-
-		chunk.Metadata = make(map[string]string)
-		for k, v := range r.Payload {
-			if len(k) > 9 && k[:9] == "metadata." {
-				if strVal, ok := v.(string); ok {
-					chunk.Metadata[k[9:]] = strVal
-				}
-			}
-		}
-
-		chunks = append(chunks, domain.RetrievedChunk{
-			Chunk: chunk,
-			Score: r.Score,
-		})
-	}
+	chunks := qdrantToRetrievedChunks(result.Result)
 
 	return domain.RetrievalResult{
 		Chunks:     chunks,
@@ -606,7 +561,7 @@ func (s *QdrantStore) SearchHybrid(ctx context.Context, query string, embedding 
 			},
 			{
 				"query": map[string]interface{}{
-					"indices": []int{},    // Sparse vector indices (BM25)
+					"indices": []int{},     // Sparse vector indices (BM25)
 					"values":  []float64{}, // Sparse vector values
 				},
 				"using": "sparse",
@@ -640,57 +595,20 @@ func (s *QdrantStore) SearchHybrid(ctx context.Context, query string, embedding 
 		}
 		return domain.RetrievalResult{}, fmt.Errorf("qdrant request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(resp.Body)
 		return domain.RetrievalResult{}, fmt.Errorf("qdrant error: status=%d, body=%s", resp.StatusCode, string(body))
 	}
 
-	var result struct {
-		Result []struct {
-			ID      string                 `json:"id"`
-			Score   float64                `json:"score"`
-			Payload map[string]interface{} `json:"payload"`
-		} `json:"result"`
-		Status string `json:"status"`
-	}
+	var result qdrantSearchResponse
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return domain.RetrievalResult{}, fmt.Errorf("decode response: %w", err)
 	}
 
-	chunks := make([]domain.RetrievedChunk, 0, len(result.Result))
-	for _, r := range result.Result {
-		chunk := domain.Chunk{
-			ID: r.ID,
-		}
-
-		if content, ok := r.Payload["content"].(string); ok {
-			chunk.Content = content
-		}
-		if parentID, ok := r.Payload["parent_id"].(string); ok {
-			chunk.ParentID = parentID
-		}
-		if pos, ok := r.Payload["position"].(float64); ok {
-			chunk.Position = int(pos)
-		}
-
-		// Извлечение метаданных
-		chunk.Metadata = make(map[string]string)
-		for k, v := range r.Payload {
-			if len(k) > 9 && k[:9] == "metadata." {
-				if strVal, ok := v.(string); ok {
-					chunk.Metadata[k[9:]] = strVal
-				}
-			}
-		}
-
-		chunks = append(chunks, domain.RetrievedChunk{
-			Chunk: chunk,
-			Score: r.Score,
-		})
-	}
+	chunks := qdrantToRetrievedChunks(result.Result)
 
 	// Ограничиваем результат до topK
 	if len(chunks) > topK {
@@ -748,44 +666,7 @@ func (s *QdrantStore) SearchHybridWithParentIDFilter(ctx context.Context, query 
 	// Формируем Query API запрос с Prefetch для dense и sparse векторов
 	searchTopK := topK * 2
 
-	body := map[string]interface{}{
-		"prefetch": []map[string]interface{}{
-			{
-				"prefetch": []map[string]interface{}{
-					{
-						"query": embedding,
-						"using": "dense",
-						"limit": searchTopK,
-						"filter": map[string]interface{}{
-							"should": shouldConditions,
-						},
-					},
-				},
-				"query": embedding,
-				"using": "dense",
-				"limit": searchTopK,
-				"filter": map[string]interface{}{
-					"should": shouldConditions,
-				},
-			},
-			{
-				"query": map[string]interface{}{
-					"indices": []int{},
-					"values":  []float64{},
-				},
-				"using": "sparse",
-				"limit": searchTopK,
-				"filter": map[string]interface{}{
-					"should": shouldConditions,
-				},
-			},
-		},
-		"query": map[string]interface{}{
-			"fusion": map[string]interface{}{
-				"type": "rrf",
-			},
-		},
-	}
+	body := qdrantHybridQueryBody(embedding, searchTopK, "should", shouldConditions)
 
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
@@ -806,56 +687,20 @@ func (s *QdrantStore) SearchHybridWithParentIDFilter(ctx context.Context, query 
 		}
 		return domain.RetrievalResult{}, fmt.Errorf("qdrant request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(resp.Body)
 		return domain.RetrievalResult{}, fmt.Errorf("qdrant error: status=%d, body=%s", resp.StatusCode, string(body))
 	}
 
-	var result struct {
-		Result []struct {
-			ID      string                 `json:"id"`
-			Score   float64                `json:"score"`
-			Payload map[string]interface{} `json:"payload"`
-		} `json:"result"`
-		Status string `json:"status"`
-	}
+	var result qdrantSearchResponse
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return domain.RetrievalResult{}, fmt.Errorf("decode response: %w", err)
 	}
 
-	chunks := make([]domain.RetrievedChunk, 0, len(result.Result))
-	for _, r := range result.Result {
-		chunk := domain.Chunk{
-			ID: r.ID,
-		}
-
-		if content, ok := r.Payload["content"].(string); ok {
-			chunk.Content = content
-		}
-		if parentID, ok := r.Payload["parent_id"].(string); ok {
-			chunk.ParentID = parentID
-		}
-		if pos, ok := r.Payload["position"].(float64); ok {
-			chunk.Position = int(pos)
-		}
-
-		chunk.Metadata = make(map[string]string)
-		for k, v := range r.Payload {
-			if len(k) > 9 && k[:9] == "metadata." {
-				if strVal, ok := v.(string); ok {
-					chunk.Metadata[k[9:]] = strVal
-				}
-			}
-		}
-
-		chunks = append(chunks, domain.RetrievedChunk{
-			Chunk: chunk,
-			Score: r.Score,
-		})
-	}
+	chunks := qdrantToRetrievedChunks(result.Result)
 
 	if len(chunks) > topK {
 		chunks = chunks[:topK]
@@ -912,44 +757,7 @@ func (s *QdrantStore) SearchHybridWithMetadataFilter(ctx context.Context, query 
 	// Формируем Query API запрос с Prefetch для dense и sparse векторов
 	searchTopK := topK * 2
 
-	body := map[string]interface{}{
-		"prefetch": []map[string]interface{}{
-			{
-				"prefetch": []map[string]interface{}{
-					{
-						"query": embedding,
-						"using": "dense",
-						"limit": searchTopK,
-						"filter": map[string]interface{}{
-							"must": mustConditions,
-						},
-					},
-				},
-				"query": embedding,
-				"using": "dense",
-				"limit": searchTopK,
-				"filter": map[string]interface{}{
-					"must": mustConditions,
-				},
-			},
-			{
-				"query": map[string]interface{}{
-					"indices": []int{},
-					"values":  []float64{},
-				},
-				"using": "sparse",
-				"limit": searchTopK,
-				"filter": map[string]interface{}{
-					"must": mustConditions,
-				},
-			},
-		},
-		"query": map[string]interface{}{
-			"fusion": map[string]interface{}{
-				"type": "rrf",
-			},
-		},
-	}
+	body := qdrantHybridQueryBody(embedding, searchTopK, "must", mustConditions)
 
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
@@ -970,56 +778,20 @@ func (s *QdrantStore) SearchHybridWithMetadataFilter(ctx context.Context, query 
 		}
 		return domain.RetrievalResult{}, fmt.Errorf("qdrant request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(resp.Body)
 		return domain.RetrievalResult{}, fmt.Errorf("qdrant error: status=%d, body=%s", resp.StatusCode, string(body))
 	}
 
-	var result struct {
-		Result []struct {
-			ID      string                 `json:"id"`
-			Score   float64                `json:"score"`
-			Payload map[string]interface{} `json:"payload"`
-		} `json:"result"`
-		Status string `json:"status"`
-	}
+	var result qdrantSearchResponse
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return domain.RetrievalResult{}, fmt.Errorf("decode response: %w", err)
 	}
 
-	chunks := make([]domain.RetrievedChunk, 0, len(result.Result))
-	for _, r := range result.Result {
-		chunk := domain.Chunk{
-			ID: r.ID,
-		}
-
-		if content, ok := r.Payload["content"].(string); ok {
-			chunk.Content = content
-		}
-		if parentID, ok := r.Payload["parent_id"].(string); ok {
-			chunk.ParentID = parentID
-		}
-		if pos, ok := r.Payload["position"].(float64); ok {
-			chunk.Position = int(pos)
-		}
-
-		chunk.Metadata = make(map[string]string)
-		for k, v := range r.Payload {
-			if len(k) > 9 && k[:9] == "metadata." {
-				if strVal, ok := v.(string); ok {
-					chunk.Metadata[k[9:]] = strVal
-				}
-			}
-		}
-
-		chunks = append(chunks, domain.RetrievedChunk{
-			Chunk: chunk,
-			Score: r.Score,
-		})
-	}
+	chunks := qdrantToRetrievedChunks(result.Result)
 
 	if len(chunks) > topK {
 		chunks = chunks[:topK]

@@ -8,7 +8,7 @@ import (
 
 func TestChromaStore_NewChromaStore_DefaultBaseURL(t *testing.T) {
 	store := NewChromaStore("", "test-collection", 1536)
-	
+
 	if store.baseURL != "http://localhost:8000" {
 		t.Errorf("expected default baseURL http://localhost:8000, got %s", store.baseURL)
 	}
@@ -25,7 +25,7 @@ func TestChromaStore_NewChromaStore_DefaultBaseURL(t *testing.T) {
 
 func TestChromaStore_NewChromaStore_CustomBaseURL(t *testing.T) {
 	store := NewChromaStore("http://custom:9000", "test-collection", 768)
-	
+
 	if store.baseURL != "http://custom:9000" {
 		t.Errorf("expected custom baseURL http://custom:9000, got %s", store.baseURL)
 	}
@@ -39,7 +39,7 @@ func TestChromaStore_NewChromaStore_CustomBaseURL(t *testing.T) {
 
 func TestChromaStore_NewChromaStore_ZeroDimension(t *testing.T) {
 	store := NewChromaStore("http://localhost:8000", "test-collection", 0)
-	
+
 	if store.dimension != 0 {
 		t.Errorf("expected dimension 0, got %d", store.dimension)
 	}
@@ -47,7 +47,7 @@ func TestChromaStore_NewChromaStore_ZeroDimension(t *testing.T) {
 
 func TestChromaRuntimeOptions_Default(t *testing.T) {
 	opts := ChromaRuntimeOptions{}
-	
+
 	if opts.SearchTimeout != 0 {
 		t.Errorf("expected zero SearchTimeout, got %v", opts.SearchTimeout)
 	}
@@ -64,12 +64,12 @@ func TestChromaRuntimeOptions_Default(t *testing.T) {
 
 func TestChromaRuntimeOptions_WithValues(t *testing.T) {
 	opts := ChromaRuntimeOptions{
-		SearchTimeout:  30,
-		UpsertTimeout:  60,
-		DeleteTimeout:  30,
+		SearchTimeout: 30,
+		UpsertTimeout: 60,
+		DeleteTimeout: 30,
 		MaxTopK:       100,
 	}
-	
+
 	if opts.SearchTimeout != 30 {
 		t.Errorf("expected SearchTimeout 30, got %v", opts.SearchTimeout)
 	}
@@ -90,7 +90,7 @@ func TestChromaStore_Interfaces(t *testing.T) {
 	var _ domain.VectorStoreWithFilters = (*ChromaStore)(nil)
 	var _ domain.DocumentStore = (*ChromaStore)(nil)
 	var _ domain.CollectionManager = (*ChromaStore)(nil)
-	
+
 	// Если скомпилируется - интерфейсы реализованы корректно
 	store := NewChromaStore("http://localhost:8000", "test", 1536)
 	if store == nil {
@@ -114,7 +114,7 @@ func TestChromaStore_ChunkValidation(t *testing.T) {
 		ParentID: "doc1",
 		Position: 0,
 	}
-	
+
 	err := chunk.Validate()
 	if err == nil {
 		t.Fatal("expected error for empty ID")
@@ -131,7 +131,7 @@ func TestChromaStore_MetadataMapping(t *testing.T) {
 		Metadata:  map[string]string{"source": "wiki", "lang": "ru"},
 		Embedding: []float64{0.1, 0.2, 0.3},
 	}
-	
+
 	// Проверяем, что метаданные содержат ожидаемые поля
 	if chunk.Metadata["source"] != "wiki" {
 		t.Errorf("expected source=wiki, got %s", chunk.Metadata["source"])

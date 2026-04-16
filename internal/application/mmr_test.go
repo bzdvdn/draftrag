@@ -250,9 +250,9 @@ func TestMaxCosineToSelected(t *testing.T) {
 	}
 
 	tests := []struct {
-		name     string
+		name      string
 		embedding []float64
-		expected float64
+		expected  float64
 	}{
 		{"identical to selected", []float64{1.0, 0.0}, 1.0},
 		{"orthogonal to selected", []float64{0.0, 1.0}, 0.0},

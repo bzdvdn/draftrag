@@ -5,6 +5,7 @@ import "context"
 // LogLevel — уровень логирования.
 type LogLevel string
 
+// Уровни логирования.
 const (
 	LogLevelDebug LogLevel = "debug"
 	LogLevelInfo  LogLevel = "info"
@@ -44,7 +45,7 @@ func NoopLogger() Logger {
 // SafeLog вызывает logger best-effort:
 // - no-op если logger == nil
 // - защищён recover, чтобы паника логгера не пробивалась наружу
-func SafeLog(logger Logger, ctx context.Context, level LogLevel, msg string, fields ...LogField) {
+func SafeLog(ctx context.Context, logger Logger, level LogLevel, msg string, fields ...LogField) {
 	if logger == nil {
 		return
 	}

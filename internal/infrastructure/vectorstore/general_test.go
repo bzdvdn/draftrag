@@ -170,10 +170,10 @@ func TestRetrievedChunk_Empty(t *testing.T) {
 
 func TestChunk_EmptyEmbedding(t *testing.T) {
 	chunk := domain.Chunk{
-		ID:       "c1",
-		Content:  "test",
-		ParentID: "doc1",
-		Position: 0,
+		ID:        "c1",
+		Content:   "test",
+		ParentID:  "doc1",
+		Position:  0,
 		Embedding: []float64{},
 	}
 

@@ -56,6 +56,7 @@ func (b *Backoff) CalculateDelay(attempt int) time.Duration {
 
 	// Добавляем jitter (случайную составляющую до JitterFactor)
 	if b.JitterFactor > 0 {
+		//nolint:gosec // Jitter не связан с безопасностью, здесь важна только рандомизация задержек.
 		jitter := 1.0 + rand.Float64()*b.JitterFactor
 		delay *= jitter
 	}

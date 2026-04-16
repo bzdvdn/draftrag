@@ -73,7 +73,7 @@ func TestChromaDBCreateCollection(t *testing.T) {
 		assert.Equal(t, float64(768), metadata["dimension"])
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"id":   "test-id",
 			"name": "test_collection",
 		})
@@ -107,7 +107,7 @@ func TestChromaDBDeleteCollection(t *testing.T) {
 		require.Equal(t, http.MethodDelete, r.Method)
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"id":   "test-id",
 			"name": "test_collection",
 		})
@@ -125,9 +125,9 @@ func TestChromaDBDeleteCollection(t *testing.T) {
 
 // T3.3 Тест DeleteCollection с 404 (идемпотентность) — AC-002
 func TestChromaDBDeleteCollection_NotFound(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"error": "Collection test_collection not found",
 		})
 	}))
@@ -150,7 +150,7 @@ func TestChromaCollectionExists(t *testing.T) {
 		require.Equal(t, http.MethodGet, r.Method)
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"id":       "test-id",
 			"name":     "test_collection",
 			"metadata": map[string]interface{}{},
@@ -175,7 +175,7 @@ func TestChromaCollectionExists_NotFound(t *testing.T) {
 		require.Equal(t, http.MethodGet, r.Method)
 
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"error": "Collection nonexistent not found",
 		})
 	}))
@@ -193,7 +193,7 @@ func TestChromaCollectionExists_NotFound(t *testing.T) {
 
 // T3.5 Тест контекстной отмены — AC-006
 func TestChromaDBCreateCollection_ContextTimeout(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		// Задержка для проверки таймаута
 		time.Sleep(100 * time.Millisecond)
 		w.WriteHeader(http.StatusOK)
@@ -216,7 +216,7 @@ func TestChromaDBCreateCollection_ContextTimeout(t *testing.T) {
 
 // T3.5 Тест контекстной отмены для DeleteCollection — AC-006
 func TestChromaDBDeleteCollection_ContextTimeout(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		time.Sleep(100 * time.Millisecond)
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -237,7 +237,7 @@ func TestChromaDBDeleteCollection_ContextTimeout(t *testing.T) {
 
 // T3.5 Тест контекстной отмены для ChromaCollectionExists — AC-006
 func TestChromaCollectionExists_ContextTimeout(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		time.Sleep(100 * time.Millisecond)
 		w.WriteHeader(http.StatusOK)
 	}))

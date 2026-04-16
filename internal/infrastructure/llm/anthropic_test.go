@@ -11,6 +11,11 @@ import (
 	"time"
 )
 
+const (
+	testAnthropicAPIKey = "sk-secret-key-12345"
+	roleUser            = "user"
+)
+
 // @sk-task T1.3: Тест на успешную генерацию (AC-001)
 func TestClaudeLLM_Generate_Success(t *testing.T) {
 	// Мок-сервер, возвращающий валидный Anthropic-ответ
@@ -61,7 +66,7 @@ func TestClaudeLLM_Generate_Success(t *testing.T) {
 		if len(req.Messages) == 0 {
 			t.Error("messages array is empty")
 		}
-		if req.Messages[0].Role != "user" {
+		if req.Messages[0].Role != roleUser {
 			t.Errorf("expected role=user, got %s", req.Messages[0].Role)
 		}
 
@@ -75,7 +80,7 @@ func TestClaudeLLM_Generate_Success(t *testing.T) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -118,12 +123,13 @@ func TestClaudeLLM_Generate_NilContext(t *testing.T) {
 		}
 	}()
 
-	client.Generate(nil, "System", "User")
+	//nolint:staticcheck // Нам нужно передать nil context, чтобы проверить, что метод паникует.
+	_, _ = client.Generate(nil, "System", "User")
 }
 
 // @sk-task T1.3: Тест на отмену контекста
 func TestClaudeLLM_Generate_ContextCancelled(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		time.Sleep(100 * time.Millisecond)
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -142,14 +148,14 @@ func TestClaudeLLM_Generate_ContextCancelled(t *testing.T) {
 
 // @sk-task T1.3: Тест на пустой ответ от API
 func TestClaudeLLM_Generate_EmptyResponse(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		resp := messagesResponse{
 			Content: []contentBlock{},
 			Role:    "assistant",
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -188,11 +194,11 @@ func TestClaudeLLM_GenerateStream_Success(t *testing.T) {
 		}
 
 		for _, event := range events {
-			w.Write([]byte("data: " + event + "\n\n"))
+			_, _ = w.Write([]byte("data: " + event + "\n\n"))
 			flusher.Flush()
 		}
 
-		w.Write([]byte("data: [DONE]\n\n"))
+		_, _ = w.Write([]byte("data: [DONE]\n\n"))
 		flusher.Flush()
 	}))
 	defer server.Close()
@@ -244,18 +250,19 @@ func TestClaudeLLM_GenerateStream_NilContext(t *testing.T) {
 		}
 	}()
 
-	client.GenerateStream(nil, "System", "User")
+	//nolint:staticcheck // Нам нужно передать nil context, чтобы проверить, что метод паникует.
+	_, _ = client.GenerateStream(nil, "System", "User")
 }
 
 // @sk-task T2.4: Тест на ошибку 401 (AC-005)
 func TestClaudeLLM_Generate_Unauthorized(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"error": {"type": "authentication_error", "message": "Invalid API key"}}`))
+		_, _ = w.Write([]byte(`{"error": {"type": "authentication_error", "message": "Invalid API key"}}`))
 	}))
 	defer server.Close()
 
-	apiKey := "sk-secret-key-12345"
+	apiKey := testAnthropicAPIKey
 	client := NewClaudeLLM(nil, server.URL, apiKey, "", "", nil, nil)
 
 	_, err := client.Generate(context.Background(), "System", "User")
@@ -271,13 +278,13 @@ func TestClaudeLLM_Generate_Unauthorized(t *testing.T) {
 
 // @sk-task T2.4: Тест на ошибку 429 (AC-005)
 func TestClaudeLLM_Generate_RateLimited(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusTooManyRequests)
-		w.Write([]byte(`{"error": {"type": "rate_limit_error", "message": "Rate limit exceeded"}}`))
+		_, _ = w.Write([]byte(`{"error": {"type": "rate_limit_error", "message": "Rate limit exceeded"}}`))
 	}))
 	defer server.Close()
 
-	apiKey := "sk-secret-key-12345"
+	apiKey := testAnthropicAPIKey
 	client := NewClaudeLLM(nil, server.URL, apiKey, "", "", nil, nil)
 
 	_, err := client.Generate(context.Background(), "System", "User")
@@ -293,13 +300,13 @@ func TestClaudeLLM_Generate_RateLimited(t *testing.T) {
 
 // @sk-task T2.4: Тест на ошибку в streaming (AC-005)
 func TestClaudeLLM_GenerateStream_Error(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(`{"error": {"type": "invalid_request_error", "message": "Invalid request"}}`))
+		_, _ = w.Write([]byte(`{"error": {"type": "invalid_request_error", "message": "Invalid request"}}`))
 	}))
 	defer server.Close()
 
-	apiKey := "sk-secret-key-12345"
+	apiKey := testAnthropicAPIKey
 	client := NewClaudeLLM(nil, server.URL, apiKey, "", "", nil, nil)
 
 	_, err := client.GenerateStream(context.Background(), "System", "User")
@@ -316,10 +323,10 @@ func TestClaudeLLM_GenerateStream_Error(t *testing.T) {
 // @sk-task T2.4: Тест на редатацию ключа в ошибке (AC-005)
 func TestClaudeLLM_Generate_KeyRedaction(t *testing.T) {
 	apiKey := "sk-ant-test-secret-key-1234567890abcdef"
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		// Возвращаем ошибку, содержащую API ключ (имитация случайной утечки)
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(`{"error": {"message": "Invalid key: ` + apiKey + `"}}`))
+		_, _ = w.Write([]byte(`{"error": {"message": "Invalid key: ` + apiKey + `"}}`))
 	}))
 	defer server.Close()
 
@@ -380,8 +387,13 @@ func TestClaudeLLM_Generate_NoSystemPrompt(t *testing.T) {
 	var capturedReq messagesRequest
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := io.ReadAll(r.Body)
-		json.Unmarshal(body, &capturedReq)
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read request body: %v", err)
+		}
+		if err := json.Unmarshal(body, &capturedReq); err != nil {
+			t.Fatalf("unmarshal request: %v", err)
+		}
 
 		resp := messagesResponse{
 			Content: []contentBlock{{Type: "text", Text: "Response"}},
@@ -389,13 +401,13 @@ func TestClaudeLLM_Generate_NoSystemPrompt(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
 	client := NewClaudeLLM(nil, server.URL, "key", "", "", nil, nil)
 
-	client.Generate(context.Background(), "", "User message")
+	_, _ = client.Generate(context.Background(), "", "User message")
 
 	// System поле должно быть пустым (omitempty)
 	if capturedReq.System != "" {

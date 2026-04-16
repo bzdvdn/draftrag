@@ -170,7 +170,7 @@ func TestRetryLLMProvider_HooksCalled(t *testing.T) {
 	}
 	retryLLM := NewRetryLLMProvider(mockLLM, config, nil, mockHooks, nil)
 
-	retryLLM.Generate(context.Background(), "system", "user")
+	_, _ = retryLLM.Generate(context.Background(), "system", "user")
 
 	// По 2 вызова на каждую попытку
 	mockHooks.AssertNumberOfCalls(t, "StageStart", 2)
@@ -193,7 +193,7 @@ func TestRetryLLMProvider_HooksCalledOnRejection(t *testing.T) {
 	// Переводим в open
 	retryLLM.circuitBreaker.RecordFailure()
 
-	retryLLM.Generate(context.Background(), "system", "user")
+	_, _ = retryLLM.Generate(context.Background(), "system", "user")
 
 	// Должен быть вызов hooks для rejected запроса
 	mockHooks.AssertNumberOfCalls(t, "StageStart", 1)

@@ -22,9 +22,9 @@ type RetryableError interface {
 // Возвращает false для nil ошибок и context cancellation errors.
 // Возвращает true для ошибок, реализующих RetryableError с IsRetryable() == true.
 func IsRetryable(err error) bool {
-if err == nil {
-return false
-}
+	if err == nil {
+		return false
+	}
 
 	// Context cancellation никогда не retry
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {

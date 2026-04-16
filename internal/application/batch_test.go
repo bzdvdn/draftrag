@@ -17,15 +17,15 @@ type mockBatchStore struct {
 	mu     sync.Mutex
 }
 
-func (m *mockBatchStore) Upsert(ctx context.Context, chunk domain.Chunk) error {
+func (m *mockBatchStore) Upsert(_ context.Context, chunk domain.Chunk) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.chunks = append(m.chunks, chunk)
 	return nil
 }
 
-func (m *mockBatchStore) Delete(ctx context.Context, id string) error { return nil }
-func (m *mockBatchStore) Search(ctx context.Context, embedding []float64, topK int) (domain.RetrievalResult, error) {
+func (m *mockBatchStore) Delete(_ context.Context, _ string) error { return nil }
+func (m *mockBatchStore) Search(_ context.Context, _ []float64, _ int) (domain.RetrievalResult, error) {
 	return domain.RetrievalResult{}, nil
 }
 
@@ -34,7 +34,7 @@ type fixedBatchEmbedder struct {
 	delay time.Duration
 }
 
-func (f fixedBatchEmbedder) Embed(ctx context.Context, text string) ([]float64, error) {
+func (f fixedBatchEmbedder) Embed(_ context.Context, _ string) ([]float64, error) {
 	if f.delay > 0 {
 		time.Sleep(f.delay)
 	}
@@ -50,33 +50,6 @@ type countingBatchEmbedder struct {
 func (c *countingBatchEmbedder) Embed(ctx context.Context, text string) ([]float64, error) {
 	c.count.Add(1)
 	return c.fixedBatchEmbedder.Embed(ctx, text)
-}
-
-// errorBatchEmbedder возвращает ошибку для определённых документов.
-type errorBatchEmbedder struct {
-	errorsForIDs map[string]bool
-}
-
-func (e errorBatchEmbedder) Embed(ctx context.Context, text string) ([]float64, error) {
-	return []float64{0.1, 0.2, 0.3}, nil
-}
-
-// slowBatchEmbedder с отслеживанием интервалов между вызовами.
-type slowBatchEmbedder struct {
-	lastCall    atomic.Value // time.Time
-	minInterval time.Duration
-}
-
-func (s *slowBatchEmbedder) Embed(ctx context.Context, text string) ([]float64, error) {
-	now := time.Now()
-	if last, ok := s.lastCall.Load().(time.Time); ok {
-		elapsed := now.Sub(last)
-		if elapsed < s.minInterval {
-			time.Sleep(s.minInterval - elapsed)
-		}
-	}
-	s.lastCall.Store(now)
-	return []float64{0.1, 0.2, 0.3}, nil
 }
 
 // erroringBatchEmbedder возвращает ошибку для определённых текстов.
@@ -95,7 +68,7 @@ func (e erroringBatchEmbedder) Embed(ctx context.Context, text string) ([]float6
 // mockChunker разбивает документ на 2 чанка для тестирования chunking.
 type mockChunker struct{}
 
-func (m mockChunker) Chunk(ctx context.Context, doc domain.Document) ([]domain.Chunk, error) {
+func (m mockChunker) Chunk(_ context.Context, doc domain.Document) ([]domain.Chunk, error) {
 	return []domain.Chunk{
 		{ID: doc.ID + "#0", Content: doc.Content + " part1", ParentID: doc.ID, Position: 0},
 		{ID: doc.ID + "#1", Content: doc.Content + " part2", ParentID: doc.ID, Position: 1},
@@ -105,7 +78,7 @@ func (m mockChunker) Chunk(ctx context.Context, doc domain.Document) ([]domain.C
 // okBatchLLM для тестов.
 type okBatchLLM struct{}
 
-func (okBatchLLM) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
+func (okBatchLLM) Generate(_ context.Context, _, _ string) (string, error) {
 	return "ok", nil
 }
 

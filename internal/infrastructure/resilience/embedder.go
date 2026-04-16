@@ -59,7 +59,7 @@ func NewRetryEmbedder(
 func (r *RetryEmbedder) Embed(ctx context.Context, text string) ([]float64, error) {
 	// Проверяем circuit breaker
 	if err := r.circuitBreaker.CanExecute(); err != nil {
-		domain.SafeLog(r.logger, ctx, domain.LogLevelWarn, "circuit breaker rejected",
+		domain.SafeLog(ctx, r.logger, domain.LogLevelWarn, "circuit breaker rejected",
 			domain.LogField{Key: "component", Value: "resilience_retry"},
 			domain.LogField{Key: "operation", Value: "embed"},
 			domain.LogField{Key: "rejected", Value: true},
@@ -94,7 +94,7 @@ func (r *RetryEmbedder) Embed(ctx context.Context, text string) ([]float64, erro
 
 		// Проверяем, стоит ли повторять
 		if !IsRetryable(err) {
-			domain.SafeLog(r.logger, ctx, domain.LogLevelWarn, "non-retryable error",
+			domain.SafeLog(ctx, r.logger, domain.LogLevelWarn, "non-retryable error",
 				domain.LogField{Key: "component", Value: "resilience_retry"},
 				domain.LogField{Key: "operation", Value: "embed"},
 				domain.LogField{Key: "attempt", Value: attempt},
@@ -108,7 +108,7 @@ func (r *RetryEmbedder) Embed(ctx context.Context, text string) ([]float64, erro
 
 		// Фиксируем ошибку в circuit breaker и вызываем hooks (кроме последней попытки)
 		if attempt < maxRetries {
-			domain.SafeLog(r.logger, ctx, domain.LogLevelWarn, "retry attempt failed",
+			domain.SafeLog(ctx, r.logger, domain.LogLevelWarn, "retry attempt failed",
 				domain.LogField{Key: "component", Value: "resilience_retry"},
 				domain.LogField{Key: "operation", Value: "embed"},
 				domain.LogField{Key: "attempt", Value: attempt},
@@ -141,29 +141,7 @@ func (r *RetryEmbedder) Embed(ctx context.Context, text string) ([]float64, erro
 
 // recordEvent фиксирует событие через hooks.
 func (r *RetryEmbedder) recordEvent(ctx context.Context, operation string, attempt int, err error, rejected bool) {
-	if r.hooks == nil {
-		return
-	}
-
-	stage := domain.HookStage(domain.HookStageEmbed)
-	ev := domain.StageStartEvent{
-		Operation: fmt.Sprintf("%s:attempt=%d", operation, attempt),
-		Stage:     stage,
-	}
-
-	if rejected {
-		ev.Operation = fmt.Sprintf("%s:rejected", operation)
-	}
-
-	r.hooks.StageStart(ctx, ev)
-
-	// Для завершения используем нулевую длительность (event-based hooks)
-	r.hooks.StageEnd(ctx, domain.StageEndEvent{
-		Operation: ev.Operation,
-		Stage:     stage,
-		Duration:  0,
-		Err:       err,
-	})
+	recordHookEvent(ctx, r.hooks, domain.HookStageEmbed, operation, attempt, err, rejected)
 }
 
 // CircuitBreakerState возвращает текущее состояние circuit breaker.

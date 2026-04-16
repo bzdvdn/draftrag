@@ -635,4 +635,4 @@ internal/
 
 ## Лицензия
 
-MIT
+Apache License 2.0

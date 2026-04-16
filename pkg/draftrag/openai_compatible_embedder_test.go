@@ -16,7 +16,7 @@ var _ Embedder = NewOpenAICompatibleEmbedder(OpenAICompatibleEmbedderOptions{})
 
 type testLLMProvider struct{}
 
-func (testLLMProvider) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
+func (testLLMProvider) Generate(ctx context.Context, _, _ string) (string, error) {
 	if ctx == nil {
 		panic("nil context")
 	}
@@ -42,7 +42,7 @@ func TestOpenAICompatibleEmbedder_ConfigValidation(t *testing.T) {
 func TestOpenAICompatibleEmbedder_PipelineFullCycle(t *testing.T) {
 	apiKey := "test-key"
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"data": []any{
@@ -80,7 +80,7 @@ func TestOpenAICompatibleEmbedder_PipelineFullCycle(t *testing.T) {
 func TestOpenAICompatibleEmbedder_RedactsAPIKey(t *testing.T) {
 	apiKey := "secret-key"
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		_, _ = w.Write([]byte("bad request: " + apiKey))
 	}))

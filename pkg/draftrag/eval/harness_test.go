@@ -12,7 +12,7 @@ type fixedRunner struct {
 	results map[string]draftrag.RetrievalResult
 }
 
-func (r fixedRunner) Retrieve(ctx context.Context, question string, topK int) (draftrag.RetrievalResult, error) {
+func (r fixedRunner) Retrieve(_ context.Context, question string, _ int) (draftrag.RetrievalResult, error) {
 	if rr, ok := r.results[question]; ok {
 		return rr, nil
 	}
@@ -81,28 +81,28 @@ func TestRun_MetricsOnSyntheticDataset(t *testing.T) {
 // @sk-test T3.1: TestComputeNDCG проверяет вычисление NDCG (AC-001)
 func TestComputeNDCG(t *testing.T) {
 	tests := []struct {
-		name     string
-		expected []string
+		name      string
+		expected  []string
 		retrieved []string
-		want     float64
+		want      float64
 	}{
 		{
-			name:     "perfect ranking",
-			expected: []string{"A", "B", "C"},
+			name:      "perfect ranking",
+			expected:  []string{"A", "B", "C"},
 			retrieved: []string{"A", "B", "C"},
-			want:     1.0,
+			want:      1.0,
 		},
 		{
-			name:     "partial ranking",
-			expected: []string{"A", "B", "C"},
+			name:      "partial ranking",
+			expected:  []string{"A", "B", "C"},
 			retrieved: []string{"A", "X", "B"},
-			want:     0.7039180890341348, // DCG=1.5, Ideal DCG≈2.1309, NDCG≈0.7039
+			want:      0.7039180890341348, // DCG=1.5, Ideal DCG≈2.1309, NDCG≈0.7039
 		},
 		{
-			name:     "empty expected",
-			expected: []string{},
+			name:      "empty expected",
+			expected:  []string{},
 			retrieved: []string{"A", "B"},
-			want:     0,
+			want:      0,
 		},
 	}
 
@@ -123,32 +123,32 @@ func TestComputeNDCG(t *testing.T) {
 // @sk-test T3.1: TestComputePrecision проверяет вычисление Precision@K (AC-002)
 func TestComputePrecision(t *testing.T) {
 	tests := []struct {
-		name     string
-		expected []string
+		name      string
+		expected  []string
 		retrieved []string
-		k        int
-		want     float64
+		k         int
+		want      float64
 	}{
 		{
-			name:     "all relevant",
-			expected: []string{"A", "B"},
+			name:      "all relevant",
+			expected:  []string{"A", "B"},
 			retrieved: []string{"A", "B", "C"},
-			k:        2,
-			want:     1.0,
+			k:         2,
+			want:      1.0,
 		},
 		{
-			name:     "half relevant",
-			expected: []string{"A", "B"},
+			name:      "half relevant",
+			expected:  []string{"A", "B"},
 			retrieved: []string{"A", "X", "B"},
-			k:        2,
-			want:     0.5,
+			k:         2,
+			want:      0.5,
 		},
 		{
-			name:     "none relevant",
-			expected: []string{"A", "B"},
+			name:      "none relevant",
+			expected:  []string{"A", "B"},
 			retrieved: []string{"X", "Y"},
-			k:        2,
-			want:     0.0,
+			k:         2,
+			want:      0.0,
 		},
 	}
 
@@ -165,32 +165,32 @@ func TestComputePrecision(t *testing.T) {
 // @sk-test T3.1: TestComputeRecall проверяет вычисление Recall@K (AC-002)
 func TestComputeRecall(t *testing.T) {
 	tests := []struct {
-		name     string
-		expected []string
+		name      string
+		expected  []string
 		retrieved []string
-		k        int
-		want     float64
+		k         int
+		want      float64
 	}{
 		{
-			name:     "all retrieved",
-			expected: []string{"A", "B"},
+			name:      "all retrieved",
+			expected:  []string{"A", "B"},
 			retrieved: []string{"A", "B", "C"},
-			k:        3,
-			want:     1.0,
+			k:         3,
+			want:      1.0,
 		},
 		{
-			name:     "half retrieved",
-			expected: []string{"A", "B"},
+			name:      "half retrieved",
+			expected:  []string{"A", "B"},
 			retrieved: []string{"A", "X"},
-			k:        2,
-			want:     0.5,
+			k:         2,
+			want:      0.5,
 		},
 		{
-			name:     "none retrieved",
-			expected: []string{"A", "B"},
+			name:      "none retrieved",
+			expected:  []string{"A", "B"},
 			retrieved: []string{"X", "Y"},
-			k:        2,
-			want:     0.0,
+			k:         2,
+			want:      0.0,
 		},
 	}
 
@@ -238,10 +238,10 @@ func TestOptionsConditionalMetrics(t *testing.T) {
 
 	// С включёнными флагами - новые метрики должны вычисляться
 	report, err = Run(context.Background(), runner, cases, Options{
-		DefaultTopK: 5,
-		EnableNDCG:   true,
+		DefaultTopK:     5,
+		EnableNDCG:      true,
 		EnablePrecision: true,
-		EnableRecall: true,
+		EnableRecall:    true,
 	})
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
@@ -339,10 +339,10 @@ func BenchmarkRun1000Cases(b *testing.B) {
 	}
 
 	opts := Options{
-		DefaultTopK: 5,
-		EnableNDCG:   true,
+		DefaultTopK:     5,
+		EnableNDCG:      true,
 		EnablePrecision: true,
-		EnableRecall: true,
+		EnableRecall:    true,
 	}
 
 	b.ResetTimer()
@@ -384,10 +384,10 @@ func BenchmarkRun10000Cases(b *testing.B) {
 	}
 
 	opts := Options{
-		DefaultTopK: 5,
-		EnableNDCG:   true,
+		DefaultTopK:     5,
+		EnableNDCG:      true,
 		EnablePrecision: true,
-		EnableRecall: true,
+		EnableRecall:    true,
 	}
 
 	b.ResetTimer()

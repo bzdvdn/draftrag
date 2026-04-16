@@ -36,8 +36,8 @@ type ollamaChatResponse struct {
 	Message ollamaMessage `json:"message"`
 }
 
-// @ds-task T1.1: Структура клиента и конструктор (AC-001, DEC-001, DEC-003)
 // OllamaLLM реализует LLMProvider для локального Ollama API.
+// @ds-task T1.1: Структура клиента и конструктор (AC-001, DEC-001, DEC-003)
 type OllamaLLM struct {
 	httpClient  *http.Client
 	baseURL     string
@@ -75,8 +75,8 @@ func NewOllamaLLM(
 	}
 }
 
-// @ds-task T2.1: Реализация Generate для Ollama Chat API (AC-001, AC-003, AC-004, AC-005, RQ-001, RQ-002, RQ-003, RQ-006, RQ-007)
 // Generate генерирует текстовый ответ на основе system и user сообщений.
+// @ds-task T2.1: Реализация Generate для Ollama Chat API (AC-001, AC-003, AC-004, AC-005, RQ-001, RQ-002, RQ-003, RQ-006, RQ-007)
 func (o *OllamaLLM) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
 	if ctx == nil {
 		panic("nil context")
@@ -123,7 +123,7 @@ func (o *OllamaLLM) Generate(ctx context.Context, systemPrompt, userMessage stri
 		}
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		snippet, _ := readBodySnippet(resp.Body, maxErrorBodyBytes)

@@ -15,23 +15,23 @@ var (
 
 type panicStore2 struct{}
 
-func (panicStore2) Upsert(ctx context.Context, chunk domain.Chunk) error {
+func (panicStore2) Upsert(_ context.Context, _ domain.Chunk) error {
 	panic("should not be called")
 }
-func (panicStore2) Delete(ctx context.Context, id string) error { panic("should not be called") }
-func (panicStore2) Search(ctx context.Context, embedding []float64, topK int) (domain.RetrievalResult, error) {
+func (panicStore2) Delete(_ context.Context, _ string) error { panic("should not be called") }
+func (panicStore2) Search(_ context.Context, _ []float64, _ int) (domain.RetrievalResult, error) {
 	panic("should not be called")
 }
 
 type panicEmbedder2 struct{}
 
-func (panicEmbedder2) Embed(ctx context.Context, text string) ([]float64, error) {
+func (panicEmbedder2) Embed(_ context.Context, _ string) ([]float64, error) {
 	panic("should not be called")
 }
 
 type panicLLM2 struct{}
 
-func (panicLLM2) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
+func (panicLLM2) Generate(_ context.Context, _, _ string) (string, error) {
 	panic("should not be called")
 }
 

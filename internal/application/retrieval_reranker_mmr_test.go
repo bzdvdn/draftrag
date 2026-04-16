@@ -13,10 +13,10 @@ type mmrStore struct {
 	lastTopK   int
 }
 
-func (s *mmrStore) Upsert(ctx context.Context, chunk domain.Chunk) error { return nil }
-func (s *mmrStore) Delete(ctx context.Context, id string) error          { return nil }
+func (s *mmrStore) Upsert(_ context.Context, _ domain.Chunk) error { return nil }
+func (s *mmrStore) Delete(_ context.Context, _ string) error       { return nil }
 
-func (s *mmrStore) Search(ctx context.Context, embedding []float64, topK int) (domain.RetrievalResult, error) {
+func (s *mmrStore) Search(_ context.Context, _ []float64, topK int) (domain.RetrievalResult, error) {
 	s.lastTopK = topK
 	out := s.candidates
 	if topK < len(out) {
@@ -29,11 +29,11 @@ type fixedEmbedderMMR struct {
 	v []float64
 }
 
-func (e fixedEmbedderMMR) Embed(ctx context.Context, text string) ([]float64, error) { return e.v, nil }
+func (e fixedEmbedderMMR) Embed(_ context.Context, _ string) ([]float64, error) { return e.v, nil }
 
 type okLLM struct{}
 
-func (okLLM) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
+func (okLLM) Generate(_ context.Context, _, _ string) (string, error) {
 	return "ok", nil
 }
 

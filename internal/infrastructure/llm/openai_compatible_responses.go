@@ -107,6 +107,8 @@ func NewOpenAICompatibleResponsesLLM(
 }
 
 // Generate генерирует текстовый ответ на основе system и user сообщений.
+//
+//nolint:gocyclo // В одном методе: валидация, HTTP, редакция и парсинг ответа.
 func (l *OpenAICompatibleResponsesLLM) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
 	if ctx == nil {
 		panic("nil context")
@@ -160,7 +162,7 @@ func (l *OpenAICompatibleResponsesLLM) Generate(ctx context.Context, systemPromp
 		}
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		snippet, _ := readBodySnippet(resp.Body, maxErrorBodyBytes)
@@ -217,6 +219,8 @@ func readBodySnippet(r io.Reader, limit int64) (string, error) {
 //
 // @ds-task T2.1: Реализовать GenerateStream с SSE парсингом (AC-001, AC-003, AC-005, DEC-002)
 // @ds-task T2.2: Обработка SSE edge cases (AC-005)
+//
+//nolint:gocyclo // SSE-парсинг и обработка ошибок/контекста держим вместе.
 func (l *OpenAICompatibleResponsesLLM) GenerateStream(ctx context.Context, systemPrompt, userMessage string) (<-chan string, error) {
 	if ctx == nil {
 		panic("nil context")
@@ -274,7 +278,7 @@ func (l *OpenAICompatibleResponsesLLM) GenerateStream(ctx context.Context, syste
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		snippet, _ := readBodySnippet(resp.Body, maxErrorBodyBytes)
 		snippet = domain.RedactSecrets(snippet, l.apiKey, "Bearer "+l.apiKey)
 		return nil, fmt.Errorf("responses stream request failed: status=%d body=%q", resp.StatusCode, snippet)
@@ -285,7 +289,7 @@ func (l *OpenAICompatibleResponsesLLM) GenerateStream(ctx context.Context, syste
 
 	// Горутина-производитель читает SSE и пишет в канал
 	go func() {
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		defer close(tokenChan)
 
 		reader := io.LimitReader(resp.Body, maxSSEBufferBytes)

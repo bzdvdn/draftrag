@@ -11,21 +11,21 @@ type fixedSearchStoreDedup struct {
 	result domain.RetrievalResult
 }
 
-func (fixedSearchStoreDedup) Upsert(ctx context.Context, chunk domain.Chunk) error { return nil }
-func (fixedSearchStoreDedup) Delete(ctx context.Context, id string) error          { return nil }
-func (s fixedSearchStoreDedup) Search(ctx context.Context, embedding []float64, topK int) (domain.RetrievalResult, error) {
+func (fixedSearchStoreDedup) Upsert(_ context.Context, _ domain.Chunk) error { return nil }
+func (fixedSearchStoreDedup) Delete(_ context.Context, _ string) error       { return nil }
+func (s fixedSearchStoreDedup) Search(_ context.Context, _ []float64, _ int) (domain.RetrievalResult, error) {
 	return s.result, nil
 }
 
 type fixedEmbedderDedup struct{}
 
-func (fixedEmbedderDedup) Embed(ctx context.Context, text string) ([]float64, error) {
+func (fixedEmbedderDedup) Embed(_ context.Context, _ string) ([]float64, error) {
 	return []float64{1}, nil
 }
 
 type panicLLMDedup struct{}
 
-func (panicLLMDedup) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
+func (panicLLMDedup) Generate(_ context.Context, _, _ string) (string, error) {
 	panic("should not be called")
 }
 

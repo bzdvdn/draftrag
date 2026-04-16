@@ -8,7 +8,7 @@ import (
 
 func TestQdrantStore_NewQdrantStore_DefaultBaseURL(t *testing.T) {
 	store := NewQdrantStore("", "test-collection", 1536)
-	
+
 	if store.baseURL != "http://localhost:6333" {
 		t.Errorf("expected default baseURL http://localhost:6333, got %s", store.baseURL)
 	}
@@ -22,7 +22,7 @@ func TestQdrantStore_NewQdrantStore_DefaultBaseURL(t *testing.T) {
 
 func TestQdrantStore_NewQdrantStore_CustomBaseURL(t *testing.T) {
 	store := NewQdrantStore("http://custom:9000", "test-collection", 768)
-	
+
 	if store.baseURL != "http://custom:9000" {
 		t.Errorf("expected custom baseURL http://custom:9000, got %s", store.baseURL)
 	}
@@ -36,7 +36,7 @@ func TestQdrantStore_NewQdrantStore_CustomBaseURL(t *testing.T) {
 
 func TestQdrantRuntimeOptions_Default(t *testing.T) {
 	opts := QdrantRuntimeOptions{}
-	
+
 	if opts.SearchTimeout != 0 {
 		t.Errorf("expected zero SearchTimeout, got %v", opts.SearchTimeout)
 	}
@@ -53,12 +53,12 @@ func TestQdrantRuntimeOptions_Default(t *testing.T) {
 
 func TestQdrantRuntimeOptions_WithValues(t *testing.T) {
 	opts := QdrantRuntimeOptions{
-		SearchTimeout:  30,
-		UpsertTimeout:  60,
-		DeleteTimeout:  30,
+		SearchTimeout: 30,
+		UpsertTimeout: 60,
+		DeleteTimeout: 30,
 		MaxTopK:       100,
 	}
-	
+
 	if opts.SearchTimeout != 30 {
 		t.Errorf("expected SearchTimeout 30, got %v", opts.SearchTimeout)
 	}
@@ -78,7 +78,7 @@ func TestQdrantStore_Interfaces(t *testing.T) {
 	var _ domain.VectorStore = (*QdrantStore)(nil)
 	var _ domain.VectorStoreWithFilters = (*QdrantStore)(nil)
 	var _ domain.DocumentStore = (*QdrantStore)(nil)
-	
+
 	// Если скомпилируется - интерфейсы реализованы корректно
 	store := NewQdrantStore("http://localhost:6333", "test", 1536)
 	if store == nil {
@@ -102,7 +102,7 @@ func TestQdrantStore_ChunkValidation(t *testing.T) {
 		ParentID: "doc1",
 		Position: 0,
 	}
-	
+
 	err := chunk.Validate()
 	if err == nil {
 		t.Fatal("expected error for empty ID")
@@ -119,7 +119,7 @@ func TestQdrantStore_MetadataMapping(t *testing.T) {
 		Metadata:  map[string]string{"source": "wiki", "lang": "ru"},
 		Embedding: []float64{0.1, 0.2, 0.3},
 	}
-	
+
 	// Проверяем, что метаданные содержат ожидаемые поля
 	if chunk.Metadata["source"] != "wiki" {
 		t.Errorf("expected source=wiki, got %s", chunk.Metadata["source"])
@@ -137,7 +137,7 @@ func TestMilvusStore_Interfaces(t *testing.T) {
 	var _ domain.VectorStore = (*MilvusStore)(nil)
 	var _ domain.VectorStoreWithFilters = (*MilvusStore)(nil)
 	var _ domain.HybridSearcher = (*MilvusStore)(nil)
-	
+
 	// Если скомпилируется - интерфейсы реализованы корректно
 	store := NewMilvusStore("http://localhost:19530", "test", "")
 	if store == nil {

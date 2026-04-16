@@ -13,7 +13,7 @@ type recordingEmbedder struct {
 	calls *[]string
 }
 
-func (e recordingEmbedder) Embed(ctx context.Context, text string) ([]float64, error) {
+func (e recordingEmbedder) Embed(_ context.Context, text string) ([]float64, error) {
 	*e.calls = append(*e.calls, "embed:"+text)
 	return []float64{1, 2, 3}, nil
 }
@@ -23,17 +23,17 @@ type recordingStore struct {
 	result domain.RetrievalResult
 }
 
-func (s recordingStore) Upsert(ctx context.Context, chunk domain.Chunk) error {
+func (s recordingStore) Upsert(_ context.Context, _ domain.Chunk) error {
 	*s.calls = append(*s.calls, "upsert")
 	return nil
 }
 
-func (s recordingStore) Delete(ctx context.Context, id string) error {
+func (s recordingStore) Delete(_ context.Context, _ string) error {
 	*s.calls = append(*s.calls, "delete")
 	return nil
 }
 
-func (s recordingStore) Search(ctx context.Context, embedding []float64, topK int) (domain.RetrievalResult, error) {
+func (s recordingStore) Search(_ context.Context, _ []float64, _ int) (domain.RetrievalResult, error) {
 	*s.calls = append(*s.calls, "search")
 	return s.result, nil
 }
@@ -44,7 +44,7 @@ type recordingLLM struct {
 	userMessage  string
 }
 
-func (l *recordingLLM) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
+func (l *recordingLLM) Generate(_ context.Context, systemPrompt, userMessage string) (string, error) {
 	*l.calls = append(*l.calls, "generate")
 	l.systemPrompt = systemPrompt
 	l.userMessage = userMessage

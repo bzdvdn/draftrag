@@ -15,7 +15,7 @@ type fixedChunker struct {
 	chunks []domain.Chunk
 }
 
-func (c fixedChunker) Chunk(ctx context.Context, doc domain.Document) ([]domain.Chunk, error) {
+func (c fixedChunker) Chunk(ctx context.Context, _ domain.Document) ([]domain.Chunk, error) {
 	if ctx == nil {
 		panic("nil context")
 	}
@@ -29,7 +29,7 @@ type countingEmbedder struct {
 	calls int
 }
 
-func (e *countingEmbedder) Embed(ctx context.Context, text string) ([]float64, error) {
+func (e *countingEmbedder) Embed(_ context.Context, _ string) ([]float64, error) {
 	e.calls++
 	return []float64{1, float64(e.calls)}, nil
 }

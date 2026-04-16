@@ -80,11 +80,7 @@ func MigratePGVector(ctx context.Context, db *sql.DB, opts PGVectorMigrateOption
 
 	// Конфигурационные аспекты (например, смена IndexMethod) могут требовать пересоздания индекса
 	// даже при уже актуальной версии схемы.
-	if err := ensureEmbeddingIndex(ctxDDL, db, normalized); err != nil {
-		return err
-	}
-
-	return nil
+	return ensureEmbeddingIndex(ctxDDL, db, normalized)
 }
 
 func ensureMigrationsTable(ctx context.Context, db *sql.DB, table string) error {
@@ -159,10 +155,7 @@ func applyMigration(ctx context.Context, db *sql.DB, version int, opts PGVectorO
 		return fmt.Errorf("unknown migration version %d", version)
 	}
 
-	if err := tx.Commit(); err != nil {
-		return err
-	}
-	return nil
+	return tx.Commit()
 }
 
 type sqlExecQuerier interface {

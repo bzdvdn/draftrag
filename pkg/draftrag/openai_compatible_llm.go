@@ -60,28 +60,14 @@ func NewOpenAICompatibleLLM(opts OpenAICompatibleLLMOptions) LLMProvider {
 }
 
 func (p *openAICompatibleLLM) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
-	if ctx == nil {
-		panic("nil context")
-	}
-	if err := ctx.Err(); err != nil {
-		return "", err
-	}
-
-	if strings.TrimSpace(userMessage) == "" {
-		return "", errors.New("userMessage is empty")
-	}
-
-	if err := validateOpenAICompatibleLLMOptions(p.opts); err != nil {
-		return "", err
-	}
-
-	if p.opts.Timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, p.opts.Timeout)
-		defer cancel()
-	}
-
-	return p.impl.Generate(ctx, systemPrompt, userMessage)
+	return generateWithValidation(
+		ctx,
+		systemPrompt,
+		userMessage,
+		p.opts.Timeout,
+		func() error { return validateOpenAICompatibleLLMOptions(p.opts) },
+		p.impl.Generate,
+	)
 }
 
 // GenerateStream генерирует ответ токен за токеном через streaming (OpenAI Responses API).

@@ -59,6 +59,7 @@ func TestCachedEmbedder_Stats(t *testing.T) {
 }
 
 func TestCachedEmbedder_ImplementsEmbedder(t *testing.T) {
+	t.Parallel()
 	base := &countEmbedder{vec: []float64{1}}
 	cached, _ := NewCachedEmbedder(base, CacheOptions{})
 	var _ Embedder = cached // compile-time check

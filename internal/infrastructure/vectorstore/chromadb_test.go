@@ -25,7 +25,7 @@ func TestChromaStore_Upsert(t *testing.T) {
 		require.NoError(t, err)
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok"})
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok"})
 	}))
 	defer server.Close()
 
@@ -65,14 +65,14 @@ func TestChromaStore_Search(t *testing.T) {
 		assert.Equal(t, http.MethodPost, r.Method)
 
 		response := map[string]interface{}{
-			"ids":        [][]string{{"chunk-1", "chunk-2"}},
-			"distances":  [][]float64{{0.1, 0.3}},
-			"metadatas":  [][]map[string]string{{{"parent_id": "doc-1", "content": "content 1"}, {"parent_id": "doc-1", "content": "content 2"}}},
-			"documents":  [][]string{{"content 1", "content 2"}},
+			"ids":       [][]string{{"chunk-1", "chunk-2"}},
+			"distances": [][]float64{{0.1, 0.3}},
+			"metadatas": [][]map[string]string{{{"parent_id": "doc-1", "content": "content 1"}, {"parent_id": "doc-1", "content": "content 2"}}},
+			"documents": [][]string{{"content 1", "content 2"}},
 		}
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 
@@ -102,14 +102,14 @@ func TestChromaStore_SearchWithMetadataFilter(t *testing.T) {
 		require.NoError(t, err)
 
 		response := map[string]interface{}{
-			"ids":        [][]string{{"chunk-1"}},
-			"distances":  [][]float64{{0.2}},
-			"metadatas":  [][]map[string]string{{{"parent_id": "doc-1", "source": "file1.txt"}}},
-			"documents":  [][]string{{"filtered content"}},
+			"ids":       [][]string{{"chunk-1"}},
+			"distances": [][]float64{{0.2}},
+			"metadatas": [][]map[string]string{{{"parent_id": "doc-1", "source": "file1.txt"}}},
+			"documents": [][]string{{"filtered content"}},
 		}
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 
@@ -143,7 +143,7 @@ func TestChromaStore_Delete(t *testing.T) {
 		require.NoError(t, err)
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok"})
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok"})
 	}))
 	defer server.Close()
 
@@ -159,7 +159,7 @@ func TestChromaStore_Delete(t *testing.T) {
 
 // @sk-task T3.2: Тест валидации размерности эмбеддинга (AC-005)
 func TestChromaStore_DimensionMismatch(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
@@ -196,7 +196,7 @@ func TestChromaStore_AutocreateCollection(t *testing.T) {
 			if callCount == 1 {
 				// Первый вызов — 404
 				w.WriteHeader(http.StatusNotFound)
-				json.NewEncoder(w).Encode(map[string]interface{}{
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{
 					"error": "Collection not found",
 				})
 				return
@@ -209,17 +209,17 @@ func TestChromaStore_AutocreateCollection(t *testing.T) {
 				"documents": [][]string{{"content"}},
 			}
 			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(response)
+			_ = json.NewEncoder(w).Encode(response)
 
 		case "/api/v1/collections":
 			// Создание коллекции
 			assert.Equal(t, http.MethodPost, r.Method)
 			var body map[string]interface{}
-			json.NewDecoder(r.Body).Decode(&body)
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
 			assert.Equal(t, "test-collection", body["name"])
 
 			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(map[string]interface{}{"status": "created"})
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "created"})
 
 		default:
 			t.Errorf("unexpected path: %s", r.URL.Path)
@@ -242,7 +242,7 @@ func TestChromaStore_AutocreateCollection(t *testing.T) {
 
 // @sk-task T3.3: Тест cancellation через context (AC-006)
 func TestChromaStore_ContextCancellation(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		// Имитируем медленный ответ
 		time.Sleep(100 * time.Millisecond)
 		w.WriteHeader(http.StatusOK)
@@ -275,21 +275,24 @@ func TestChromaStore_NilContext(t *testing.T) {
 	store := NewChromaStore("http://localhost:8000", "test", 3)
 
 	assert.Panics(t, func() {
-		store.Upsert(nil, domain.Chunk{})
+		//nolint:staticcheck // Нам нужен nil context, чтобы проверить, что метод паникует.
+		_ = store.Upsert(nil, domain.Chunk{})
 	})
 
 	assert.Panics(t, func() {
-		store.Search(nil, []float64{0.1}, 5)
+		//nolint:staticcheck // Нам нужен nil context, чтобы проверить, что метод паникует.
+		_, _ = store.Search(nil, []float64{0.1}, 5)
 	})
 
 	assert.Panics(t, func() {
-		store.Delete(nil, "id")
+		//nolint:staticcheck // Нам нужен nil context, чтобы проверить, что метод паникует.
+		_ = store.Delete(nil, "id")
 	})
 }
 
 // @sk-task T3.1: Тест Search с пустой коллекцией
 func TestChromaStore_SearchEmptyCollection(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		response := map[string]interface{}{
 			"ids":       [][]string{{}},
 			"distances": [][]float64{{}},
@@ -297,7 +300,7 @@ func TestChromaStore_SearchEmptyCollection(t *testing.T) {
 			"documents": [][]string{{}},
 		}
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 
@@ -313,7 +316,7 @@ func TestChromaStore_SearchEmptyCollection(t *testing.T) {
 func TestChromaStore_SearchWithFilter_EmptyFilter(t *testing.T) {
 	callCount := 0
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		callCount++
 		// Должен вызвать обычный Search без where-фильтра
 
@@ -324,7 +327,7 @@ func TestChromaStore_SearchWithFilter_EmptyFilter(t *testing.T) {
 			"documents": [][]string{{"content"}},
 		}
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 
@@ -345,7 +348,7 @@ func TestChromaStore_SearchWithMetadataFilter_EmptyFilter(t *testing.T) {
 		callCount++
 
 		var req map[string]interface{}
-		json.NewDecoder(r.Body).Decode(&req)
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
 
 		// Не должен содержать where при пустом фильтре
 		_, hasWhere := req["where"]
@@ -358,7 +361,7 @@ func TestChromaStore_SearchWithMetadataFilter_EmptyFilter(t *testing.T) {
 			"documents": [][]string{{"content"}},
 		}
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 
@@ -394,7 +397,7 @@ func TestChromaStore_SearchWithFilter_MultipleParentIDs(t *testing.T) {
 			"documents": [][]string{{"content 1", "content 2"}},
 		}
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 
@@ -426,9 +429,9 @@ func TestChromaStore_InvalidTopK(t *testing.T) {
 
 // @sk-task T3.3: Тест обработки HTTP ошибок
 func TestChromaStore_HTTPError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"error": "internal error",
 		})
 	}))

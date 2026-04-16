@@ -111,6 +111,7 @@ func TestInMemoryStore_SearchWithMetadataFilter_NoMatch(t *testing.T) {
 // TestInMemoryStore_ImplementsVectorStoreWithFilters проверяет, что InMemoryStore
 // реализует интерфейс VectorStoreWithFilters (AC-005).
 func TestInMemoryStore_ImplementsVectorStoreWithFilters(t *testing.T) {
+	t.Parallel()
 	var _ domain.VectorStoreWithFilters = (*InMemoryStore)(nil)
 }
 

@@ -399,7 +399,7 @@ func TestWeaviateSearchHybridWeighted(t *testing.T) {
 // TestWeaviateSearchHybridInvalidConfig проверяет валидацию HybridConfig (AC-005).
 // @sk-test T3.1: TestWeaviateSearchHybridInvalidConfig (AC-005)
 func TestWeaviateSearchHybridInvalidConfig(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer server.Close()
@@ -483,7 +483,7 @@ func TestWeaviateSearchHybridHTTPError(t *testing.T) {
 // TestWeaviateSearchHybridEmptyQuery проверяет поведение при пустом query (AC-006).
 // @sk-test T3.1: TestWeaviateSearchHybridEmptyQuery (AC-006)
 func TestWeaviateSearchHybridEmptyQuery(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer server.Close()

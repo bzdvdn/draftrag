@@ -110,7 +110,7 @@ func CreateWeaviateCollection(ctx context.Context, opts WeaviateOptions) error {
 	if err != nil {
 		return fmt.Errorf("weaviate request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// 200 — создана; 422 — коллекция уже существует (идемпотентно)
 	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusUnprocessableEntity {
@@ -150,7 +150,7 @@ func DeleteWeaviateCollection(ctx context.Context, opts WeaviateOptions) error {
 	if err != nil {
 		return fmt.Errorf("weaviate request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusNotFound {
 		return nil
@@ -189,7 +189,7 @@ func WeaviateCollectionExists(ctx context.Context, opts WeaviateOptions) (bool, 
 	if err != nil {
 		return false, fmt.Errorf("weaviate request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusOK {
 		return true, nil

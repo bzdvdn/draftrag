@@ -1,3 +1,4 @@
+// Package application tests the application-layer pipeline behaviors.
 package application
 
 import (
@@ -14,7 +15,7 @@ type assertLLMInline struct {
 	answer       string
 }
 
-func (l assertLLMInline) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
+func (l assertLLMInline) Generate(_ context.Context, _, userMessage string) (string, error) {
 	l.t.Helper()
 
 	for _, needle := range l.wantContains {

@@ -8,7 +8,7 @@ import (
 )
 
 // EmbedCacheStats — статистика LRU-кэша embedder'а.
-type EmbedCacheStats = cache.CacheStats
+type EmbedCacheStats = cache.Stats
 
 // CacheOptions задаёт параметры кэширующего embedder'а.
 type CacheOptions struct {

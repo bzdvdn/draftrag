@@ -9,7 +9,7 @@ type streamingLLM struct {
 	mockLLMProvider
 }
 
-func (m *streamingLLM) GenerateStream(ctx context.Context, systemPrompt, userMessage string) (<-chan string, error) {
+func (m *streamingLLM) GenerateStream(_ context.Context, _, _ string) (<-chan string, error) {
 	ch := make(chan string, 3)
 	ch <- "hello"
 	ch <- " world"

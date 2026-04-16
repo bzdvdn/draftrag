@@ -37,7 +37,7 @@ func TestChromaCreateCollection_Idempotent(t *testing.T) {
 // TestChromaCreateCollection_HTTPError проверяет, что CreateCollection возвращает ошибку при HTTP 5xx.
 // @sk-task T3.1: тест AC-001 (error path)
 func TestChromaCreateCollection_HTTPError(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = io.WriteString(w, "internal error")
 	}))
@@ -80,7 +80,7 @@ func TestChromaDeleteCollection_HappyPath(t *testing.T) {
 // TestChromaDeleteCollection_Idempotent404 проверяет, что DeleteCollection возвращает nil при 404.
 // @sk-task T3.1: тест AC-003 (404 idempotent)
 func TestChromaDeleteCollection_Idempotent404(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer srv.Close()
@@ -94,7 +94,7 @@ func TestChromaDeleteCollection_Idempotent404(t *testing.T) {
 // TestChromaDeleteCollection_HTTP5xx проверяет, что DeleteCollection возвращает ошибку при 5xx.
 // @sk-task T3.1: тест AC-003 (5xx error)
 func TestChromaDeleteCollection_HTTP5xx(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = io.WriteString(w, "server error")
 	}))
@@ -137,7 +137,7 @@ func TestChromaCollectionExists_True(t *testing.T) {
 // TestChromaCollectionExists_False проверяет, что CollectionExists возвращает (false, nil) при 404.
 // @sk-task T3.1: тест AC-005
 func TestChromaCollectionExists_False(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer srv.Close()
@@ -155,7 +155,7 @@ func TestChromaCollectionExists_False(t *testing.T) {
 // TestChromaCollectionExists_ServerError проверяет, что CollectionExists возвращает (false, error) при 5xx.
 // @sk-task T3.1: тест AC-005 (error case)
 func TestChromaCollectionExists_ServerError(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = io.WriteString(w, "server error")
 	}))

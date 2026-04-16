@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"net/http"
 	"net/url"
 	"strings"
@@ -28,8 +27,8 @@ type ollamaEmbedResponse struct {
 	Embedding []float64 `json:"embedding"`
 }
 
-// @ds-task T1.2: Структура клиента и конструктор (AC-002, DEC-001, DEC-003)
 // OllamaEmbedder реализует Embedder для локального Ollama API.
+// @ds-task T1.2: Структура клиента и конструктор (AC-002, DEC-001, DEC-003)
 type OllamaEmbedder struct {
 	httpClient *http.Client
 	baseURL    string
@@ -56,8 +55,8 @@ func NewOllamaEmbedder(httpClient *http.Client, baseURL, apiKey, model string) *
 	}
 }
 
-// @ds-task T2.2: Реализация Embed для Ollama Embeddings API (AC-002, AC-003, AC-004, AC-005, RQ-004, RQ-005, RQ-006, RQ-007)
 // Embed вычисляет embedding для текста.
+// @ds-task T2.2: Реализация Embed для Ollama Embeddings API (AC-002, AC-003, AC-004, AC-005, RQ-004, RQ-005, RQ-006, RQ-007)
 func (o *OllamaEmbedder) Embed(ctx context.Context, text string) ([]float64, error) {
 	if ctx == nil {
 		panic("nil context")
@@ -95,8 +94,25 @@ func (o *OllamaEmbedder) Embed(ctx context.Context, text string) ([]float64, err
 		}
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
+	return parseOllamaEmbeddingResponse(resp)
+}
+
+func buildOllamaEmbeddingsURL(base string) (string, error) {
+	parsed, err := url.Parse(base)
+	if err != nil {
+		return "", fmt.Errorf("invalid BaseURL: %w", err)
+	}
+	if parsed.Scheme == "" || parsed.Host == "" {
+		return "", errors.New("invalid BaseURL: scheme and host are required")
+	}
+	parsed.Path = strings.TrimRight(parsed.Path, "/")
+	endpoint := parsed.ResolveReference(&url.URL{Path: ollamaEmbeddingsPath})
+	return endpoint.String(), nil
+}
+
+func parseOllamaEmbeddingResponse(resp *http.Response) ([]float64, error) {
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		snippet, _ := readBodySnippet(resp.Body, maxErrorBodyBytes)
 		return nil, fmt.Errorf("ollama embeddings request failed: status=%d body=%q", resp.StatusCode, snippet)
@@ -111,24 +127,9 @@ func (o *OllamaEmbedder) Embed(ctx context.Context, text string) ([]float64, err
 	if len(embedding) == 0 {
 		return nil, errors.New("invalid ollama embeddings response: empty embedding")
 	}
-	for i, v := range embedding {
-		if math.IsNaN(v) || math.IsInf(v, 0) {
-			return nil, fmt.Errorf("invalid ollama embeddings response: non-finite value at index %d", i)
-		}
-	}
 
+	if err := validateFiniteVector(embedding, "invalid ollama embeddings response"); err != nil {
+		return nil, err
+	}
 	return embedding, nil
-}
-
-func buildOllamaEmbeddingsURL(base string) (string, error) {
-	parsed, err := url.Parse(base)
-	if err != nil {
-		return "", fmt.Errorf("invalid BaseURL: %w", err)
-	}
-	if parsed.Scheme == "" || parsed.Host == "" {
-		return "", errors.New("invalid BaseURL: scheme and host are required")
-	}
-	parsed.Path = strings.TrimRight(parsed.Path, "/")
-	endpoint := parsed.ResolveReference(&url.URL{Path: ollamaEmbeddingsPath})
-	return endpoint.String(), nil
 }

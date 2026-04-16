@@ -3,7 +3,7 @@ package vectorstore
 import (
 	"bytes"
 	"context"
-	"crypto/sha1"
+	"crypto/sha1" //nolint:gosec // UUID v5 uses SHA-1; this is for deterministic IDs, not for security.
 	"encoding/json"
 	"fmt"
 	"io"
@@ -59,7 +59,7 @@ func uuidFromID(id string) string {
 		0x6b, 0xa7, 0xb8, 0x10, 0x9d, 0xad, 0x11, 0xd1,
 		0x80, 0xb4, 0x00, 0xc0, 0x4f, 0xd4, 0x30, 0xc8,
 	}
-	h := sha1.New()
+	h := sha1.New() //nolint:gosec // UUID v5 uses SHA-1; not used for cryptographic security.
 	h.Write(ns)
 	h.Write([]byte(id))
 	d := h.Sum(nil)
@@ -137,7 +137,7 @@ func (s *WeaviateStore) Upsert(ctx context.Context, chunk domain.Chunk) error {
 		return fmt.Errorf("weaviate PUT request: %w", err)
 	}
 	putStatus := resp.StatusCode
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	if putStatus == http.StatusOK {
 		return nil
@@ -157,7 +157,7 @@ func (s *WeaviateStore) Upsert(ctx context.Context, chunk domain.Chunk) error {
 		if err != nil {
 			return fmt.Errorf("weaviate POST request: %w", err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated {
 			return nil
@@ -196,7 +196,7 @@ func (s *WeaviateStore) Delete(ctx context.Context, id string) error {
 	if err != nil {
 		return fmt.Errorf("weaviate request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// 204 = успешно удалено; 404 = не существовало — оба идемпотентны
 	if resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusNotFound {
@@ -237,16 +237,7 @@ func (s *WeaviateStore) SearchWithFilter(
 	if len(filter.ParentIDs) == 0 {
 		return s.Search(ctx, embedding, topK)
 	}
-	if ctx == nil {
-		panic("nil context")
-	}
-	if err := ctx.Err(); err != nil {
-		return domain.RetrievalResult{}, err
-	}
-	if topK <= 0 {
-		return domain.RetrievalResult{}, domain.ErrInvalidQueryTopK
-	}
-	return s.searchWithWhere(ctx, embedding, topK, whereParentIDs(filter.ParentIDs))
+	return s.searchWithWhereValidated(ctx, embedding, topK, whereParentIDs(filter.ParentIDs))
 }
 
 // SearchWithMetadataFilter выполняет поиск с фильтрацией по meta_* свойствам.
@@ -262,6 +253,10 @@ func (s *WeaviateStore) SearchWithMetadataFilter(
 	if len(filter.Fields) == 0 {
 		return s.Search(ctx, embedding, topK)
 	}
+	return s.searchWithWhereValidated(ctx, embedding, topK, whereMetadataFields(filter.Fields))
+}
+
+func (s *WeaviateStore) searchWithWhereValidated(ctx context.Context, embedding []float64, topK int, whereClause string) (domain.RetrievalResult, error) {
 	if ctx == nil {
 		panic("nil context")
 	}
@@ -271,7 +266,7 @@ func (s *WeaviateStore) SearchWithMetadataFilter(
 	if topK <= 0 {
 		return domain.RetrievalResult{}, domain.ErrInvalidQueryTopK
 	}
-	return s.searchWithWhere(ctx, embedding, topK, whereMetadataFields(filter.Fields))
+	return s.searchWithWhere(ctx, embedding, topK, whereClause)
 }
 
 // SearchHybrid выполняет гибридный поиск (BM25 + semantic fusion) через Weaviate GraphQL API.
@@ -284,6 +279,17 @@ func (s *WeaviateStore) SearchHybrid(
 	embedding []float64,
 	topK int,
 	config domain.HybridConfig,
+) (domain.RetrievalResult, error) {
+	return s.searchHybridValidated(ctx, query, embedding, topK, config, "")
+}
+
+func (s *WeaviateStore) searchHybridValidated(
+	ctx context.Context,
+	query string,
+	embedding []float64,
+	topK int,
+	config domain.HybridConfig,
+	whereClause string,
 ) (domain.RetrievalResult, error) {
 	if ctx == nil {
 		panic("nil context")
@@ -301,7 +307,7 @@ func (s *WeaviateStore) SearchHybrid(
 		return domain.RetrievalResult{}, domain.ErrInvalidQueryTopK
 	}
 
-	return s.searchHybridGraphQL(ctx, query, embedding, topK, config, "")
+	return s.searchHybridGraphQL(ctx, query, embedding, topK, config, whereClause)
 }
 
 // SearchHybridWithParentIDFilter выполняет гибридный поиск с фильтрацией по ParentID.
@@ -319,23 +325,7 @@ func (s *WeaviateStore) SearchHybridWithParentIDFilter(
 	if len(filter.ParentIDs) == 0 {
 		return s.SearchHybrid(ctx, query, embedding, topK, config)
 	}
-	if ctx == nil {
-		panic("nil context")
-	}
-	if err := ctx.Err(); err != nil {
-		return domain.RetrievalResult{}, err
-	}
-	if err := config.Validate(); err != nil {
-		return domain.RetrievalResult{}, err
-	}
-	if strings.TrimSpace(query) == "" {
-		return domain.RetrievalResult{}, domain.ErrEmptyQueryText
-	}
-	if topK <= 0 {
-		return domain.RetrievalResult{}, domain.ErrInvalidQueryTopK
-	}
-
-	return s.searchHybridGraphQL(ctx, query, embedding, topK, config, whereParentIDs(filter.ParentIDs))
+	return s.searchHybridValidated(ctx, query, embedding, topK, config, whereParentIDs(filter.ParentIDs))
 }
 
 // SearchHybridWithMetadataFilter выполняет гибридный поиск с фильтрацией по метаданным.
@@ -353,23 +343,7 @@ func (s *WeaviateStore) SearchHybridWithMetadataFilter(
 	if len(filter.Fields) == 0 {
 		return s.SearchHybrid(ctx, query, embedding, topK, config)
 	}
-	if ctx == nil {
-		panic("nil context")
-	}
-	if err := ctx.Err(); err != nil {
-		return domain.RetrievalResult{}, err
-	}
-	if err := config.Validate(); err != nil {
-		return domain.RetrievalResult{}, err
-	}
-	if strings.TrimSpace(query) == "" {
-		return domain.RetrievalResult{}, domain.ErrEmptyQueryText
-	}
-	if topK <= 0 {
-		return domain.RetrievalResult{}, domain.ErrInvalidQueryTopK
-	}
-
-	return s.searchHybridGraphQL(ctx, query, embedding, topK, config, whereMetadataFields(filter.Fields))
+	return s.searchHybridValidated(ctx, query, embedding, topK, config, whereMetadataFields(filter.Fields))
 }
 
 // searchHybridGraphQL выполняет GraphQL hybrid search запрос с bm25, nearVector и fusion.
@@ -433,7 +407,7 @@ func (s *WeaviateStore) searchHybridGraphQL(
 	if err != nil {
 		return domain.RetrievalResult{}, fmt.Errorf("weaviate request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)
@@ -557,7 +531,7 @@ func (s *WeaviateStore) searchWithWhere(ctx context.Context, embedding []float64
 	if err != nil {
 		return domain.RetrievalResult{}, fmt.Errorf("weaviate request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)

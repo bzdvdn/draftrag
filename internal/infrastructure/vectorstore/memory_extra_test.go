@@ -136,18 +136,18 @@ func TestCosineSimilarity_Clamped(t *testing.T) {
 
 func TestInMemoryStore_SearchWithFilter_EmbeddingNil(t *testing.T) {
 	store := NewInMemoryStore()
-	
+
 	chunk1 := domain.Chunk{
 		ID:        "c1",
 		ParentID:  "doc1",
 		Embedding: nil, // без embedding
 	}
-	
-	store.Upsert(context.Background(), chunk1)
-	
+
+	_ = store.Upsert(context.Background(), chunk1)
+
 	embedding := []float64{1.0, 0.0}
 	result, err := store.Search(context.Background(), embedding, 5)
-	
+
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -158,20 +158,20 @@ func TestInMemoryStore_SearchWithFilter_EmbeddingNil(t *testing.T) {
 
 func TestInMemoryStore_SearchWithMetadataFilter_EmbeddingNil(t *testing.T) {
 	store := NewInMemoryStore()
-	
+
 	chunk1 := domain.Chunk{
 		ID:        "c1",
 		ParentID:  "doc1",
 		Metadata:  map[string]string{"source": "wiki"},
 		Embedding: nil, // без embedding
 	}
-	
-	store.Upsert(context.Background(), chunk1)
-	
+
+	_ = store.Upsert(context.Background(), chunk1)
+
 	embedding := []float64{1.0, 0.0}
 	filter := domain.MetadataFilter{Fields: map[string]string{"source": "wiki"}}
 	result, err := store.SearchWithMetadataFilter(context.Background(), embedding, 5, filter)
-	
+
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}

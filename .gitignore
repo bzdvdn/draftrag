@@ -55,3 +55,4 @@ profile.cov
 
 # Air live reload
 tmp/
+coverage.html

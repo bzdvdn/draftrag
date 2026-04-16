@@ -29,7 +29,7 @@ func (testEmbedder) Embed(ctx context.Context, text string) ([]float64, error) {
 
 type testLLM struct{}
 
-func (testLLM) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
+func (testLLM) Generate(ctx context.Context, _, _ string) (string, error) {
 	if ctx == nil {
 		panic("nil context")
 	}

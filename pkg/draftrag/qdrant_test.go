@@ -27,7 +27,7 @@ func TestCreateCollection(t *testing.T) {
 		assert.Equal(t, "Cosine", vectors["distance"])
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"result": true,
 			"status": "ok",
 			"time":   0.1,
@@ -51,7 +51,7 @@ func TestDeleteCollection(t *testing.T) {
 		require.Equal(t, http.MethodDelete, r.Method)
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"result": true,
 			"status": "ok",
 		})
@@ -68,9 +68,9 @@ func TestDeleteCollection(t *testing.T) {
 }
 
 func TestDeleteCollection_NotFound(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"status": map[string]interface{}{
 				"error": "Collection test_collection not found",
 			},
@@ -94,7 +94,7 @@ func TestCollectionExists(t *testing.T) {
 		require.Equal(t, http.MethodGet, r.Method)
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"result": true,
 			"status": "ok",
 		})
@@ -112,9 +112,9 @@ func TestCollectionExists(t *testing.T) {
 }
 
 func TestCollectionExists_NotFound(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"result": false,
 			"status": "ok",
 		})

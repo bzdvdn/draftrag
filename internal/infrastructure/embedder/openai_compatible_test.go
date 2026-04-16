@@ -11,8 +11,10 @@ import (
 	"time"
 )
 
+const testAPIKey = "secret-key"
+
 func TestOpenAICompatibleEmbedder_Embed_Success(t *testing.T) {
-	apiKey := "secret-key"
+	apiKey := testAPIKey
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -47,9 +49,9 @@ func TestOpenAICompatibleEmbedder_Embed_Success(t *testing.T) {
 }
 
 func TestOpenAICompatibleEmbedder_Embed_Non200_RedactsAPIKey(t *testing.T) {
-	apiKey := "secret-key"
+	apiKey := testAPIKey
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		_, _ = w.Write([]byte("bad request: " + apiKey))
 	}))
@@ -66,9 +68,9 @@ func TestOpenAICompatibleEmbedder_Embed_Non200_RedactsAPIKey(t *testing.T) {
 }
 
 func TestOpenAICompatibleEmbedder_Embed_InvalidJSON(t *testing.T) {
-	apiKey := "secret-key"
+	apiKey := testAPIKey
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte("{not-json"))
 	}))
@@ -82,9 +84,9 @@ func TestOpenAICompatibleEmbedder_Embed_InvalidJSON(t *testing.T) {
 }
 
 func TestOpenAICompatibleEmbedder_Embed_ContextCancel(t *testing.T) {
-	apiKey := "secret-key"
+	apiKey := testAPIKey
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		<-r.Context().Done()
 	}))
 	t.Cleanup(srv.Close)

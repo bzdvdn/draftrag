@@ -14,22 +14,22 @@ type topKStore struct {
 	gotTopK int
 }
 
-func (s *topKStore) Upsert(ctx context.Context, chunk domain.Chunk) error { return nil }
-func (s *topKStore) Delete(ctx context.Context, id string) error          { return nil }
-func (s *topKStore) Search(ctx context.Context, embedding []float64, topK int) (domain.RetrievalResult, error) {
+func (s *topKStore) Upsert(_ context.Context, _ domain.Chunk) error { return nil }
+func (s *topKStore) Delete(_ context.Context, _ string) error       { return nil }
+func (s *topKStore) Search(_ context.Context, _ []float64, topK int) (domain.RetrievalResult, error) {
 	s.gotTopK = topK
 	return domain.RetrievalResult{}, nil
 }
 
 type okEmbedder struct{}
 
-func (okEmbedder) Embed(ctx context.Context, text string) ([]float64, error) {
+func (okEmbedder) Embed(_ context.Context, _ string) ([]float64, error) {
 	return []float64{1, 2}, nil
 }
 
 type okLLM struct{}
 
-func (okLLM) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
+func (okLLM) Generate(_ context.Context, _, _ string) (string, error) {
 	return "ok", nil
 }
 

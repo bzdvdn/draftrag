@@ -94,7 +94,8 @@ func TestCircuitBreaker_HalfOpenToClosed(t *testing.T) {
 	// Переводим в open, затем ждём и переходим в half-open
 	cb.RecordFailure()
 	time.Sleep(150 * time.Millisecond)
-	cb.CanExecute() // переход в half-open
+	err := cb.CanExecute() // переход в half-open
+	assert.NoError(t, err)
 	assert.Equal(t, CircuitHalfOpen, cb.State())
 
 	// Успешный запрос — возвращаемся в closed
@@ -102,7 +103,7 @@ func TestCircuitBreaker_HalfOpenToClosed(t *testing.T) {
 	assert.Equal(t, CircuitClosed, cb.State())
 
 	// Теперь запросы разрешены
-	err := cb.CanExecute()
+	err = cb.CanExecute()
 	assert.NoError(t, err)
 }
 
@@ -116,7 +117,8 @@ func TestCircuitBreaker_HalfOpenToOpen(t *testing.T) {
 	// Переводим в open, затем ждём и переходим в half-open
 	cb.RecordFailure()
 	time.Sleep(150 * time.Millisecond)
-	cb.CanExecute()
+	err := cb.CanExecute()
+	assert.NoError(t, err)
 	assert.Equal(t, CircuitHalfOpen, cb.State())
 
 	// Неудачный запрос — снова в open
@@ -124,7 +126,7 @@ func TestCircuitBreaker_HalfOpenToOpen(t *testing.T) {
 	assert.Equal(t, CircuitOpen, cb.State())
 
 	// Запросы снова отклоняются
-	err := cb.CanExecute()
+	err = cb.CanExecute()
 	assert.ErrorIs(t, err, ErrCircuitOpen)
 }
 

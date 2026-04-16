@@ -1,3 +1,4 @@
+// Package eval provides a small evaluation harness for measuring retrieval quality (Hit@K, MRR, etc).
 package eval
 
 import (

@@ -17,7 +17,7 @@ type MockEmbedder struct {
 	Err       error
 }
 
-func (m *MockEmbedder) Embed(ctx context.Context, text string) ([]float64, error) {
+func (m *MockEmbedder) Embed(_ context.Context, _ string) ([]float64, error) {
 	if m.Err != nil {
 		return nil, m.Err
 	}

@@ -13,26 +13,26 @@ type recordHooks struct {
 	ends   []domain.StageEndEvent
 }
 
-func (h *recordHooks) StageStart(ctx context.Context, ev domain.StageStartEvent) {
+func (h *recordHooks) StageStart(_ context.Context, ev domain.StageStartEvent) {
 	h.events = append(h.events, "start:"+ev.Operation+":"+string(ev.Stage))
 }
 
-func (h *recordHooks) StageEnd(ctx context.Context, ev domain.StageEndEvent) {
+func (h *recordHooks) StageEnd(_ context.Context, ev domain.StageEndEvent) {
 	h.events = append(h.events, "end:"+ev.Operation+":"+string(ev.Stage))
 	h.ends = append(h.ends, ev)
 }
 
 type okStoreForIndex struct{}
 
-func (okStoreForIndex) Upsert(ctx context.Context, chunk domain.Chunk) error { return nil }
-func (okStoreForIndex) Delete(ctx context.Context, id string) error          { return nil }
-func (okStoreForIndex) Search(ctx context.Context, embedding []float64, topK int) (domain.RetrievalResult, error) {
+func (okStoreForIndex) Upsert(_ context.Context, _ domain.Chunk) error { return nil }
+func (okStoreForIndex) Delete(_ context.Context, _ string) error       { return nil }
+func (okStoreForIndex) Search(_ context.Context, _ []float64, _ int) (domain.RetrievalResult, error) {
 	return domain.RetrievalResult{}, nil
 }
 
 type oneChunkChunker struct{}
 
-func (oneChunkChunker) Chunk(ctx context.Context, doc domain.Document) ([]domain.Chunk, error) {
+func (oneChunkChunker) Chunk(_ context.Context, doc domain.Document) ([]domain.Chunk, error) {
 	return []domain.Chunk{
 		{
 			ID:       doc.ID + "#0",

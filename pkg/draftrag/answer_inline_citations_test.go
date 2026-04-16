@@ -15,23 +15,23 @@ var (
 
 type panicStoreInline struct{}
 
-func (panicStoreInline) Upsert(ctx context.Context, chunk domain.Chunk) error {
+func (panicStoreInline) Upsert(_ context.Context, _ domain.Chunk) error {
 	panic("should not be called")
 }
-func (panicStoreInline) Delete(ctx context.Context, id string) error { panic("should not be called") }
-func (panicStoreInline) Search(ctx context.Context, embedding []float64, topK int) (domain.RetrievalResult, error) {
+func (panicStoreInline) Delete(_ context.Context, _ string) error { panic("should not be called") }
+func (panicStoreInline) Search(_ context.Context, _ []float64, _ int) (domain.RetrievalResult, error) {
 	panic("should not be called")
 }
 
 type panicEmbedderInline struct{}
 
-func (panicEmbedderInline) Embed(ctx context.Context, text string) ([]float64, error) {
+func (panicEmbedderInline) Embed(_ context.Context, _ string) ([]float64, error) {
 	panic("should not be called")
 }
 
 type panicLLMInline struct{}
 
-func (panicLLMInline) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
+func (panicLLMInline) Generate(_ context.Context, _, _ string) (string, error) {
 	panic("should not be called")
 }
 
