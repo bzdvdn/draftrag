@@ -8,17 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Тестовое покрытие: internal/domain 100%, internal/application 83.3%, internal/infrastructure/vectorstore 60%
-- Дополнительные тесты для InMemoryStore, HybridConfig, MetadataFilter, ParentIDFilter
-- Тесты для контекстной отмены и косинусной схожести
-- Тесты для конструкторов ChromaStore, QdrantStore, MilvusStore, WeaviateStore
-- Интеграционные тесты для InMemoryStore с полным workflow
-- Файл .gitignore для Go проекта
+- —
 
 ### Changed
-- Улучшены существующие тесты для pipeline методов
+- —
 
-## [0.1.0] - TBD
+## [0.1.0] - 2026-04-16
 
 ### Added
 - Векторные хранилища: In-memory, PostgreSQL+pgvector, Qdrant, ChromaDB
@@ -36,3 +31,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Redis L2 кэш для эмбеддингов
 - Примеры использования: chat, index-dir, pgvector, qdrant
 - Документация: compatibility.md, production.md, getting-started.md
+- Тестовое покрытие: internal/domain 100%, internal/application 83.3%, internal/infrastructure/vectorstore 60%
+- Дополнительные тесты для InMemoryStore, HybridConfig, MetadataFilter, ParentIDFilter
+- Тесты для контекстной отмены и косинусной схожести
+- Тесты для конструкторов ChromaStore, QdrantStore, MilvusStore, WeaviateStore
+- Интеграционные тесты для InMemoryStore с полным workflow
+- Tooling: `.gitignore`, `Makefile`, `.golangci.yml`
+- CI: GitHub Actions (`go test ./...` + `golangci-lint run ./...`)
+
+### Changed
+- Улучшены существующие тесты для pipeline методов
