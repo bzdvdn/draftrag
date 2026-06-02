@@ -4,11 +4,17 @@ Go-библиотека для построения RAG (Retrieval-Augmented Gen
 
 ## Возможности
 
+<!-- @sk-task api-consistency-pass#T3.5: docs sync — Векторные хранилища (Weaviate, Milvus) (DEC-008, RQ-008, AC-013) -->
+
 **Векторные хранилища**
 - **In-memory** — быстрое прототипирование и тесты
 - **PostgreSQL + pgvector** — production-ready с гибридным поиском (BM25 + semantic), фильтрами по метаданным и автомиграциями
 - **Qdrant** — production-ready с payload-фильтрами и управлением коллекциями
 - **ChromaDB** — векторный поиск с фильтрами по ParentID
+- **Weaviate** — basic retrieval, фильтры по метаданным и ParentID, управление коллекциями; ⚠️ hybrid search не поддерживается (status: experimental)
+- **Milvus / Zilliz** — high-performance distributed vector search, фильтры по метаданным и ParentID; ⚠️ hybrid search не поддерживается (public API в разработке)
+
+Подробная capability-таблица: [docs/vector-stores.md](docs/vector-stores.md).
 
 **Embedder'ы**
 - **OpenAI-compatible API** — `text-embedding-ada-002`, `text-embedding-3-*` и любые совместимые

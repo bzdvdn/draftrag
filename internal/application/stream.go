@@ -2,7 +2,7 @@ package application
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -14,6 +14,7 @@ import (
 // Возвращает канал для чтения текстовых чанков; канал закрывается при завершении или ошибке.
 // Retrieval выполняется синхронно перед началом streaming'а.
 //
+// @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
 // @ds-task T2.3: Реализовать AnswerStream в application Pipeline (AC-001, DEC-003)
 func (p *Pipeline) AnswerStream(
 	ctx context.Context,
@@ -29,10 +30,10 @@ func (p *Pipeline) AnswerStream(
 
 	question = strings.TrimSpace(question)
 	if question == "" {
-		return nil, errors.New("question is empty")
+		return nil, fmt.Errorf("%w: question is empty", domain.ErrEmptyQueryText)
 	}
 	if topK <= 0 {
-		return nil, errors.New("topK must be > 0")
+		return nil, fmt.Errorf("%w: topK must be > 0", domain.ErrInvalidQueryTopK)
 	}
 
 	// Type assertion для проверки поддержки streaming
@@ -88,9 +89,15 @@ func (p *Pipeline) AnswerStream(
 }
 
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
+// @sk-task api-consistency-pass#T3.3: bounded backpressure — output chan с cap=p.streamBufferSize (DEC-006, RQ-006, AC-010)
+//
 // wrapStreamWithHook оборачивает канал токенов для вызова hook по завершении.
+// При p.streamBufferSize > 0 выходной канал буферизуется с указанной ёмкостью —
+// producer (LLM-стрим) может обгонять consumer (вызывающий код) на cap токенов,
+// не блокируясь. При 0 канал unbuffered (backward-compat, OQ-2) — синхронная
+// передача токенов.
 func (p *Pipeline) wrapStreamWithHook(ctx context.Context, source <-chan string, genStart time.Time) <-chan string {
-	output := make(chan string)
+	output := make(chan string, p.streamBufferSize)
 
 	go func() {
 		defer close(output)
@@ -120,6 +127,7 @@ func (p *Pipeline) wrapStreamWithHook(ctx context.Context, source <-chan string,
 // AnswerStreamWithInlineCitations выполняет RAG-цикл с streaming генерацией и inline-цитатами.
 // Возвращает канал для чтения текстовых чанков и слайс цитат (заполняется синхронно перед streaming'ом).
 //
+// @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
 // @ds-task T2.4: Реализовать AnswerStreamWithInlineCitations в application Pipeline (AC-002)
 func (p *Pipeline) AnswerStreamWithInlineCitations(
 	ctx context.Context,
@@ -135,10 +143,10 @@ func (p *Pipeline) AnswerStreamWithInlineCitations(
 
 	question = strings.TrimSpace(question)
 	if question == "" {
-		return nil, domain.RetrievalResult{}, nil, errors.New("question is empty")
+		return nil, domain.RetrievalResult{}, nil, fmt.Errorf("%w: question is empty", domain.ErrEmptyQueryText)
 	}
 	if topK <= 0 {
-		return nil, domain.RetrievalResult{}, nil, errors.New("topK must be > 0")
+		return nil, domain.RetrievalResult{}, nil, fmt.Errorf("%w: topK must be > 0", domain.ErrInvalidQueryTopK)
 	}
 
 	// Type assertion для проверки поддержки streaming

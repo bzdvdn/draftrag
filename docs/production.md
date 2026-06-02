@@ -107,3 +107,36 @@
 - draftRAG **не делает** автоматическое обнаружение PII в произвольном тексте.
 - Ответственность пользователя: не логировать сырые документы/запросы без своей политики (редакции/маскирования/retention).
 
+## Index-индексация: rate limiting
+
+`PipelineOptions.IndexBatchRateLimit` управляет пропускной способностью
+индексации (для `Index` и `IndexBatch`); `0` — без ограничений. По умолчанию
+используется **один общий ticker на пул**: `IndexBatchRateLimit=10` при
+`IndexConcurrency=4` даёт **~10 embed/sec суммарно** на пул.
+
+### Per-worker rate limiting (DEC-007, RQ-007)
+
+Если у каждого worker'а свой независимый квотный лимит (например, несколько
+API-ключей с per-key rate limit), включите `IndexBatchRateLimitPerWorker: true`.
+В этом режиме каждый worker получает **свой собственный ticker** с интервалом
+`time.Second / IndexBatchRateLimit`, и суммарная пропускная способность
+масштабируется по числу worker'ов:
+
+| `IndexBatchRateLimit` | `IndexConcurrency` | `PerWorker` | Суммарный rate (≈) |
+|---|---|---|---|
+| 10 | 4 | `false` (default) | 10 embed/sec |
+| 10 | 4 | `true`             | 40 embed/sec |
+| 50 | 8 | `false`            | 50 embed/sec |
+| 50 | 8 | `true`             | 400 embed/sec |
+
+Выбирайте режим под свой use-case:
+
+- **shared (default, `false`)** — глобальный лимит на индексацию, независимо
+  от concurrency. Безопасно для downstream-сервисов с одним общим rate-limit.
+- **per-worker (`true`)** — каждый worker независимо укладывается в свой
+  лимит. Подходит для fan-out к разным API-ключам/подам, где каждый имеет
+  свою квоту.
+
+См. `IndexBatch` godoc и `PipelineOptions.IndexBatchRateLimitPerWorker` для
+деталей реализации.
+

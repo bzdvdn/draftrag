@@ -29,6 +29,13 @@ var (
 	// Ошибка предназначена для проверок через errors.Is.
 	ErrEmbeddingDimensionMismatch = domain.ErrEmbeddingDimensionMismatch
 
+	// ErrUpdateNotAtomic возвращается, если UpdateDocument завершился частично:
+	// старые чанки удалены, а новые не удалось проиндексировать.
+	// Vector store не поддерживает транзакции — рекомендуется re-Index.
+	//
+	// Ошибка предназначена для проверок через errors.Is.
+	ErrUpdateNotAtomic = domain.ErrUpdateNotAtomic
+
 	// ErrFiltersNotSupported возвращается, если pipeline-метод с фильтрами вызван,
 	// но используемый VectorStore не поддерживает filters capability.
 	ErrFiltersNotSupported = errors.New("filters not supported")

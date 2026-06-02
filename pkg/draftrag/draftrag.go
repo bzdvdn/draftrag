@@ -91,6 +91,17 @@ type Reranker = domain.Reranker
 // DocumentStore — опциональная capability VectorStore для удаления по ParentID.
 type DocumentStore = domain.DocumentStore
 
+// TransactionalTx — транзакция в транзакционном vector store.
+//
+// @sk-task api-consistency-pass#T1.1: re-export для публичного API (RQ-005, AC-008)
+type TransactionalTx = domain.TransactionalTx
+
+// TransactionalDocumentStore — опциональная capability VectorStore, поддерживающая
+// транзакционные операции для атомарного UpdateDocument.
+//
+// @sk-task api-consistency-pass#T1.1: re-export для публичного API (RQ-005, AC-008)
+type TransactionalDocumentStore = domain.TransactionalDocumentStore
+
 // Pipeline — публичный API для композиции core-компонентов draftRAG.
 // Валидация входных данных выполняется здесь (см. errors.go).
 type Pipeline struct {
@@ -139,6 +150,23 @@ type PipelineOptions struct {
 	// IndexBatchRateLimit задаёт максимальное количество вызовов Embed в секунду в IndexBatch.
 	// Если 0 — без ограничений.
 	IndexBatchRateLimit int
+	// IndexBatchRateLimitPerWorker включает per-worker rate-limiter: каждый worker
+	// индексирует документы с частотой IndexBatchRateLimit per second (а не весь
+	// пул суммарно). Используется, когда у каждого worker'а свой внешний квотный
+	// лимит (например, несколько подов с независимыми rate-limits в API-ключе).
+	//
+	// По умолчанию false (backward-compat): один общий ticker на пул.
+	// При IndexBatchRateLimit=10 и IndexConcurrency=4:
+	//   - false: 10 embed/sec суммарно на пул.
+	//   - true:  10 embed/sec на каждого worker'а, т.е. 40 embed/sec суммарно.
+	IndexBatchRateLimitPerWorker bool
+
+	// StreamBufferSize задаёт ёмкость буфера канала streaming-вывода в Answer*.
+	// 0 — unbuffered (backward-compat, OQ-2: токен передаётся синхронно).
+	// N > 0 — producer (LLM-стрим) может обгонять consumer на N токенов
+	// без блокировки; при заполнении буфера producer блокируется на send.
+	// Используется для bounded backpressure между LLM и consuming кодом.
+	StreamBufferSize int
 
 	// Reranker — опциональный reranker, применяется после retrieval.
 	// nil означает "без reranking".
@@ -204,6 +232,8 @@ func NewPipelineWithOptions(store VectorStore, llm LLMProvider, embedder Embedde
 			MMRCandidatePool:    opts.MMRCandidatePool,
 			IndexConcurrency:    opts.IndexConcurrency,
 			IndexBatchRateLimit: opts.IndexBatchRateLimit,
+			IndexBatchRateLimitPerWorker: opts.IndexBatchRateLimitPerWorker,
+			StreamBufferSize:    opts.StreamBufferSize,
 			Reranker:            opts.Reranker,
 		}),
 		defaultTop: defaultTop,
@@ -226,7 +256,7 @@ func (p *Pipeline) Index(ctx context.Context, docs []Document) error {
 	}
 
 	err := p.core.Index(ctx, docs)
-	return mapValidationErr(err)
+	return mapAppError(err)
 }
 
 // Query выполняет поиск с topK по умолчанию (PipelineOptions.DefaultTopK или 5).
@@ -243,7 +273,7 @@ func (p *Pipeline) Query(ctx context.Context, question string) (RetrievalResult,
 		return RetrievalResult{}, ErrEmptyQuery
 	}
 	result, err := p.core.Query(ctx, question, p.defaultTop)
-	return result, mapValidationErr(err)
+	return result, mapAppError(err)
 }
 
 // Answer генерирует ответ с topK по умолчанию (PipelineOptions.DefaultTopK или 5).
@@ -331,8 +361,9 @@ var ErrEmptyDocumentID = errors.New("document ID must not be empty")
 // Ошибка одного документа не прерывает обработку остальных.
 //
 // batchSize — количество параллельных workers (0 → значение по умолчанию 4).
-// Для управления concurrency и rate limiting используйте PipelineOptions.IndexConcurrency
-// и PipelineOptions.IndexBatchRateLimit при создании Pipeline.
+// Для управления concurrency и rate limiting используйте PipelineOptions.IndexConcurrency,
+// PipelineOptions.IndexBatchRateLimit и PipelineOptions.IndexBatchRateLimitPerWorker
+// при создании Pipeline.
 func (p *Pipeline) IndexBatch(ctx context.Context, docs []Document, batchSize int) (*IndexBatchResult, error) {
 	if ctx == nil {
 		panic("nil context")
@@ -348,16 +379,36 @@ func (p *Pipeline) IndexBatch(ctx context.Context, docs []Document, batchSize in
 	}
 
 	result, err := p.core.IndexBatch(ctx, docs, batchSize)
-	return result, mapValidationErr(err)
+	return result, mapAppError(err)
 }
 
+// mapAppError — единая точка маппинга application/domain ошибок на публичные sentinel'ы.
+//
+// @sk-task api-consistency-pass#T2.2: rename mapValidationErr → mapAppError + расширение маппинга (RQ-003, AC-005, AC-006)
 // @sk-task hardening-2026q2#T3.2: Упрощение mapValidationErr (AC-010)
-func mapValidationErr(err error) error {
+func mapAppError(err error) error {
 	if err == nil {
 		return nil
 	}
-	if errors.Is(err, application.ErrStreamingNotSupported) {
+	switch {
+	case errors.Is(err, application.ErrStreamingNotSupported):
 		return ErrStreamingNotSupported
+	case errors.Is(err, application.ErrHybridNotSupported):
+		return ErrHybridNotSupported
+	case errors.Is(err, application.ErrFiltersNotSupported):
+		return ErrFiltersNotSupported
+	case errors.Is(err, application.ErrDeleteNotSupported):
+		return ErrDeleteNotSupported
+	case errors.Is(err, domain.ErrEmptyQueryText):
+		return ErrEmptyQuery
+	case errors.Is(err, domain.ErrInvalidQueryTopK):
+		return ErrInvalidTopK
+	case errors.Is(err, domain.ErrEmptyDocumentContent):
+		return ErrEmptyDocument
+	case errors.Is(err, domain.ErrEmbeddingDimensionMismatch):
+		return ErrEmbeddingDimensionMismatch
+	case errors.Is(err, domain.ErrUpdateNotAtomic):
+		return ErrUpdateNotAtomic
 	}
 	return err
 }

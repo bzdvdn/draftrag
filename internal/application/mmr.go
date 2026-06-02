@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"sort"
 
@@ -36,7 +37,7 @@ func selectMMR(
 		return nil, err
 	}
 	if topK <= 0 {
-		return nil, errors.New("topK must be > 0")
+		return nil, fmt.Errorf("%w: topK must be > 0", domain.ErrInvalidQueryTopK)
 	}
 	if lambda < 0 || lambda > 1 {
 		return nil, errMMRInvalidLambda

@@ -28,29 +28,33 @@ type PipelineConfig struct {
 	MMREnabled          bool
 	MMRLambda           float64
 	MMRCandidatePool    int
-	Hooks               domain.Hooks
-	IndexConcurrency    int
-	IndexBatchRateLimit int
-	Reranker            domain.Reranker
+	Hooks                          domain.Hooks
+	IndexConcurrency               int
+	IndexBatchRateLimit            int
+	IndexBatchRateLimitPerWorker   bool
+	StreamBufferSize               int
+	Reranker                       domain.Reranker
 }
 
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 type Pipeline struct {
-	store               domain.VectorStore
-	llm                 domain.LLMProvider
-	embedder            domain.Embedder
-	chunker             domain.Chunker
-	systemPrompt        string
-	maxContextChars     int
-	maxContextChunks    int
-	dedupByParentID     bool
-	mmrEnabled          bool
-	mmrLambda           float64
-	mmrCandidatePool    int
-	hooks               domain.Hooks
-	indexConcurrency    int
-	indexBatchRateLimit int
-	reranker            domain.Reranker
+	store                          domain.VectorStore
+	llm                            domain.LLMProvider
+	embedder                       domain.Embedder
+	chunker                        domain.Chunker
+	systemPrompt                   string
+	maxContextChars                int
+	maxContextChunks               int
+	dedupByParentID                bool
+	mmrEnabled                     bool
+	mmrLambda                      float64
+	mmrCandidatePool               int
+	hooks                          domain.Hooks
+	indexConcurrency               int
+	indexBatchRateLimit            int
+	indexBatchRateLimitPerWorker   bool
+	streamBufferSize               int
+	reranker                       domain.Reranker
 }
 
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
@@ -104,6 +108,11 @@ func NewPipelineWithConfig(
 	if p.indexBatchRateLimit <= 0 {
 		p.indexBatchRateLimit = 10
 	}
+	p.indexBatchRateLimitPerWorker = cfg.IndexBatchRateLimitPerWorker
+	p.streamBufferSize = cfg.StreamBufferSize
+	if p.streamBufferSize < 0 {
+		panic("StreamBufferSize must be >= 0")
+	}
 	p.reranker = cfg.Reranker
 	return p
 }
@@ -123,32 +132,98 @@ func NewPipelineWithChunker(
 }
 
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
-func (p *Pipeline) indexChunks(ctx context.Context, operation string, chunks []domain.Chunk) error {
-	for _, chunk := range chunks {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-
-		embedStart := time.Now()
-		p.hookStart(ctx, operation, domain.HookStageEmbed)
-		embedding, err := p.embedder.Embed(ctx, chunk.Content)
-		p.hookEnd(ctx, operation, domain.HookStageEmbed, embedStart, err)
-		if err != nil {
-			return err
-		}
-		chunk.Embedding = embedding
-
-		if err := chunk.Validate(); err != nil {
-			return err
-		}
-		if err := p.store.Upsert(ctx, chunk); err != nil {
+// @sk-task api-consistency-pass#T3.1: shared doc-processor между Index и IndexBatch (DEC-004, RQ-004, AC-006)
+//
+// processDocumentOp — общий путь индексации одного документа: optional chunking
+// → embedding → upsert всех чанков. operationName используется в hook-вызовах
+// и метриках, чтобы различать вызовы из Index vs IndexBatch.
+//
+// Заменяет processDocumentForBatch из T1.2: единый helper для обоих entry-points
+// (Index и IndexBatch) вместо двух почти-копий.
+//
+// T3.2: делегирует chunking+embedding в produceChunks, оставляя здесь только
+// store.Upsert каждого чанка. Это позволяет updateDocumentAtomic повторно
+// использовать chunk+embed (через produceChunks) без двойной логики.
+func (p *Pipeline) processDocumentOp(ctx context.Context, operationName string, doc domain.Document) error {
+	chunks, err := p.produceChunks(ctx, operationName, doc)
+	if err != nil {
+		return err
+	}
+	for _, ch := range chunks {
+		if err := p.store.Upsert(ctx, ch); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
+// @sk-task api-consistency-pass#T3.2: shared chunk+embed helper для atomic update (DEC-005, AC-008)
+//
+// produceChunks выполняет chunking + embedding + validation для одного документа
+// без персистенции. Вызывающий код отвечает за upsert (в store или в tx).
+// Используется:
+// - processDocumentOp (T3.1) — store.Upsert каждого чанка;
+// - updateDocumentAtomicTransactional (T3.2) — tx.Upsert каждого чанка;
+// - updateDocumentAtomicBestEffort (T3.2) — косвенно через processDocumentOp.
+func (p *Pipeline) produceChunks(ctx context.Context, operationName string, doc domain.Document) ([]domain.Chunk, error) {
+	if p.chunker != nil {
+		chunkStart := time.Now()
+		p.hookStart(ctx, operationName, domain.HookStageChunking)
+		chunks, err := p.chunker.Chunk(ctx, doc)
+		p.hookEnd(ctx, operationName, domain.HookStageChunking, chunkStart, err)
+		if err != nil {
+			return nil, err
+		}
+		for i := range chunks {
+			embedStart := time.Now()
+			p.hookStart(ctx, operationName, domain.HookStageEmbed)
+			embedding, err := p.embedder.Embed(ctx, chunks[i].Content)
+			p.hookEnd(ctx, operationName, domain.HookStageEmbed, embedStart, err)
+			if err != nil {
+				return nil, err
+			}
+			chunks[i].Embedding = embedding
+			if err := chunks[i].Validate(); err != nil {
+				return nil, err
+			}
+		}
+		return chunks, nil
+	}
+
+	embedStart := time.Now()
+	p.hookStart(ctx, operationName, domain.HookStageEmbed)
+	embedding, err := p.embedder.Embed(ctx, doc.Content)
+	p.hookEnd(ctx, operationName, domain.HookStageEmbed, embedStart, err)
+	if err != nil {
+		return nil, err
+	}
+
+	chunk := domain.Chunk{
+		ID:        fmt.Sprintf("%s#%d", doc.ID, 0),
+		Content:   doc.Content,
+		ParentID:  doc.ID,
+		Embedding: embedding,
+		Position:  0,
+	}
+	if err := chunk.Validate(); err != nil {
+		return nil, err
+	}
+	return []domain.Chunk{chunk}, nil
+}
+
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
+// @sk-task api-consistency-pass#T3.1: параллельная обработка Index через processDocsConcurrently (DEC-004, RQ-004, AC-006)
+//
+// Index индексирует набор документов параллельно с ограничением
+// p.indexConcurrency и rateLimit p.indexBatchRateLimit.
+//
+// Семантика fail-fast: при первой ошибке обработки cancel-ит in-flight siblings
+// и возвращает оригинальную ошибку (не context.Canceled). Документы, не
+// прошедшие Validate, также прерывают выполнение и возвращают первую такую
+// ошибку.
+//
+// Параллелизм: реализовано через processDocsConcurrently (T1.2). На каждую
+// документную goroutine — отдельный семафор слот и общий rate-limiter.
 func (p *Pipeline) Index(ctx context.Context, docs []domain.Document) error {
 	if ctx == nil {
 		panic("nil context")
@@ -157,49 +232,34 @@ func (p *Pipeline) Index(ctx context.Context, docs []domain.Document) error {
 		return err
 	}
 
-	for _, doc := range docs {
-		if err := doc.Validate(); err != nil {
-			return err
-		}
+	cancelCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
-		if p.chunker != nil {
-			chunkStart := time.Now()
-			p.hookStart(ctx, "Index", domain.HookStageChunking)
-			chunks, err := p.chunker.Chunk(ctx, doc)
-			p.hookEnd(ctx, "Index", domain.HookStageChunking, chunkStart, err)
+	_, failed, _ := processDocsConcurrently(
+		cancelCtx,
+		docs,
+		p.indexConcurrency,
+		p.indexBatchRateLimit,
+		p.indexBatchRateLimitPerWorker,
+		func(procCtx context.Context, doc domain.Document) error {
+			err := p.processDocumentOp(procCtx, "Index", doc)
 			if err != nil {
-				return err
+				cancel()
 			}
-			if err := p.indexChunks(ctx, "Index", chunks); err != nil {
-				return err
+			return err
+		},
+	)
+
+	if len(failed) > 0 {
+		for _, fe := range failed {
+			if !errors.Is(fe.Error, context.Canceled) && !errors.Is(fe.Error, context.DeadlineExceeded) {
+				return fe.Error
 			}
-			continue
 		}
-
-		embedStart := time.Now()
-		p.hookStart(ctx, "Index", domain.HookStageEmbed)
-		embedding, err := p.embedder.Embed(ctx, doc.Content)
-		p.hookEnd(ctx, "Index", domain.HookStageEmbed, embedStart, err)
-		if err != nil {
-			return err
-		}
-
-		chunk := domain.Chunk{
-			ID:        fmt.Sprintf("%s#%d", doc.ID, 0),
-			Content:   doc.Content,
-			ParentID:  doc.ID,
-			Embedding: embedding,
-			Position:  0,
-		}
-		if err := chunk.Validate(); err != nil {
-			return err
-		}
-
-		if err := p.store.Upsert(ctx, chunk); err != nil {
+		if err := ctx.Err(); err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -213,9 +273,11 @@ func (p *Pipeline) DeleteDocument(ctx context.Context, docID string) error {
 }
 
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
+// @sk-task api-consistency-pass#T3.2: делегирует в updateDocumentAtomic (DEC-005, RQ-005, AC-008, AC-009)
+//
+// UpdateDocument выполняет атомарное обновление документа через
+// updateDocumentAtomic, который выбирает transactional или best-effort путь
+// в зависимости от capability underlying store.
 func (p *Pipeline) UpdateDocument(ctx context.Context, doc domain.Document) error {
-	if err := p.DeleteDocument(ctx, doc.ID); err != nil {
-		return err
-	}
-	return p.Index(ctx, []domain.Document{doc})
+	return p.updateDocumentAtomic(ctx, doc)
 }

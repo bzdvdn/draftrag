@@ -1,6 +1,6 @@
 version: 1
 project:
-    name: my-project
+    name: draftrag
     constitution_file: CONSTITUTION.md
 runtime:
     shell: sh

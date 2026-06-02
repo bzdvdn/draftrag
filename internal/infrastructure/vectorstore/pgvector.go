@@ -54,6 +54,7 @@ var _ domain.VectorStore = (*PGVectorStore)(nil)
 var _ domain.VectorStoreWithFilters = (*PGVectorStore)(nil)
 var _ domain.HybridSearcher = (*PGVectorStore)(nil)
 var _ domain.HybridSearcherWithFilters = (*PGVectorStore)(nil)
+var _ domain.TransactionalDocumentStore = (*PGVectorStore)(nil)
 
 // NewPGVectorStore создаёт новый pgvector-backed store.
 func NewPGVectorStore(db *sql.DB, tableName string, embeddingDimension int) *PGVectorStore {
@@ -214,6 +215,146 @@ func (s *PGVectorStore) DeleteByParentID(ctx context.Context, parentID string) e
 	query := fmt.Sprintf(`DELETE FROM %s WHERE parent_id = $1`, s.quotedTableIdent)
 	_, err := s.db.ExecContext(ctx, query, parentID)
 	return err
+}
+
+// pgVectorTx — адаптер *sql.Tx → domain.TransactionalTx.
+//
+// Реализует DeleteByParentID и Upsert в контексте открытой SQL-транзакции;
+// Commit/Rollback проксируют вызовы к *sql.Tx.
+//
+// @sk-task api-consistency-pass#T3.2: адаптер *sql.Tx → domain.TransactionalTx (DEC-005, AC-008)
+type pgVectorTx struct {
+	tx           *sql.Tx
+	tableIdent   string
+	embeddingDim int
+	runtime      RuntimeOptions
+}
+
+var _ domain.TransactionalTx = (*pgVectorTx)(nil)
+
+// DeleteByParentID удаляет все чанки с указанным parent_id в транзакции.
+func (t *pgVectorTx) DeleteByParentID(ctx context.Context, parentID string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	query := fmt.Sprintf(`DELETE FROM %s WHERE parent_id = $1`, t.tableIdent)
+	_, err := t.tx.ExecContext(ctx, query, parentID)
+	return err
+}
+
+// Upsert сохраняет или обновляет чанк в транзакции.
+//
+// Дублирует legacy-фоллбэки v1 (pre-migration 0002) и content_tsv (pre-0003),
+// чтобы транзакционный путь вёл себя идентично не-транзакционному Upsert.
+func (t *pgVectorTx) Upsert(ctx context.Context, chunk domain.Chunk) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := chunk.Validate(); err != nil {
+		return err
+	}
+	if t.runtime.MaxContentBytes > 0 && len(chunk.Content) > t.runtime.MaxContentBytes {
+		return fmt.Errorf("chunk content too large: got=%d max=%d", len(chunk.Content), t.runtime.MaxContentBytes)
+	}
+	if err := validateEmbedding(chunk.Embedding, t.embeddingDim); err != nil {
+		return err
+	}
+
+	metadataJSON := encodeMetadata(chunk.Metadata)
+
+	queryV2 := fmt.Sprintf(
+		`INSERT INTO %s (id, parent_id, content, position, embedding, metadata)
+		 VALUES ($1, $2, $3, $4, $5, $6)
+		 ON CONFLICT (id) DO UPDATE
+		 SET parent_id = EXCLUDED.parent_id,
+		     content = EXCLUDED.content,
+		     position = EXCLUDED.position,
+		     embedding = EXCLUDED.embedding,
+		     metadata = EXCLUDED.metadata,
+		     updated_at = now()`,
+		t.tableIdent,
+	)
+
+	_, err := t.tx.ExecContext(
+		ctx,
+		queryV2,
+		chunk.ID,
+		chunk.ParentID,
+		chunk.Content,
+		chunk.Position,
+		pgVectorFromFloat64(chunk.Embedding),
+		metadataJSON,
+	)
+	if err == nil {
+		return nil
+	}
+
+	// Backward compatibility: legacy schema without updated_at/metadata.
+	if strings.Contains(err.Error(), "column") &&
+		(strings.Contains(err.Error(), "updated_at") || strings.Contains(err.Error(), "metadata")) {
+		queryV1 := fmt.Sprintf(
+			`INSERT INTO %s (id, parent_id, content, position, embedding)
+			 VALUES ($1, $2, $3, $4, $5)
+			 ON CONFLICT (id) DO UPDATE
+			 SET parent_id = EXCLUDED.parent_id,
+			     content = EXCLUDED.content,
+			     position = EXCLUDED.position,
+			     embedding = EXCLUDED.embedding`,
+			t.tableIdent,
+		)
+		_, err2 := t.tx.ExecContext(
+			ctx,
+			queryV1,
+			chunk.ID,
+			chunk.ParentID,
+			chunk.Content,
+			chunk.Position,
+			pgVectorFromFloat64(chunk.Embedding),
+		)
+		return err2
+	}
+
+	// Backward compatibility: pre-migration 0003 (no content_tsv trigger).
+	if strings.Contains(err.Error(), "content_tsv") {
+		return nil
+	}
+
+	return err
+}
+
+// Commit фиксирует все изменения, сделанные в транзакции.
+func (t *pgVectorTx) Commit() error {
+	return t.tx.Commit()
+}
+
+// Rollback откатывает все изменения, сделанные в транзакции.
+func (t *pgVectorTx) Rollback() error {
+	return t.tx.Rollback()
+}
+
+// @sk-task api-consistency-pass#T3.2: BeginTx — атомарный UpdateDocument через pgVectorTx (DEC-005, AC-008)
+//
+// BeginTx открывает новую SQL-транзакцию и возвращает domain.TransactionalTx,
+// через который Pipeline выполняет атомарное UpdateDocument. Не использует
+// runtime timeout (unlike Upsert/Delete) — длительность tx ограничена ctx
+// вызывающего кода.
+func (s *PGVectorStore) BeginTx(ctx context.Context) (domain.TransactionalTx, error) {
+	if ctx == nil {
+		panic("nil context")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &pgVectorTx{
+		tx:           tx,
+		tableIdent:   s.quotedTableIdent,
+		embeddingDim: s.embeddingDim,
+		runtime:      s.runtime,
+	}, nil
 }
 
 // Search выполняет поиск похожих чанков по embedding-вектору с использованием cosine distance в БД.

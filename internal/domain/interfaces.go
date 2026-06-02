@@ -94,6 +94,41 @@ type DocumentStore interface {
 	DeleteByParentID(ctx context.Context, parentID string) error
 }
 
+// TransactionalTx — транзакция в транзакционном vector store.
+//
+// Контракт:
+// - DeleteByParentID и Upsert работают в контексте открытой транзакции;
+//   изменения видимы только после Commit.
+// - При ошибке любого метода (или явном Rollback) все изменения откатываются.
+// - Методы НЕ ДОЛЖНЫ вызываться после Commit/Rollback — поведение зависит от реализации.
+//
+// @sk-task api-consistency-pass#T1.1: интерфейс для атомарного UpdateDocument (RQ-005, AC-008)
+type TransactionalTx interface {
+	// DeleteByParentID удаляет все чанки с указанным ParentID в транзакции.
+	DeleteByParentID(ctx context.Context, parentID string) error
+	// Upsert сохраняет или обновляет чанк в транзакции.
+	Upsert(ctx context.Context, chunk Chunk) error
+	// Commit фиксирует все изменения, сделанные в транзакции.
+	Commit() error
+	// Rollback откатывает все изменения, сделанные в транзакции.
+	Rollback() error
+}
+
+// TransactionalDocumentStore — опциональная capability VectorStore, поддерживающая
+// транзакционные операции для атомарного UpdateDocument.
+//
+// Реализации, поддерживающие транзакции (например, pgvector через *sql.Tx),
+// реализуют этот интерфейс дополнительно к DocumentStore. Pipeline при наличии
+// capability использует транзакционный путь; иначе — best-effort path с возвратом
+// ErrUpdateNotAtomic при сбое после успешного delete.
+//
+// @sk-task api-consistency-pass#T1.1: новый optional capability для atomic UpdateDocument (RQ-005, AC-008)
+type TransactionalDocumentStore interface {
+	// BeginTx открывает новую транзакцию.
+	// Возвращает ошибку, если транзакция не может быть начата.
+	BeginTx(ctx context.Context) (TransactionalTx, error)
+}
+
 // CollectionManager — опциональная capability VectorStore для управления жизненным циклом коллекции.
 // Реализации, поддерживающие управление коллекциями, должны реализовывать этот интерфейс дополнительно
 // (без ломки существующего контракта VectorStore).

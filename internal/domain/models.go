@@ -33,6 +33,14 @@ var (
 
 	// ErrInvalidHybridConfig возвращается при невалидной конфигурации гибридного поиска.
 	ErrInvalidHybridConfig = errors.New("invalid hybrid config")
+
+	// ErrUpdateNotAtomic возвращается, если UpdateDocument завершился частично:
+	// delete выполнен успешно, но переиндексация упала. Для транзакционных store
+	// rollback восстановил исходные чанки; для best-effort store часть чанков
+	// может быть потеряна. Ошибка предназначена для классификации через errors.Is.
+	//
+	// @sk-task api-consistency-pass#T1.1: введён sentinel для degraded-path UpdateDocument (RQ-005, AC-009)
+	ErrUpdateNotAtomic = errors.New("update not atomic; old chunks may be partially deleted")
 )
 
 // Document представляет документ для индексации в RAG-системе.

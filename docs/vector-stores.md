@@ -202,15 +202,70 @@ docker run -d -p 8000:8000 chromadb/chroma
 
 ---
 
-## Сравнение
+<!-- @sk-task api-consistency-pass#T3.5: docs sync — Milvus section (DEC-008, RQ-008, AC-013) -->
 
-| | In-Memory | pgvector | Qdrant | ChromaDB | Weaviate |
-|---|---|---|---|---|---|
-| Production | ✗ | ✅ | ✅ | ✅ | ⚠️ |
-| Постоянное хранение | ✗ | ✅ | ✅ | ✅ | ✅ |
-| Metadata filters | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Hybrid search (BM25) | ✅ | ✅ | ✗ | ✗ | ✗ |
-| SQL-миграции | — | ✅ | — | — | — |
-| Управление коллекцией | — | — | ✅ | ✗ | ✅ |
+## Milvus / Zilliz
 
-⚠️ Weaviate: статус **experimental** — см. `docs/compatibility.md` и `docs/weaviate.md`.
+Высокопроизводительный distributed векторный поиск (REST API).
+
+**Статус**: ⚠️ public API в разработке (`pkg/draftrag.NewMilvusStore` пока отсутствует, см. `internal/infrastructure/vectorstore/milvus.go`).
+
+Подробная инструкция и troubleshooting: `docs/milvus.md` (планируется).
+
+```go
+// Внутренний API (не рекомендуется к прямому использованию):
+store, err := vectorstore.NewMilvusStore(baseURL, collection, token)
+```
+
+Коллекцию нужно создать заранее через Milvus API или клиент. Поддерживает basic retrieval, фильтры по метаданным и ParentID. **Hybrid search не поддерживается** в публичной модели.
+
+### Docker (быстрый старт)
+
+```bash
+docker run -d -p 19530:19530 -p 9091:9091 milvusdb/milvus:latest
+```
+
+**Поддерживает** (внутренний API): `VectorStore`, `VectorStoreWithFilters`
+
+---
+
+## Capability-таблица
+
+<!-- @sk-task api-consistency-pass#T3.5: docs sync — capability-таблица 6×6 = 36 ячеек (DEC-008, RQ-008, AC-014) -->
+
+| | In-Memory | pgvector | Qdrant | ChromaDB | Weaviate | Milvus |
+|---|---|---|---|---|---|---|
+| **Basic retrieval** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Metadata filter** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **ParentID filter** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Hybrid (BM25 + semantic)** | ✅ | ✅ | ❌ | ❌ | ❌ | ❌[^hybrid] |
+| **DeleteByParentID** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Collection management** | N/A | ✅ (SQL миграции) | ✅ | ✅ | ✅ | ✅ |
+
+**Условные обозначения**:
+- ✅ — поддерживается
+- ❌ — не поддерживается (см. footnote для исключений)
+- N/A — не применимо (нет коллекций/схем)
+
+**Footnotes**:
+
+[^hybrid]: Hybrid search (BM25) на уровне публичного API не поддерживается для Weaviate и Milvus. Внутренние реализации `internal/infrastructure/vectorstore/{weaviate,milvus}.go` содержат `SearchHybrid`-методы, но они не экспонированы в `pkg/draftrag/`. Используйте pgvector (production-ready) или In-Memory (прототипирование) для гибридного поиска.
+
+**Несовместимые комбинации**:
+
+- `Hybrid(cfg)` в SearchBuilder + Weaviate/Milvus/Qdrant/ChromaDB → `draftrag.ErrHybridNotSupported` (в runtime).
+- `UpdateDocument` + In-Memory/Qdrant/ChromaDB/Weaviate/Milvus → `draftrag.ErrUpdateNotAtomic` (нет транзакционного store; T3.2 best-effort path). Только pgvector гарантирует атомарность.
+
+---
+
+## Production status
+
+| Store | Статус |
+|---|---|
+| In-Memory | для тестов и прототипов |
+| pgvector | production-ready |
+| Qdrant | production-ready |
+| ChromaDB | production-ready |
+| Weaviate | ⚠️ experimental (см. `docs/compatibility.md` и `docs/weaviate.md`) |
+| Milvus | ⚠️ public API в разработке (см. `internal/infrastructure/vectorstore/milvus.go`) |
+

@@ -296,9 +296,9 @@ func TestSearch_InlineCite_ParentIDs(t *testing.T) {
 	_ = citations
 }
 
-func TestMapValidationErr_Passthrough(t *testing.T) {
+func TestMapAppError_Passthrough(t *testing.T) {
 	customErr := errors.New("custom error")
-	result := mapValidationErr(customErr)
+	result := mapAppError(customErr)
 	if !errors.Is(result, customErr) {
 		t.Fatalf("expected passthrough, got %v", result)
 	}
@@ -549,9 +549,10 @@ func TestIndexBatch_Success(t *testing.T) {
 	}
 }
 
-// @sk-test hardening-2026q2#AC-010: mapValidationErr streaming not supported mapping
-func TestMapValidationErr_StreamingNotSupported(t *testing.T) {
-	err := mapValidationErr(application.ErrStreamingNotSupported)
+// @sk-test hardening-2026q2#AC-010: mapAppError streaming not supported mapping
+// @sk-test api-consistency-pass#T2.2: ErrStreamingNotSupported reachable через mapAppError (AC-005, RQ-003)
+func TestMapAppError_StreamingNotSupported(t *testing.T) {
+	err := mapAppError(application.ErrStreamingNotSupported)
 	if !errors.Is(err, ErrStreamingNotSupported) {
 		t.Fatalf("expected ErrStreamingNotSupported, got %v", err)
 	}

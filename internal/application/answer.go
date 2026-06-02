@@ -2,7 +2,7 @@ package application
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -21,6 +21,7 @@ func (p *Pipeline) generateAnswer(ctx context.Context, question string, result d
 
 
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
+// @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
 // Answer выполняет полный RAG-цикл: retrieval (Embed+Search) → prompt → LLM.Generate.
 func (p *Pipeline) Answer(ctx context.Context, question string, topK int) (string, error) {
 	if ctx == nil {
@@ -32,10 +33,10 @@ func (p *Pipeline) Answer(ctx context.Context, question string, topK int) (strin
 
 	question = strings.TrimSpace(question)
 	if question == "" {
-		return "", errors.New("question is empty")
+		return "", fmt.Errorf("%w: question is empty", domain.ErrEmptyQueryText)
 	}
 	if topK <= 0 {
-		return "", errors.New("topK must be > 0")
+		return "", fmt.Errorf("%w: topK must be > 0", domain.ErrInvalidQueryTopK)
 	}
 
 	embedStart := time.Now()
@@ -94,6 +95,7 @@ func (p *Pipeline) AnswerWithParentIDs(ctx context.Context, question string, top
 // Если store не реализует VectorStoreWithFilters — возвращает ErrFiltersNotSupported.
 //
 // @ds-task T3.1: Добавить AnswerWithMetadataFilter в application.Pipeline (RQ-006, AC-003, DEC-003)
+// @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
 func (p *Pipeline) AnswerWithMetadataFilter(ctx context.Context, question string, topK int, filter domain.MetadataFilter) (string, error) {
 	if len(filter.Fields) == 0 {
 		return p.Answer(ctx, question, topK)
@@ -108,10 +110,10 @@ func (p *Pipeline) AnswerWithMetadataFilter(ctx context.Context, question string
 
 	question = strings.TrimSpace(question)
 	if question == "" {
-		return "", errors.New("question is empty")
+		return "", fmt.Errorf("%w: question is empty", domain.ErrEmptyQueryText)
 	}
 	if topK <= 0 {
-		return "", errors.New("topK must be > 0")
+		return "", fmt.Errorf("%w: topK must be > 0", domain.ErrInvalidQueryTopK)
 	}
 
 	vs, ok := p.store.(domain.VectorStoreWithFilters)
@@ -160,6 +162,7 @@ func (p *Pipeline) AnswerWithMetadataFilter(ctx context.Context, question string
 }
 
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
+// @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
 // AnswerHybrid выполняет гибридный поиск (BM25 + semantic) и генерирует ответ.
 //
 // Если store не реализует HybridSearcher — возвращает ErrHybridNotSupported.
@@ -173,10 +176,10 @@ func (p *Pipeline) AnswerHybrid(ctx context.Context, question string, topK int, 
 
 	question = strings.TrimSpace(question)
 	if question == "" {
-		return "", errors.New("question is empty")
+		return "", fmt.Errorf("%w: question is empty", domain.ErrEmptyQueryText)
 	}
 	if topK <= 0 {
-		return "", errors.New("topK must be > 0")
+		return "", fmt.Errorf("%w: topK must be > 0", domain.ErrInvalidQueryTopK)
 	}
 	if err := config.Validate(); err != nil {
 		return "", err
@@ -198,6 +201,7 @@ func (p *Pipeline) AnswerHybrid(ctx context.Context, question string, topK int, 
 }
 
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
+// @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
 // AnswerWithInlineCitations выполняет полный RAG-цикл и возвращает ответ с inline-цитатами `[n]`,
 // а также retrieval evidence и детерминированный маппинг `n -> chunk`.
 //
@@ -217,10 +221,10 @@ func (p *Pipeline) AnswerWithInlineCitations(
 
 	question = strings.TrimSpace(question)
 	if question == "" {
-		return "", domain.RetrievalResult{}, nil, errors.New("question is empty")
+		return "", domain.RetrievalResult{}, nil, fmt.Errorf("%w: question is empty", domain.ErrEmptyQueryText)
 	}
 	if topK <= 0 {
-		return "", domain.RetrievalResult{}, nil, errors.New("topK must be > 0")
+		return "", domain.RetrievalResult{}, nil, fmt.Errorf("%w: topK must be > 0", domain.ErrInvalidQueryTopK)
 	}
 
 	embedStart := time.Now()
@@ -268,6 +272,7 @@ func (p *Pipeline) AnswerWithInlineCitations(
 }
 
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
+// @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
 // AnswerWithCitations выполняет полный RAG-цикл и возвращает retrieval evidence вместе с ответом.
 //
 // Если retrieval уже выполнен, а Generate вернул ошибку, метод возвращает retrieval результат (partial)
@@ -282,10 +287,10 @@ func (p *Pipeline) AnswerWithCitations(ctx context.Context, question string, top
 
 	question = strings.TrimSpace(question)
 	if question == "" {
-		return "", domain.RetrievalResult{}, errors.New("question is empty")
+		return "", domain.RetrievalResult{}, fmt.Errorf("%w: question is empty", domain.ErrEmptyQueryText)
 	}
 	if topK <= 0 {
-		return "", domain.RetrievalResult{}, errors.New("topK must be > 0")
+		return "", domain.RetrievalResult{}, fmt.Errorf("%w: topK must be > 0", domain.ErrInvalidQueryTopK)
 	}
 
 	embedStart := time.Now()
@@ -333,6 +338,7 @@ func (p *Pipeline) AnswerWithCitations(ctx context.Context, question string, top
 }
 
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
+// @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
 // AnswerWithCitationsWithParentIDs выполняет RAG-цикл с фильтром по ParentIDs и возвращает retrieval evidence.
 //
 // Если parentIDs пустой — эквивалентно AnswerWithCitations.
@@ -355,10 +361,10 @@ func (p *Pipeline) AnswerWithCitationsWithParentIDs(
 
 	question = strings.TrimSpace(question)
 	if question == "" {
-		return "", domain.RetrievalResult{}, errors.New("question is empty")
+		return "", domain.RetrievalResult{}, fmt.Errorf("%w: question is empty", domain.ErrEmptyQueryText)
 	}
 	if topK <= 0 {
-		return "", domain.RetrievalResult{}, errors.New("topK must be > 0")
+		return "", domain.RetrievalResult{}, fmt.Errorf("%w: topK must be > 0", domain.ErrInvalidQueryTopK)
 	}
 
 	vs, ok := p.store.(domain.VectorStoreWithFilters)

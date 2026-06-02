@@ -6,6 +6,8 @@
 
 ## Реализовано ✅
 
+<!-- @sk-task api-consistency-pass#T3.5: docs sync — Weaviate/Milvus moved to Реализовано ✅ (DEC-008, RQ-008, AC-015) -->
+
 | Фича | Статус | Примечание |
 |---|---|---|
 | Core interfaces (VectorStore, LLMProvider, Embedder, Chunker) | ✅ | Clean Architecture |
@@ -33,6 +35,8 @@
 | Observability hooks | ✅ | Метрики всех стадий |
 | Eval harness (Hit@K, MRR) | ✅ | Базовые метрики retrieval |
 | pgvector migrations | ✅ | Версионированные миграции |
+| Weaviate vector store | ✅ | Basic retrieval, фильтры, управление коллекциями; ⚠️ hybrid search не поддерживается (status: experimental) |
+| Milvus vector store | ✅ | High-performance distributed; basic retrieval, фильтры; ⚠️ hybrid search не поддерживается (public API в разработке) |
 
 ---
 
@@ -80,8 +84,6 @@ ChromaDB теперь поддерживает полный набор функ�
 
 ### Additional vector stores
 
-**Weaviate** ✅ — Production-ready; basic retrieval, фильтры, управление коллекциями; **hybrid search не поддерживается**
-**Milvus/Zilliz** — высокопроизводительный distributed векторный поиск
 **Pinecone** — managed vector DB (требует API key, ограничения бесплатного tier)
 
 ---

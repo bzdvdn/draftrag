@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -198,4 +199,109 @@ func (noFilterStore) Upsert(_ context.Context, _ domain.Chunk) error { return ni
 func (noFilterStore) Delete(_ context.Context, _ string) error       { return nil }
 func (noFilterStore) Search(_ context.Context, _ []float64, _ int) (domain.RetrievalResult, error) {
 	return domain.RetrievalResult{}, nil
+}
+
+// failOnEmbedder — тестовый Embedder, который возвращает ошибку для текста,
+// содержащего failOn. Используется для проверки best-effort UpdateDocument.
+type failOnEmbedder struct {
+	failOn string
+}
+
+func (e *failOnEmbedder) Embed(ctx context.Context, text string) ([]float64, error) {
+	if ctx == nil {
+		panic("nil context")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if e.failOn != "" && text == e.failOn {
+		return nil, fmt.Errorf("embed failed for %q", text)
+	}
+	return []float64{0.1, 0.2, 0.3}, nil
+}
+
+// @sk-test api-consistency-pass#T3.2: best-effort UpdateDocument на in-memory store
+// (без TransactionalDocumentStore capability) должен вернуть ErrUpdateNotAtomic
+// при ошибке Embed ПОСЛЕ успешного DeleteByParentID (DEC-005, RQ-005, AC-009).
+//
+// Сценарий:
+//  1. Index документа с успешным embedder — store содержит 1 чанк.
+//  2. UpdateDocument с failing embedder — DeleteByParentID успешен, Embed падает.
+//  3. Возвращённая ошибка классифицируется через errors.Is(err, domain.ErrUpdateNotAtomic) == true.
+//  4. Underlying error (от embed) сохранён в error chain (для диагностики).
+func TestPipeline_UpdateDocument_BestEffort_ReturnsErrUpdateNotAtomic(t *testing.T) {
+	ctx := context.Background()
+	store := vectorstore.NewInMemoryStore()
+	p := NewPipeline(store, testLLM{}, &failOnEmbedder{failOn: "boom"})
+
+	// 1. Index исходного документа — успешный.
+	if err := p.Index(ctx, []domain.Document{
+		{ID: "doc-1", Content: "ok"},
+	}); err != nil {
+		t.Fatalf("index: %v", err)
+	}
+
+	// 2. UpdateDocument с failing embedder — должен вернуть ErrUpdateNotAtomic.
+	err := p.UpdateDocument(ctx, domain.Document{ID: "doc-1", Content: "boom"})
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !errors.Is(err, domain.ErrUpdateNotAtomic) {
+		t.Fatalf("expected ErrUpdateNotAtomic, got %v", err)
+	}
+	// Underlying error от embed должен быть в chain.
+	if !strings.Contains(err.Error(), "boom") {
+		t.Fatalf("expected underlying error to mention 'boom', got %v", err)
+	}
+}
+
+// @sk-test api-consistency-pass#T3.2: best-effort path — при ошибке DeleteByParentID
+// (до Index) возвращается underlying error БЕЗ wrapping в ErrUpdateNotAtomic.
+// Семантика: ErrUpdateNotAtomic применим только если delete успел, а index — нет.
+func TestPipeline_UpdateDocument_BestEffort_DeleteErrorPropagatesRaw(t *testing.T) {
+	ctx := context.Background()
+	// noFilterStore не реализует DocumentStore, поэтому DeleteByParentID вернёт
+	// ErrDeleteNotSupported напрямую.
+	p := NewPipeline(&noFilterStore{}, testLLM{}, &failOnEmbedder{})
+
+	err := p.UpdateDocument(ctx, domain.Document{ID: "doc-1", Content: "ok"})
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if errors.Is(err, domain.ErrUpdateNotAtomic) {
+		t.Fatalf("expected ErrDeleteNotSupported (raw), got wrapped ErrUpdateNotAtomic: %v", err)
+	}
+	if !errors.Is(err, ErrDeleteNotSupported) {
+		t.Fatalf("expected ErrDeleteNotSupported, got %v", err)
+	}
+}
+
+// @sk-test api-consistency-pass#T3.2: UpdateDocument валидирует doc ПЕРЕД delete.
+// Пустой doc.Content → ErrEmptyDocumentContent, store не трогается.
+func TestPipeline_UpdateDocument_ValidationFailsBeforeDelete(t *testing.T) {
+	ctx := context.Background()
+	store := vectorstore.NewInMemoryStore()
+	p := NewPipeline(store, testLLM{}, &failOnEmbedder{})
+
+	// Сначала проиндексируем валидный doc, чтобы в store было что удалять.
+	if err := p.Index(ctx, []domain.Document{
+		{ID: "doc-1", Content: "ok"},
+	}); err != nil {
+		t.Fatalf("index: %v", err)
+	}
+
+	// UpdateDocument с пустым Content → должен вернуть ErrEmptyDocumentContent
+	// и НЕ удалить существующие чанки.
+	err := p.UpdateDocument(ctx, domain.Document{ID: "doc-1", Content: ""})
+	if !errors.Is(err, domain.ErrEmptyDocumentContent) {
+		t.Fatalf("expected ErrEmptyDocumentContent, got %v", err)
+	}
+	// Чанк остался в store (delete не выполнился).
+	result, err := store.Search(ctx, []float64{0.1, 0.2, 0.3}, 10)
+	if err != nil {
+		t.Fatalf("search: %v", err)
+	}
+	if len(result.Chunks) == 0 {
+		t.Fatal("expected old chunks to remain in store after validation failure")
+	}
 }
