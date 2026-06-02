@@ -147,10 +147,7 @@ type PipelineOptions struct {
 
 // NewPipeline создаёт pipeline из зависимостей: VectorStore, LLMProvider и Embedder.
 func NewPipeline(store VectorStore, llm LLMProvider, embedder Embedder) *Pipeline {
-	return &Pipeline{
-		core:       application.NewPipeline(store, llm, embedder),
-		defaultTop: 5,
-	}
+	return NewPipelineWithOptions(store, llm, embedder, PipelineOptions{})
 }
 
 // NewPipelineWithChunker создаёт pipeline из зависимостей: VectorStore, LLMProvider, Embedder и Chunker.
@@ -354,18 +351,10 @@ func (p *Pipeline) IndexBatch(ctx context.Context, docs []Document, batchSize in
 	return result, mapValidationErr(err)
 }
 
+// @sk-task hardening-2026q2#T3.2: Упрощение mapValidationErr (AC-010)
 func mapValidationErr(err error) error {
 	if err == nil {
 		return nil
-	}
-	if errors.Is(err, domain.ErrEmptyDocumentContent) {
-		return ErrEmptyDocument
-	}
-	if errors.Is(err, domain.ErrEmptyQueryText) {
-		return ErrEmptyQuery
-	}
-	if errors.Is(err, domain.ErrInvalidQueryTopK) {
-		return ErrInvalidTopK
 	}
 	if errors.Is(err, application.ErrStreamingNotSupported) {
 		return ErrStreamingNotSupported

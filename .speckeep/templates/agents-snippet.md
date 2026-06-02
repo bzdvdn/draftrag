@@ -1,23 +1,40 @@
 ## SpecKeep
 
-Основной контекст проекта — `.speckeep/`. Языки: docs=русский, agent=русский, comments=русский
+Основной контекст: `.speckeep/`. Языки: docs=русский, agent=русский, comments=русский
 
-Цепочка workflow: `constitution → spec → inspect → plan → tasks → implement → verify → archive`
-- `/speckeep.constitution`: создать или обновить `.speckeep/constitution.md`
-- `/speckeep.spec`: создать или уточнить `.speckeep/specs/<slug>/spec.md`; `--amend` для точечных правок (**обязательно** branch-first: до записи любого файла переключиться/создать `feature/<slug>` или ветку из `--branch`)
-- `/speckeep.inspect`: проверить одну фичу на согласованность и качество
-- `/speckeep.plan`: создать или обновить `.speckeep/specs/<slug>/plan/`; `--update` для точечных правок, `--research` для research-first
-- `/speckeep.tasks`: создать или обновить `.speckeep/specs/<slug>/plan/tasks.md`
-- `/speckeep.implement`: выполнить незавершённые задачи из `tasks.md`
-- `/speckeep.verify`: проверить один feature package; `--deep` для полной per-AC валидации по коду
-- `/speckeep.archive`: архивировать в `.speckeep/archive/` (move-based); `--copy` оставляет оригиналы, `--restore` восстанавливает
+Цепочка workflow: `constitution → spec → [inspect, опционально] → plan → tasks → implement → verify → archive (CLI-only после verify)`
 
-Опциональные (в любой момент): `/speckeep.challenge` (адверсариальная проверка; `--spec`/`--plan`), `/speckeep.handoff` (передача сессии), `/speckeep.hotfix` (экстренное исправление ≤ 3 файлов), `/speckeep.scope` (проверка границ; `--plan`/`--tasks`), `/speckeep.recap` (обзор проекта)
+Базовые правила:
+- Пути/конфиг: читайте `.speckeep/speckeep.yaml` ≤ 1 раза за сессию; если конфига нет, defaults: `<specs_dir>=specs/active`, `<archive_dir>=specs/archived`, constitution=`CONSTITUTION.md`.
+- Конституция: загружайте `.speckeep/constitution.summary.md` сначала, если файл существует; только при его отсутствии переходите к `project.constitution_file` (по умолчанию `CONSTITUTION.md`).
+- Ветки: только `/speckeep.spec` может переключать/создавать `feature/<slug>` (или `--branch`). Остальные фазы должны уже быть на нужной ветке.
+- Скрипты: перед каждой фазой запускайте `check-<phase>-ready.* <slug>` (и любые extras из секции Команды); доверяйте stdout/exit code; исходники `.speckeep/scripts/*` не читать.
+- Scope/load: по умолчанию только текущий slug; без широких репо-сканов; предпочитайте surfaces из `Touches:`.
+- Repository map first: если есть `REPOSITORY_MAP.md`, прочитайте его до широкого поиска по файлам. Читайте карту один раз за сессию и переиспользуйте заметки; перечитывайте только если сами обновили карту в этой же сессии.
+- Git safety: не делать `git commit/push/tag` и PR без явной просьбы.
+- Done: никогда не отмечать задачу выполненной без observable proof (путь файла, вывод теста или команды).
+- Traceability: для каждой нетривиально завершённой задачи trace-маркеры обязательны. Нет `@sk-task` в изменённом коде или нет `@sk-test` в изменённых тестах для этой задачи — задача ещё не завершена.
+- Placement: trace-маркеры запрещено ставить на уровень `package`, `import` или file-header comment; ставьте их над owning function/method/test/type declaration.
+- End block: каждая фаза завершается компактным summary: `Slug`, `Status`, `Artifacts`, `Blockers`, `Готово к` (или `Вернуться к` при blocked / `speckeep archive` только после `verify: pass`).
+- Discovery: не запускать `speckeep ... --help` для разведки; используйте prompt-файлы и readiness scripts.
+- CLI: используйте `./.speckeep/scripts/run-speckeep.sh` (PowerShell: `./.speckeep/scripts/run-speckeep.ps1`) только для настоящих CLI-команд (напр. `doctor`, `check`, `trace`, `export`, `refresh`). Не запускайте `run-speckeep.* <phase>` вроде `spec`/`plan`/`tasks` — фазы выполняются как slash-команды, а артефакты пишутся напрямую.
+- Вывод в чат: не вставляйте большие `git diff`/полные файлы/простыни логов. Давайте краткое резюме изменений + список затронутых файлов; если нужны детали — покажите только небольшой фрагмент вокруг места правки.
+- Scope: не читайте и не меняйте артефакты других slug/спек, если текущая задача явно не требует (иначе это scope violation).
 
-Дисциплина чтения:
-- Не пропускайте фазы; по умолчанию загружайте только текущий feature slug
-- Предпочитайте readiness scripts перед чтением более глубоких артефактов; для CLI используйте `./.speckeep/scripts/run-speckeep.sh`
-- Не загружайте: нерелевантные specs/plans, широкие сканы репозитория, исходники scripts, файлы уже прочитанные в сессии (если сами не редактировали)
-- Используйте настроенный язык комментариев для нового/изменяемого кода; сохраняйте существующие соглашения файла
+Команды:
+- `/speckeep.constitution` → конституция
+- `/speckeep.spec` → spec (branch-first)
+- `/speckeep.inspect` → опциональная глубокая проверка качества
+- `/speckeep.plan` → plan artifacts
+- `/speckeep.tasks` → tasks
+- `/speckeep.implement` → implement
+- `/speckeep.verify` → verify
+- `speckeep archive <slug> .` → CLI-only архив после `verify: pass`
+- `/speckeep.repo-map` → обновить `REPOSITORY_MAP.md` (см. выделенный prompt для политики + шаблона)
 
-Перед значимыми изменениями: просмотрите `constitution.md`, релевантный `specs/<slug>/spec.md` и `specs/<slug>/plan/` если есть. После изменений: поддерживайте согласованность specs, plans, tasks и реализации.
+Чеклист триггеров обновления (запускайте `/speckeep.repo-map`, если истинно хотя бы одно):
+- Добавлена или удалена верхнеуровневая кодовая директория/модуль.
+- Перемещены/переименованы ключевые исходники, меняющие навигацию.
+- Добавлены/удалены runtime/service/CLI entrypoints.
+- Существенно изменены границы подсистем (заметно поменялись where-to-edit пути).
+- Пользователь явно попросил обновить repo map.

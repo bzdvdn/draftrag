@@ -6,13 +6,14 @@ import (
 	"github.com/bzdvdn/draftrag/internal/domain"
 )
 
+// @sk-task hardening-2026q2#T3.1: Переэкспорт sentinel-ошибок в public API (AC-009)
 var (
 	// ErrEmptyDocument возвращается, если документ нельзя проиндексировать из-за пустого содержимого.
-	ErrEmptyDocument = errors.New("empty document")
+	ErrEmptyDocument = domain.ErrEmptyDocumentContent
 	// ErrEmptyQuery возвращается, если Pipeline.Query* вызывается с пустым вопросом.
-	ErrEmptyQuery = errors.New("empty query")
+	ErrEmptyQuery = domain.ErrEmptyQueryText
 	// ErrInvalidTopK возвращается, если topK <= 0.
-	ErrInvalidTopK = errors.New("invalid topK")
+	ErrInvalidTopK = domain.ErrInvalidQueryTopK
 	// ErrInvalidEmbedderConfig возвращается при невалидной конфигурации Embedder.
 	// Ошибка предназначена для проверок через errors.Is.
 	ErrInvalidEmbedderConfig = errors.New("invalid embedder config")

@@ -18,9 +18,7 @@ agents:
     update_agents_md: true
     agents_file: AGENTS.md
     targets:
-        - claude
-        - codex
-        - windsurf
+        - opencode
 templates:
     spec: spec.md
     plan: plan.md
@@ -38,7 +36,6 @@ templates:
     plan_prompt: prompts/plan.md
     tasks_prompt: prompts/tasks.md
     implement_prompt: prompts/implement.md
-    archive_prompt: prompts/archive.md
     verify_prompt: prompts/verify.md
 scripts:
     run_speckeep: run-speckeep.sh

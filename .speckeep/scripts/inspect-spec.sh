@@ -33,7 +33,7 @@ tasks_input="${2:-}"
 
 specs_dir="$(yaml_first_value specs_dir 2>/dev/null || true)"
 if [ "$specs_dir" = "" ]; then
-  specs_dir=".speckeep/specs"
+  specs_dir="specs"
 fi
 
 spec_file="$(yaml_first_value spec 2>/dev/null || true)"
@@ -73,9 +73,12 @@ tasks_path=""
 if [ "$tasks_input" != "" ]; then
   tasks_path="$tasks_input"
 elif [ "$slug" != "" ]; then
-  candidate="$specs_dir/$slug/plan/$tasks_file"
+  candidate="$specs_dir/$slug/$tasks_file"
+  legacy_candidate="$specs_dir/$slug/plan/$tasks_file"
   if [ -f "$ROOT_DIR/$candidate" ]; then
     tasks_path="$candidate"
+  elif [ -f "$ROOT_DIR/$legacy_candidate" ]; then
+    tasks_path="$legacy_candidate"
   fi
 fi
 

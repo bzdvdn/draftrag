@@ -56,3 +56,7 @@ profile.cov
 # Air live reload
 tmp/
 coverage.html
+
+# >>> speckeep: skills checkouts >>>
+.speckeep/skills/checkouts/
+# <<< speckeep: skills checkouts <<<
