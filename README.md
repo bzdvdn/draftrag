@@ -67,7 +67,19 @@ go get github.com/bzdvdn/draftrag
 go get github.com/jackc/pgx/v5
 ```
 
+<!-- @sk-task docs-and-examples#T3.5: Быстрый старт + таблица примеров + Tutorials + Провайдеры LLM (AC-013) -->
+
 ## Быстрый старт
+
+**Без API-ключей (mock-режим):**
+
+```bash
+go run ./examples/memory/
+```
+
+**С собственным LLM:** скопируйте `.env.example` из любого примера, задайте ключи и запустите.
+
+### Программный пример (OpenAI)
 
 ```go
 package main
@@ -611,12 +623,44 @@ for _, fe := range result.Failed {
 
 ## Полный список примеров
 
-| Пример | Описание |
-|--------|----------|
-| [examples/chat](examples/chat/) | Интерактивный RAG-чат, in-memory store, inline citations |
-| [examples/index-dir](examples/index-dir/) | Индексация директории с `.txt` файлами |
-| [examples/pgvector](examples/pgvector/) | RAG с PostgreSQL+pgvector, docker-compose |
-| [examples/qdrant](examples/qdrant/) | RAG с Qdrant, auto-create collection |
+| Пример | Backend | Docker | LLM | Описание |
+|--------|---------|--------|-----|----------|
+| [examples/memory](examples/memory/) | In-memory | Нет | Любой | Быстрый старт без Docker, 10 Go-документов |
+| [examples/pgvector](examples/pgvector/) | PostgreSQL+pgvector | Да | Любой | Production-ready, гибридный поиск, фильтры |
+| [examples/qdrant](examples/qdrant/) | Qdrant | Да | Любой | Payload-фильтры, auto-create collection |
+| [examples/chromadb](examples/chromadb/) | ChromaDB | Да | Любой | Векторный поиск с метаданными |
+| [examples/weaviate](examples/weaviate/) | Weaviate | Да | Любой | GraphQL API, управление классами |
+| [examples/milvus](examples/milvus/) | Milvus | Да | Любой | High-performance distributed, ~2 GB RAM |
+| [examples/chat](examples/chat/) | In-memory | Нет | Любой | Интерактивный RAG-чат, inline citations |
+| [examples/index-dir](examples/index-dir/) | In-memory | Нет | Любой | Индексация директории с `.txt` файлами |
+
+## Tutorials
+
+Пошаговые руководства для всех основных сценариев:
+
+| # | Tutorial | Пример | Тема |
+|---|----------|--------|------|
+| 01 | [Quickstart](docs/tutorials/ru/01-quickstart.md) | memory + mock | Zero-config запуск |
+| 02 | [Basic RAG](docs/tutorials/ru/02-basic-rag.md) | qdrant + ollama | Реальный LLM |
+| 03 | [Hybrid Search](docs/tutorials/ru/03-hybrid-search.md) | weaviate | BM25 + semantic |
+| 04 | [Metadata Filter](docs/tutorials/ru/04-metadata-filter.md) | chromadb | Фильтрация по метаданным |
+| 05 | [Streaming](docs/tutorials/ru/05-streaming.md) | qdrant | Потоковый ответ |
+| 06 | [Atomic Update](docs/tutorials/ru/06-atomic-update.md) | pgvector | Обновление документов |
+| 07 | [Citations](docs/tutorials/ru/07-citations.md) | memory | Inline-цитаты |
+| 08 | [Observability](docs/tutorials/ru/08-observability.md) | pgvector | OTel, хуки, логи |
+| 09 | [Evaluation](docs/tutorials/ru/09-evaluation.md) | memory | Eval harness, Hit@K, MRR |
+| 10 | [Production Hardening](docs/tutorials/ru/10-production-hardening.md) | pgvector | Retry, CB, redaction |
+
+## Провайдеры LLM
+
+| Провайдер | Режим | API-ключ | Embedder | Примечание |
+|-----------|-------|----------|----------|------------|
+| `mock` | Локальный (CI) | Не нужен | Встроенный (детерминированный) | Для тестов и CI, не требует внешних сервисов |
+| `ollama` | Локальный | Не нужен | Ollama embedder | Требуется запущенный [Ollama](https://ollama.ai) |
+| `openai` | Внешний API | `OPENAI_API_KEY` | OpenAI-compatible | Работает с любым OpenAI-совместимым API |
+| `anthropic` | Внешний API | `ANTHROPIC_API_KEY` | Не предоставляет (используйте ollama/openai) | Только LLM, embedder через другой провайдер |
+
+Для переключения провайдера задайте `LLM_PROVIDER=mock|ollama|openai|anthropic` и соответствующие ключи.
 
 Документация:
 - [docs/compatibility.md](docs/compatibility.md) — политика совместимости и поддержки

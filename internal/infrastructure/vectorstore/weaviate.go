@@ -136,15 +136,19 @@ func (s *WeaviateStore) Upsert(ctx context.Context, chunk domain.Chunk) error {
 	if err != nil {
 		return fmt.Errorf("weaviate PUT request: %w", err)
 	}
-	putStatus := resp.StatusCode
-	_ = resp.Body.Close()
 
-	if putStatus == http.StatusOK {
+	if resp.StatusCode == http.StatusOK {
+		_ = resp.Body.Close()
 		return nil
 	}
 
-	// Шаг 2: объект не существует — создаём через POST
-	if putStatus == http.StatusNotFound {
+	// Weaviate 1.27+ иногда возвращает 500 с "no object with id" вместо 404
+	putBody, _ := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	putBodyStr := string(putBody)
+
+	if resp.StatusCode == http.StatusNotFound || strings.Contains(putBodyStr, "no object with id") {
+		// Шаг 2: объект не существует — создаём через POST
 		postURL := fmt.Sprintf("%s/v1/objects", s.baseURL)
 		req, err = http.NewRequestWithContext(ctx, http.MethodPost, postURL, bytes.NewReader(jsonBody))
 		if err != nil {
@@ -166,7 +170,7 @@ func (s *WeaviateStore) Upsert(ctx context.Context, chunk domain.Chunk) error {
 		return fmt.Errorf("weaviate error: status=%d, body=%s", resp.StatusCode, string(b))
 	}
 
-	return fmt.Errorf("weaviate PUT error: status=%d", putStatus)
+	return fmt.Errorf("weaviate PUT error: status=%d, body=%s", resp.StatusCode, putBodyStr)
 }
 
 // Delete удаляет чанк по ID из Weaviate. Идемпотентен: 404 не является ошибкой.

@@ -1,0 +1,122 @@
+# @sk-task docs-and-examples#T2.4: CI smoke for examples (AC-009).
+# @sk-task docs-and-examples#T3.4: полная CI matrix (AC-014).
+name: Examples Smoke
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  compose-validate:
+    name: Compose Validate
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [pgvector, qdrant, chromadb, weaviate, milvus]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate ${{ matrix.backend }} docker-compose.yml
+        run: docker compose -f examples/${{ matrix.backend }}/docker-compose.yml config
+      - name: Check compose validates cleanly
+        run: docker compose -f examples/${{ matrix.backend }}/docker-compose.yml config --quiet
+
+  examples-build:
+    name: Build Examples
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+      - name: Build all examples
+        run: go build ./examples/...
+      - name: Vet all examples
+        run: go vet ./examples/...
+      - name: Test shared package
+        run: go test ./examples/shared/ -count=1
+
+  examples-smoke:
+    name: Smoke ${{ matrix.backend }}
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [memory, pgvector, qdrant, chromadb, weaviate, milvus]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: examples/${{ matrix.backend }}
+    services:
+      pgvector:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: draftrag
+          POSTGRES_PASSWORD: draftrag
+          POSTGRES_DB: draftrag
+        options: >-
+          --health-cmd pg_isready -U draftrag
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+        if: ${{ matrix.backend == 'pgvector' }}
+      qdrant:
+        image: qdrant/qdrant:v1.12.4
+        options: >-
+          --health-cmd "curl -f http://localhost:6333/healthz"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 6333:6333
+        if: ${{ matrix.backend == 'qdrant' }}
+      chromadb:
+        image: chromadb/chroma:0.5.20
+        env:
+          IS_PERSISTENT: "TRUE"
+        options: >-
+          --health-cmd "curl -f http://localhost:8000/api/v1/heartbeat"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 8000:8000
+        if: ${{ matrix.backend == 'chromadb' }}
+      weaviate:
+        image: semitechnologies/weaviate:1.27.5
+        env:
+          ENABLE_MODULES: ""
+          AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: "true"
+        options: >-
+          --health-cmd "curl -f http://localhost:8080/v1/.well-known/ready"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 8080:8080
+        if: ${{ matrix.backend == 'weaviate' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+      - name: Start Milvus stack
+        if: ${{ matrix.backend == 'milvus' }}
+        run: docker compose up -d --wait
+      - name: Run example
+        env:
+          LLM_PROVIDER: mock
+          EMBEDDING_DIM: "1536"
+          PGVECTOR_DSN: postgres://draftrag:draftrag@localhost:5432/draftrag?sslmode=disable
+          QDRANT_URL: http://localhost:6333
+          CHROMADB_URL: http://localhost:8000
+          WEAVIATE_URL: http://localhost:8080
+          MILVUS_ADDR: localhost:19121
+        run: go run . 2>&1 | tee output.txt
+      - name: Verify mock output
+        run: grep -q "\[mock\]" output.txt
+      - name: Stop Milvus stack
+        if: ${{ matrix.backend == 'milvus' }}
+        run: docker compose down

@@ -23,7 +23,7 @@ Compact code-only navigation index for the draftRAG Go library.
 
 ## Top-Level Code
 
-- `internal/domain/` — domain layer: interfaces (`VectorStore`, `TransactionalDocumentStore`, `DocumentStore`, `Embedder`, `LLMProvider`, `Chunker`, `Hooks`, `Logger`, `Redactor`), models (`Document`, `RetrievalResult`, sentinels, `HybridConfig`), `models_test.go`
+- `internal/domain/` — domain layer: interfaces (`VectorStore`, `TransactionalDocumentStore`, `DocumentStore`, `Embedder`, `LLMProvider`, `Chunker`, `Hooks`, `Logger`), models (`Document`, `RetrievalResult`, sentinels, `HybridConfig`), redaction helpers (`RedactSecret`/`RedactSecrets`), `models_test.go`
 - `internal/application/` — application/orchestration layer: Pipeline implementation (index/query/retrieve/answer/stream), worker pool, atomic update, batch, MMR/rrf helpers, error sentinels
 - `internal/infrastructure/chunker/` — chunker implementation (`BasicChunker`)
 - `internal/infrastructure/embedder/` — concrete embedder HTTP clients (Ollama, OpenAI-compatible) + `cache/` subpackage (LRU + Redis + stats)
@@ -31,14 +31,14 @@ Compact code-only navigation index for the draftRAG Go library.
 - `internal/infrastructure/resilience/` — `circuitbreaker`, `retry`, `embedder`/`llm` wrappers, `hooks`, `errors`
 - `internal/infrastructure/vectorstore/` — concrete VectorStore implementations (pgvector with transactions, memory, qdrant, chromadb, weaviate, milvus, hybrid search) + extensive `*_test.go` per backend
 - `pkg/draftrag/` — public Go API surface: re-exports + facade + embedders/vectorstores/chunker/resilience/otel/eval/migrations
-- `examples/` — runnable examples (chat, index-dir, pgvector, qdrant) — NOT part of library API, demo only
+- `examples/` — 6 runnable per-backend examples (memory, pgvector, qdrant, chromadb, weaviate, milvus) + shared mock/print helpers + legacy (chat, index-dir) — NOT part of library API, demo only
 
 ## Key Paths
 
-- `internal/domain/interfaces.go` — `VectorStore`, `TransactionalDocumentStore` (BeginTx/DeleteByParentIDTx/UpsertTx/Commit/Rollback), `DocumentStore`, `Embedder`, `LLMProvider`, `Chunker`, `Hooks`, `Logger`, `Redactor`
+- `internal/domain/interfaces.go` — `VectorStore`, `TransactionalDocumentStore` (BeginTx/DeleteByParentIDTx/UpsertTx/Commit/Rollback), `DocumentStore`, `Embedder`, `LLMProvider`, `Chunker`, `Hooks`, `Logger`
 - `internal/domain/models.go` — `Document`, `RetrievalResult`, `HybridConfig`, sentinels (`ErrEmptyQuery`, `ErrInvalidQueryTopK`, `ErrUpdateNotAtomic`, `ErrEmbeddingDimensionMismatch`, etc.)
 - `internal/domain/hooks.go` — `Hooks` callback contract (OnStart/OnEnd/OnError) for instrumentation
-- `internal/domain/redaction.go` — `Redactor` for PII/token redaction
+- `internal/domain/redaction.go` — `RedactSecret` / `RedactSecrets` helpers for PII/token redaction
 - `internal/application/pipeline.go` — `(*Pipeline).Index`, `(*Pipeline).Query`, `(*Pipeline).Retrieve`, `(*Pipeline).Answer`, `(*Pipeline).UpdateDocument`; `PipelineConfig` + `Pipeline` field plumbing
 - `internal/application/worker_pool.go` — `processDocsConcurrently` (semaphore + ticker + per-worker or shared rate-limit)
 - `internal/application/atomic_update.go` — `updateDocumentAtomic` (transactional vs best-effort with `ErrUpdateNotAtomic`)
@@ -54,6 +54,7 @@ Compact code-only navigation index for the draftRAG Go library.
 - `pkg/draftrag/otel/` — OTel hooks (tracing + metrics)
 - `pkg/draftrag/eval/` — evaluation harness (`harness.go`, `metrics.go`, `models.go`)
 - `.github/workflows/ci.yml` — CI pipeline (test, lint, vet)
+- `.github/workflows/examples-smoke.yml` — per-backend smoke CI (compose-validate + build + 6× mock-run matrix)
 - `Makefile` — `test`, `test-cover`, `lint`, `lint-fix`, `fmt`, `fmt-check`, `vet`, `build`, `tidy`
 
 ## Where To Edit

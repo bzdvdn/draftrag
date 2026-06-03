@@ -1,25 +1,10 @@
-// Пример RAG с Qdrant — пример использования draftRAG.
-//
-// Создаёт коллекцию в Qdrant (если не существует), индексирует документы
-// и запускает интерактивный RAG-чат.
+// @sk-task docs-and-examples#T2.3: qdrant example — RAG-чат с Qdrant (AC-002).
+// Использует публичный API draftrag напрямую. Shared только для mock/print.
 //
 // Быстрый старт с Docker:
 //
-//	docker run -p 6333:6333 qdrant/qdrant
-//	EMBEDDER_API_KEY=sk-... LLM_API_KEY=sk-... \
-//	  go run ./examples/qdrant/
-//
-// Переменные окружения:
-//
-//	QDRANT_URL          — URL Qdrant сервера (по умолчанию: http://localhost:6333)
-//	QDRANT_COLLECTION   — имя коллекции (по умолчанию: draftrag_example)
-//	EMBEDDER_BASE_URL   — базовый URL embedder API (по умолчанию: https://api.openai.com)
-//	EMBEDDER_API_KEY    — ключ API для embedder (обязательно)
-//	EMBEDDER_MODEL      — модель embeddings (по умолчанию: text-embedding-ada-002)
-//	LLM_BASE_URL        — базовый URL LLM API (по умолчанию: https://api.openai.com)
-//	LLM_API_KEY         — ключ API для LLM (обязательно)
-//	LLM_MODEL           — модель LLM (по умолчанию: gpt-4o-mini)
-//	EMBEDDING_DIM       — размерность векторов (по умолчанию: 1536 для ada-002)
+//	docker compose up -d
+//	cp .env.example .env && go run .
 package main
 
 import (
@@ -31,39 +16,34 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/bzdvdn/draftrag/examples/shared"
 	"github.com/bzdvdn/draftrag/pkg/draftrag"
 )
 
-// Пример документов — описание туристических направлений.
+// @sk-task docs-and-examples#T2.3: демо-документы — туристические направления.
 var documents = []draftrag.Document{
 	{
-		ID:       "destination-bali",
-		Content:  "Бали — остров богов в Индонезии с богатой культурой и живописной природой. Лучшее время для посещения: апрель-октябрь (сухой сезон). Главные достопримечательности: рисовые террасы Тегалаланг, храм Тананах Лот на скале в океане, вулкан Батур с треккингом на рассвете, культурная столица Убуд с художественными галереями и традиционными танцами. Денпасар — столица и транспортный хаб острова.",
+		ID: "destination-bali", Content: "Бали — остров богов в Индонезии. Лучшее время: апрель-октябрь. Главные достопримечательности: рисовые террасы Тегалаланг, храм Тананах Лот, вулкан Батур. Денпасар — столица и транспортный хаб.",
 		Metadata: map[string]string{"region": "asia", "country": "indonesia"},
 	},
 	{
-		ID:       "destination-iceland",
-		Content:  "Исландия — страна льда и огня с уникальными природными явлениями. Северное сияние наблюдается с сентября по март. Золотое кольцо включает гейзер Гейсир, водопад Гюдльфосс и разломы тектонических плит Тингвеллир. Голубая лагуна — геотермальный спа-курорт. Рейкьявик — самая северная столица мира. Лучший сезон для пешего туризма: июнь-август. Полярный день летом позволяет гулять ночью.",
+		ID: "destination-iceland", Content: "Исландия — страна льда и огня. Северное сияние с сентября по март. Золотое кольцо: гейзер Гейсир, водопад Гюдльфосс, разломы Тингвеллир. Голубая лагуна — геотермальный спа.",
 		Metadata: map[string]string{"region": "europe", "country": "iceland"},
 	},
 	{
-		ID:       "destination-japan",
-		Content:  "Япония сочетает древние традиции и современные технологии. Токио — крупнейший мегаполис мира с районами Сибуя, Синдзюку и Акихабара. Сезон сакуры в марте-апреле привлекает миллионы туристов. Киото — древняя столица с тысячами храмов и чайными садами. Гора Фудзи — символ страны. Японская кухня: суши, рамен, темпура. Транспорт: Shinkansen (скоростные поезда) связывают все крупные города.",
+		ID: "destination-japan", Content: "Япония сочетает древние традиции и современные технологии. Токио — крупнейший мегаполис. Сакура в марте-апреле. Киото — древняя столица с храмами. Фудзи — символ страны.",
 		Metadata: map[string]string{"region": "asia", "country": "japan"},
 	},
 	{
-		ID:       "destination-peru",
-		Content:  "Перу — страна инков с мировым наследием UNESCO. Мачу-Пикчу — затерянный город инков на высоте 2430 метров, построенный в XV веке. Тропа инков — 4-дневный треккинг через горы и джунгли. Куско — историческая столица инкской империи. Озеро Титикака — самое высокогорное судоходное озеро мира. Амазонские джунгли занимают 60% территории страны. Лучшее время: май-сентябрь.",
+		ID: "destination-peru", Content: "Перу — страна инков. Мачу-Пикчу на высоте 2430 м. Тропа инков — 4-дневный треккинг. Куско — историческая столица инков. Озеро Титикака — высокогорное судоходное озеро.",
 		Metadata: map[string]string{"region": "americas", "country": "peru"},
 	},
 	{
-		ID:       "destination-morocco",
-		Content:  "Марокко — ворота Африки с богатым культурным наследием. Медина Марракеша — лабиринт улочек, шумные рынки (суки) и площадь Джемаа-эль-Фна с уличными артистами. Голубой город Шефшауэн расположен в горах Рифа. Пустыня Сахара в районе Мерзуги — верблюжьи туры и ночёвка в берберских шатрах. Фес — древнейший медресе мира. Касабланка — экономическая столица. Кухня: тажин, кускус, пастила.",
+		ID: "destination-morocco", Content: "Марокко — ворота Африки. Медина Марракеша, площадь Джемаа-эль-Фна. Голубой город Шефшауэн. Пустыня Сахара. Фес — древнейший медресе. Кухня: тажин, кускус.",
 		Metadata: map[string]string{"region": "africa", "country": "morocco"},
 	},
 	{
-		ID:       "destination-norway",
-		Content:  "Норвегия — страна фьордов, викингов и северного сияния. Гейрангерфьорд и Нэрёйфьорд включены в список UNESCO. Берген — ворота в страну фьордов с набережной Брюгген. Тролльтунга — скала над озером на высоте 1100 м, популярный треккинг. Лофотенские острова с рыбацкими деревнями идеальны для фотографии. Осло — столица с музеями вигеланда и Кон-Тики. Полярный круг пересекает страну примерно посередине.",
+		ID: "destination-norway", Content: "Норвегия — страна фьордов. Гейрангерфьорд — UNESCO. Берген — ворота в фьорды. Тролльтунга на высоте 1100 м. Лофотенские острова. Осло — столица.",
 		Metadata: map[string]string{"region": "europe", "country": "norway"},
 	},
 }
@@ -71,67 +51,61 @@ var documents = []draftrag.Document{
 func main() {
 	ctx := context.Background()
 
-	qdrantURL := envOrDefault("QDRANT_URL", "http://localhost:6333")
-	collection := envOrDefault("QDRANT_COLLECTION", "draftrag_example")
-	embeddingDim := envIntOrDefault("EMBEDDING_DIM", 1536)
+	provider := envOr("LLM_PROVIDER", "mock")
+	dim := envIntOr("EMBEDDING_DIM", 1536)
+	qdrantURL := envOr("QDRANT_URL", "http://localhost:6333")
+	collection := envOr("COLLECTION_NAME", "draftrag_chunks")
 
-	opts := draftrag.QdrantOptions{
-		URL:        qdrantURL,
-		Collection: collection,
-		Dimension:  embeddingDim,
+	llm, embedder := buildComponents(provider, dim)
+	if embedder == nil {
+		shared.PrintError("error: %s не предоставляет embedder; используйте ollama/openai для эмбеддингов или LLM_PROVIDER=mock", provider)
+		os.Exit(1)
 	}
 
-	fmt.Printf("Подключаемся к Qdrant: %s\n", qdrantURL)
+	qdrantOpts := draftrag.QdrantOptions{
+		URL: qdrantURL, Collection: collection, Dimension: dim,
+	}
 
-	// Создаём коллекцию, если она ещё не существует.
-	exists, err := draftrag.CollectionExists(ctx, opts)
+	shared.PrintInfo("подключаемся к Qdrant: %s", qdrantURL)
+
+	exists, err := draftrag.CollectionExists(ctx, qdrantOpts)
 	if err != nil {
-		fatalf("ошибка проверки коллекции: %v\n", err)
+		shared.PrintError("ошибка проверки коллекции: %v", err)
+		os.Exit(1)
 	}
 	if !exists {
-		fmt.Printf("Создаём коллекцию %q (dim=%d)...\n", collection, embeddingDim)
-		if err := draftrag.CreateCollection(ctx, opts); err != nil {
-			fatalf("ошибка создания коллекции: %v\n", err)
+		shared.PrintInfo("создаём коллекцию %q (dim=%d)", collection, dim)
+		if err := draftrag.CreateCollection(ctx, qdrantOpts); err != nil {
+			shared.PrintError("ошибка создания коллекции: %v", err)
+			os.Exit(1)
 		}
-		fmt.Println("Коллекция создана.")
+		shared.PrintInfo("коллекция создана")
 	} else {
-		fmt.Printf("Коллекция %q уже существует.\n", collection)
+		shared.PrintInfo("коллекция %q уже существует", collection)
 	}
 
-	store, err := draftrag.NewQdrantStore(opts)
+	store, err := draftrag.NewQdrantStore(qdrantOpts)
 	if err != nil {
-		fatalf("ошибка создания store: %v\n", err)
+		shared.PrintError("ошибка создания store: %v", err)
+		os.Exit(1)
 	}
 
-	embedder := draftrag.NewOpenAICompatibleEmbedder(draftrag.OpenAICompatibleEmbedderOptions{
-		BaseURL: envOrDefault("EMBEDDER_BASE_URL", "https://api.openai.com"),
-		APIKey:  mustEnv("EMBEDDER_API_KEY"),
-		Model:   envOrDefault("EMBEDDER_MODEL", "text-embedding-ada-002"),
-	})
+	pipeline := draftrag.NewPipelineWithChunker(store, llm, embedder, draftrag.NewBasicChunker(draftrag.BasicChunkerOptions{
+		ChunkSize: 1000,
+		Overlap:   100,
+	}))
 
-	llm := draftrag.NewOpenAICompatibleLLM(draftrag.OpenAICompatibleLLMOptions{
-		BaseURL: envOrDefault("LLM_BASE_URL", "https://api.openai.com"),
-		APIKey:  mustEnv("LLM_API_KEY"),
-		Model:   envOrDefault("LLM_MODEL", "gpt-4o-mini"),
-	})
-
-	pipeline := draftrag.NewPipelineWithOptions(store, llm, embedder, draftrag.PipelineOptions{
-		DefaultTopK: 3,
-		Chunker: draftrag.NewBasicChunker(draftrag.BasicChunkerOptions{
-			ChunkSize: 400,
-			Overlap:   50,
-		}),
-	})
-
-	fmt.Printf("Индексируем %d документов...\n", len(documents))
+	shared.PrintInfo("индексируем %d документов", len(documents))
 	if err := pipeline.Index(ctx, documents); err != nil {
-		// Если Qdrant недоступен — выводим понятное сообщение.
 		if errors.Is(err, draftrag.ErrEmptyDocument) {
-			fatalf("ошибка: пустой документ в наборе\n")
+			shared.PrintError("ошибка: пустой документ в наборе")
+			os.Exit(1)
 		}
-		fatalf("ошибка индексации: %v\n", err)
+		shared.PrintError("ошибка индексации: %v", err)
+		os.Exit(1)
 	}
-	fmt.Println("Индексация завершена.")
+	shared.PrintInfo("индексация завершена")
+
 	fmt.Println("\nRAG-чат с Qdrant готов. Введите вопрос (Ctrl+C для выхода):")
 	fmt.Println(strings.Repeat("─", 60))
 
@@ -149,34 +123,72 @@ func main() {
 		answer, sources, err := pipeline.Search(question).TopK(3).Cite(ctx)
 		if err != nil {
 			if errors.Is(err, draftrag.ErrFiltersNotSupported) {
-				fmt.Fprintln(os.Stderr, "фильтры не поддерживаются этим store")
+				shared.PrintError("фильтры не поддерживаются этим store")
 				continue
 			}
-			fmt.Fprintf(os.Stderr, "ошибка: %v\n", err)
+			shared.PrintError("ошибка: %v", err)
 			continue
 		}
 
 		fmt.Printf("\n%s\n", answer)
-
 		if len(sources.Chunks) > 0 {
 			fmt.Println("\nИсточники:")
 			for i, r := range sources.Chunks {
 				fmt.Printf("  [%d] %s (score=%.3f)\n", i+1, r.Chunk.ParentID, r.Score)
 			}
 		}
-
 		fmt.Println(strings.Repeat("─", 60))
 	}
 }
 
-func envOrDefault(key, def string) string {
+func buildComponents(provider string, dim int) (draftrag.LLMProvider, draftrag.Embedder) {
+	switch provider {
+	case "mock":
+		return shared.NewMockLLM(), shared.NewMockEmbedder(dim)
+	case "ollama":
+		host := envOr("OLLAMA_HOST", "http://localhost:11434")
+		return draftrag.NewOllamaLLM(draftrag.OllamaLLMOptions{
+			BaseURL: host, Model: envOr("OLLAMA_LLM_MODEL", "llama3.2"),
+		}), draftrag.NewOllamaEmbedder(draftrag.OllamaEmbedderOptions{
+			BaseURL: host, Model: envOr("OLLAMA_EMBED_MODEL", "nomic-embed-text"),
+		})
+	case "openai":
+		key := os.Getenv("OPENAI_API_KEY")
+		if key == "" {
+			shared.PrintError("error: required env var OPENAI_API_KEY not set; set LLM_PROVIDER=mock to run without API key")
+			os.Exit(1)
+		}
+		return draftrag.NewOpenAICompatibleLLM(draftrag.OpenAICompatibleLLMOptions{
+			APIKey: key, BaseURL: envOr("OPENAI_BASE_URL", "https://api.openai.com"),
+			Model: envOr("OPENAI_LLM_MODEL", "gpt-4o-mini"),
+		}), draftrag.NewOpenAICompatibleEmbedder(draftrag.OpenAICompatibleEmbedderOptions{
+			APIKey: key, BaseURL: envOr("OPENAI_BASE_URL", "https://api.openai.com"),
+			Model: envOr("OPENAI_EMBED_MODEL", "text-embedding-3-small"),
+		})
+	case "anthropic":
+		key := os.Getenv("ANTHROPIC_API_KEY")
+		if key == "" {
+			shared.PrintError("error: required env var ANTHROPIC_API_KEY not set; set LLM_PROVIDER=mock to run without API key")
+			os.Exit(1)
+		}
+		return draftrag.NewAnthropicLLM(draftrag.AnthropicLLMOptions{
+			APIKey: key, Model: envOr("ANTHROPIC_LLM_MODEL", "claude-3-5-sonnet-latest"),
+		}), nil
+	default:
+		shared.PrintError("error: unknown LLM_PROVIDER=%q", provider)
+		os.Exit(1)
+		return nil, nil
+	}
+}
+
+func envOr(key, def string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
 	}
 	return def
 }
 
-func envIntOrDefault(key string, def int) int {
+func envIntOr(key string, def int) int {
 	if v := os.Getenv(key); v != "" {
 		n, err := strconv.Atoi(v)
 		if err == nil && n > 0 {
@@ -184,17 +196,4 @@ func envIntOrDefault(key string, def int) int {
 		}
 	}
 	return def
-}
-
-func mustEnv(key string) string {
-	v := os.Getenv(key)
-	if v == "" {
-		fatalf("переменная окружения %s не задана\n", key)
-	}
-	return v
-}
-
-func fatalf(format string, args ...any) {
-	fmt.Fprintf(os.Stderr, format, args...)
-	os.Exit(1)
 }

@@ -12,6 +12,9 @@ import (
 	"github.com/bzdvdn/draftrag/internal/domain"
 )
 
+// c1hash — ожидаемое значение stringToMilvusID("c1") для тестовых проверок.
+var c1hash = stringToMilvusID("c1")
+
 // milvusOKResp формирует успешный ответ Milvus REST API v2 с произвольным data-полем.
 func milvusOKResp(data any) string {
 	b, _ := json.Marshal(data)
@@ -28,15 +31,13 @@ func itoa(n int) string {
 	return string(b)
 }
 
-// readBody читает и декодирует JSON-тело запроса в map.
+// readBody читает и декодирует JSON-тело запроса в map (с UseNumber для точности Int64).
 func readBody(t *testing.T, r *http.Request) map[string]any {
 	t.Helper()
-	b, err := io.ReadAll(r.Body)
-	if err != nil {
-		t.Fatalf("read body: %v", err)
-	}
 	var m map[string]any
-	if err := json.Unmarshal(b, &m); err != nil {
+	dec := json.NewDecoder(r.Body)
+	dec.UseNumber()
+	if err := dec.Decode(&m); err != nil {
 		t.Fatalf("decode body: %v", err)
 	}
 	return m
@@ -53,7 +54,7 @@ func TestMilvusUpsert(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	store := NewMilvusStore(srv.URL, "docs", "")
+	store := NewMilvusStore(srv.URL, "docs", "", 0)
 	chunk := domain.Chunk{
 		ID:        "c1",
 		Content:   "hello world",
@@ -74,8 +75,17 @@ func TestMilvusUpsert(t *testing.T) {
 		t.Fatalf("data должен содержать один элемент, got %v", captured["data"])
 	}
 	item := data[0].(map[string]any)
-	if item["id"] != "c1" {
-		t.Errorf("id = %v, want c1", item["id"])
+	idVal, ok := item["id"].(json.Number)
+	if !ok {
+		t.Errorf("id = %v (type %T), want json.Number(%d)", item["id"], item["id"], c1hash)
+	} else {
+		got, _ := idVal.Int64()
+		if got != c1hash {
+			t.Errorf("id = %d, want %d", got, c1hash)
+		}
+	}
+	if item["doc_id"] != "c1" {
+		t.Errorf("doc_id = %v, want c1", item["doc_id"])
 	}
 	if item["text"] != "hello world" {
 		t.Errorf("text = %v, want hello world", item["text"])
@@ -100,7 +110,7 @@ func TestMilvusDelete(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	store := NewMilvusStore(srv.URL, "docs", "")
+	store := NewMilvusStore(srv.URL, "docs", "", 0)
 	if err := store.Delete(context.Background(), "test-id"); err != nil {
 		t.Fatalf("Delete error: %v", err)
 	}
@@ -108,7 +118,7 @@ func TestMilvusDelete(t *testing.T) {
 	if captured["collectionName"] != "docs" {
 		t.Errorf("collectionName = %v, want docs", captured["collectionName"])
 	}
-	wantFilter := `id == "test-id"`
+	wantFilter := `doc_id == "test-id"`
 	if captured["filter"] != wantFilter {
 		t.Errorf("filter = %q, want %q", captured["filter"], wantFilter)
 	}
@@ -118,8 +128,8 @@ func TestMilvusDelete(t *testing.T) {
 // @sk-task T4.1: тест AC-003
 func TestMilvusSearch(t *testing.T) {
 	respData := []map[string]any{
-		{"id": "c1", "text": "first", "parent_id": "p1", "metadata": map[string]string{"lang": "ru"}, "distance": 0.9},
-		{"id": "c2", "text": "second", "parent_id": "p2", "metadata": nil, "distance": 0.7},
+		{"id": stringToMilvusID("c1"), "doc_id": "c1", "text": "first", "parent_id": "p1", "metadata": map[string]string{"lang": "ru"}, "distance": 0.9},
+		{"id": stringToMilvusID("c2"), "doc_id": "c2", "text": "second", "parent_id": "p2", "metadata": nil, "distance": 0.7},
 	}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -127,7 +137,7 @@ func TestMilvusSearch(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	store := NewMilvusStore(srv.URL, "docs", "")
+	store := NewMilvusStore(srv.URL, "docs", "", 0)
 	result, err := store.Search(context.Background(), []float64{0.1, 0.2}, 5)
 	if err != nil {
 		t.Fatalf("Search error: %v", err)
@@ -158,7 +168,7 @@ func TestMilvusSearchEmptyResult(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	store := NewMilvusStore(srv.URL, "docs", "")
+	store := NewMilvusStore(srv.URL, "docs", "", 0)
 	result, err := store.Search(context.Background(), []float64{0.1}, 5)
 	if err != nil {
 		t.Fatalf("Search error: %v", err)
@@ -179,7 +189,7 @@ func TestMilvusSearchWithFilter_WithParentIDs(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	store := NewMilvusStore(srv.URL, "docs", "")
+	store := NewMilvusStore(srv.URL, "docs", "", 0)
 	_, err := store.SearchWithFilter(context.Background(), []float64{0.1}, 5, domain.ParentIDFilter{
 		ParentIDs: []string{"a", "b"},
 	})
@@ -207,7 +217,7 @@ func TestMilvusSearchWithFilter_EmptyParentIDs(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	store := NewMilvusStore(srv.URL, "docs", "")
+	store := NewMilvusStore(srv.URL, "docs", "", 0)
 	_, err := store.SearchWithFilter(context.Background(), []float64{0.1}, 5, domain.ParentIDFilter{})
 	if err != nil {
 		t.Fatalf("SearchWithFilter error: %v", err)
@@ -229,7 +239,7 @@ func TestMilvusSearchWithMetadataFilter_WithFields(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	store := NewMilvusStore(srv.URL, "docs", "")
+	store := NewMilvusStore(srv.URL, "docs", "", 0)
 	_, err := store.SearchWithMetadataFilter(context.Background(), []float64{0.1}, 5, domain.MetadataFilter{
 		Fields: map[string]string{"source": "wiki"},
 	})
@@ -258,7 +268,7 @@ func TestMilvusSearchWithMetadataFilter_EmptyFields(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	store := NewMilvusStore(srv.URL, "docs", "")
+	store := NewMilvusStore(srv.URL, "docs", "", 0)
 	_, err := store.SearchWithMetadataFilter(context.Background(), []float64{0.1}, 5, domain.MetadataFilter{})
 	if err != nil {
 		t.Fatalf("SearchWithMetadataFilter error: %v", err)
@@ -280,7 +290,7 @@ func TestMilvusDeleteByParentID(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	store := NewMilvusStore(srv.URL, "docs", "")
+	store := NewMilvusStore(srv.URL, "docs", "", 0)
 	if err := store.DeleteByParentID(context.Background(), "p1"); err != nil {
 		t.Fatalf("DeleteByParentID error: %v", err)
 	}
@@ -300,7 +310,7 @@ func TestMilvusDoRequest_CodeError(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	store := NewMilvusStore(srv.URL, "docs", "")
+	store := NewMilvusStore(srv.URL, "docs", "", 0)
 	err := store.Upsert(context.Background(), domain.Chunk{
 		ID: "x", Content: "y", ParentID: "z",
 	})
@@ -324,7 +334,7 @@ func TestMilvusDoRequest_HTTP5xx(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	store := NewMilvusStore(srv.URL, "docs", "")
+	store := NewMilvusStore(srv.URL, "docs", "", 0)
 	err := store.Delete(context.Background(), "any-id")
 	if err == nil {
 		t.Fatal("ожидалась ошибка при HTTP 500, получен nil")
@@ -346,15 +356,14 @@ func TestMilvusBearerToken(t *testing.T) {
 	defer srv.Close()
 
 	// С токеном
-	store := NewMilvusStore(srv.URL, "docs", "mytoken")
+	store := NewMilvusStore(srv.URL, "docs", "mytoken", 0)
 	_ = store.Delete(context.Background(), "id1")
 	if capturedHeader != "Bearer mytoken" {
-		t.Errorf("Authorization = %q, want %q", capturedHeader, "Bearer mytoken")
+		t.Errorf("ожидался Bearer mytoken, got %q", capturedHeader)
 	}
-
-	// Без токена
 	capturedHeader = ""
-	storeNoToken := NewMilvusStore(srv.URL, "docs", "")
+	// Без токена
+	storeNoToken := NewMilvusStore(srv.URL, "docs", "", 0)
 	_ = storeNoToken.Delete(context.Background(), "id2")
 	if capturedHeader != "" {
 		t.Errorf("Authorization заголовок не должен добавляться при пустом token, got %q", capturedHeader)
@@ -372,7 +381,7 @@ func TestMilvusSearchHybrid_RRF(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	store := NewMilvusStore(srv.URL, "docs", "")
+	store := NewMilvusStore(srv.URL, "docs", "", 0)
 	config := domain.HybridConfig{UseRRF: true, RRFK: 60}
 	_, err := store.SearchHybrid(context.Background(), "test query", []float64{0.1}, 5, config)
 	if err != nil {
@@ -390,8 +399,14 @@ func TestMilvusSearchHybrid_RRF(t *testing.T) {
 	if !ok {
 		t.Fatal("ranker.params отсутствует")
 	}
-	if params["k"] != float64(60) {
-		t.Errorf("ranker.params.k = %v, want 60", params["k"])
+	kVal, ok := params["k"].(json.Number)
+	if !ok {
+		t.Errorf("ranker.params.k = %v (type %T), want json.Number(60)", params["k"], params["k"])
+	} else {
+		kInt, _ := kVal.Int64()
+		if kInt != 60 {
+			t.Errorf("ranker.params.k = %d, want 60", kInt)
+		}
 	}
 }
 
@@ -406,7 +421,7 @@ func TestMilvusSearchHybrid_Weighted(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	store := NewMilvusStore(srv.URL, "docs", "")
+	store := NewMilvusStore(srv.URL, "docs", "", 0)
 	config := domain.HybridConfig{UseRRF: false, RRFK: 60}
 	_, err := store.SearchHybrid(context.Background(), "test query", []float64{0.1}, 5, config)
 	if err != nil {
@@ -431,7 +446,7 @@ func TestMilvusSearchHybrid_InvalidConfig(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	store := NewMilvusStore(srv.URL, "docs", "")
+	store := NewMilvusStore(srv.URL, "docs", "", 0)
 	config := domain.HybridConfig{SemanticWeight: 1.5} // невалидно (> 1.0)
 	_, err := store.SearchHybrid(context.Background(), "test query", []float64{0.1}, 5, config)
 	if err == nil {
@@ -451,7 +466,7 @@ func TestMilvusSearchHybrid_APIError(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	store := NewMilvusStore(srv.URL, "docs", "")
+	store := NewMilvusStore(srv.URL, "docs", "", 0)
 	config := domain.HybridConfig{UseRRF: true, RRFK: 60}
 	_, err := store.SearchHybrid(context.Background(), "test query", []float64{0.1}, 5, config)
 	if err == nil {
@@ -471,7 +486,7 @@ func TestMilvusSearchHybrid_EmptyResults(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	store := NewMilvusStore(srv.URL, "docs", "")
+	store := NewMilvusStore(srv.URL, "docs", "", 0)
 	config := domain.HybridConfig{UseRRF: true, RRFK: 60}
 	result, err := store.SearchHybrid(context.Background(), "test query", []float64{0.1}, 5, config)
 	if err != nil {
@@ -493,7 +508,7 @@ func TestMilvusSearchHybridWithParentIDFilter_WithParentIDs(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	store := NewMilvusStore(srv.URL, "docs", "")
+	store := NewMilvusStore(srv.URL, "docs", "", 0)
 	config := domain.HybridConfig{UseRRF: true, RRFK: 60}
 	filter := domain.ParentIDFilter{ParentIDs: []string{"a", "b"}}
 	_, err := store.SearchHybridWithParentIDFilter(context.Background(), "test query", []float64{0.1}, 5, config, filter)
@@ -532,7 +547,7 @@ func TestMilvusSearchHybridWithParentIDFilter_EmptyParentIDs(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	store := NewMilvusStore(srv.URL, "docs", "")
+	store := NewMilvusStore(srv.URL, "docs", "", 0)
 	config := domain.HybridConfig{UseRRF: true, RRFK: 60}
 	filter := domain.ParentIDFilter{}
 	_, err := store.SearchHybridWithParentIDFilter(context.Background(), "test query", []float64{0.1}, 5, config, filter)
@@ -567,7 +582,7 @@ func TestMilvusSearchHybridWithMetadataFilter_WithFields(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	store := NewMilvusStore(srv.URL, "docs", "")
+	store := NewMilvusStore(srv.URL, "docs", "", 0)
 	config := domain.HybridConfig{UseRRF: true, RRFK: 60}
 	filter := domain.MetadataFilter{Fields: map[string]string{"source": "wiki"}}
 	_, err := store.SearchHybridWithMetadataFilter(context.Background(), "test query", []float64{0.1}, 5, config, filter)
@@ -606,7 +621,7 @@ func TestMilvusSearchHybridWithMetadataFilter_EmptyFields(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	store := NewMilvusStore(srv.URL, "docs", "")
+	store := NewMilvusStore(srv.URL, "docs", "", 0)
 	config := domain.HybridConfig{UseRRF: true, RRFK: 60}
 	filter := domain.MetadataFilter{}
 	_, err := store.SearchHybridWithMetadataFilter(context.Background(), "test query", []float64{0.1}, 5, config, filter)

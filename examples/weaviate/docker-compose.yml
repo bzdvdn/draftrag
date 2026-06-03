@@ -1,0 +1,19 @@
+services:
+  weaviate:
+    image: semitechnologies/weaviate:1.27.5
+    ports:
+      - "8080:8080"
+    environment:
+      ENABLE_MODULES: ""
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: "true"
+      PERSISTENCE_DATA_PATH: /var/lib/weaviate
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/.well-known/ready"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  weaviate_data:

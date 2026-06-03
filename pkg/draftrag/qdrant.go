@@ -169,12 +169,14 @@ func CollectionExists(ctx context.Context, opts QdrantOptions) (bool, error) {
 	}
 
 	var result struct {
-		Result bool `json:"result"`
+		Result struct {
+			Exists bool `json:"exists"`
+		} `json:"result"`
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return false, fmt.Errorf("decode response: %w", err)
 	}
 
-	return result.Result, nil
+	return result.Result.Exists, nil
 }

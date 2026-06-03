@@ -27,10 +27,71 @@ type milvusBaseResponse struct {
 // Паттерн аналогичен WeaviateStore и QdrantStore в этом пакете.
 // @ds-task T1.1: Создать структуру MilvusStore (AC-007, DEC-001)
 type MilvusStore struct {
-	baseURL    string // базовый URL к Milvus REST, напр. "http://localhost:19121"
+	baseURL    string // базовый URL к Milvus REST, напр. "http://localhost:19530"
 	collection string // имя коллекции Milvus
 	token      string // Bearer-токен; пустая строка — без аутентификации (DEC-002)
 	client     *http.Client
+	dimension  int
+}
+
+// CreateMilvusCollection создаёт коллекцию в Milvus с dynamic fields.
+// Milvus v2.4 REST API всегда создаёт Int64 id как primary key и FloatVector vector.
+// dynamic fields (doc_id, text, parent_id, metadata) хранятся как JSON.
+// Milvus v2.4+ REST API: POST /v2/vectordb/collections/create
+func CreateMilvusCollection(ctx context.Context, baseURL, collection, token string, dimension int) error {
+	client := &http.Client{Timeout: 120 * time.Second}
+	body := map[string]any{
+		"collectionName":     collection,
+		"dimension":          dimension,
+		"enableDynamicField": true,
+	}
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("marshal: %w", err)
+	}
+	url := baseURL + "/v2/vectordb/collections/create"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(jsonBody))
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("request: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	respBytes, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("milvus: status=%d body=%s", resp.StatusCode, string(respBytes))
+	}
+	var result struct {
+		Code int    `json:"code"`
+		Msg  string `json:"message"`
+	}
+	if err := json.Unmarshal(respBytes, &result); err != nil {
+		return fmt.Errorf("decode: %w", err)
+	}
+	if result.Code != 0 {
+		return fmt.Errorf("milvus: code=%d msg=%s", result.Code, result.Msg)
+	}
+	return nil
+}
+
+// stringToMilvusID конвертирует строковый ID в Int64 через FNV-1a hash (для Milvus Int64 primary key).
+func stringToMilvusID(s string) int64 {
+	h := int64(0x811c9dc5)
+	prime := int64(0x01000193)
+	for i := 0; i < len(s); i++ {
+		h ^= int64(s[i])
+		h *= prime
+	}
+	if h < 0 {
+		h = -h
+	}
+	return h
 }
 
 // Compile-time проверки: MilvusStore обязан реализовывать три domain-интерфейса.
@@ -47,15 +108,17 @@ var _ domain.HybridSearcher = (*MilvusStore)(nil)
 var _ domain.HybridSearcherWithFilters = (*MilvusStore)(nil)
 
 // NewMilvusStore создаёт MilvusStore с указанными параметрами.
-// baseURL: полный URL к Milvus REST API, напр. "http://localhost:19121".
+// baseURL: полный URL к Milvus REST API, напр. "http://localhost:19530".
 // token: Bearer-токен для Authorization; передайте пустую строку если аутентификация не нужна (DEC-002).
+// dimension: размерность эмбеддингов (0 = не проверять).
 // @ds-task T1.1: Конструктор MilvusStore (DEC-001, DEC-002)
-func NewMilvusStore(baseURL, collection, token string) *MilvusStore {
+func NewMilvusStore(baseURL, collection, token string, dimension int) *MilvusStore {
 	return &MilvusStore{
 		baseURL:    baseURL,
 		collection: collection,
 		token:      token,
-		client:     &http.Client{Timeout: 10 * time.Second},
+		dimension:  dimension,
+		client:     &http.Client{Timeout: 60 * time.Second},
 	}
 }
 
@@ -111,12 +174,14 @@ func (s *MilvusStore) doRequest(ctx context.Context, path string, body any) (jso
 }
 
 // Upsert сохраняет или обновляет чанк в Milvus-коллекции.
-// Сериализует domain.Chunk в тело DM-002 (Upsert body) и отправляет POST /v2/vectordb/entities/upsert.
-// metadata передаётся как JSON-объект — encoding/json сериализует map[string]string напрямую (DEC-003).
+// Milvus v2.4 REST API требует Int64 primary key, поэтому chunk.ID хешируется
+// через stringToMilvusID() (FNV-1a). Оригинальный строковый ID сохраняется
+// в динамическом поле doc_id для поиска и удаления.
 // @ds-task T2.1: Upsert через POST /v2/vectordb/entities/upsert (AC-001, DEC-003)
 func (s *MilvusStore) Upsert(ctx context.Context, chunk domain.Chunk) error {
 	type milvusEntity struct {
-		ID       string            `json:"id"`
+		ID       int64             `json:"id"`
+		DocID    string            `json:"doc_id"`
 		Text     string            `json:"text"`
 		ParentID string            `json:"parent_id"`
 		Metadata map[string]string `json:"metadata"`
@@ -126,7 +191,8 @@ func (s *MilvusStore) Upsert(ctx context.Context, chunk domain.Chunk) error {
 		"collectionName": s.collection,
 		"data": []milvusEntity{
 			{
-				ID:       chunk.ID,
+				ID:       stringToMilvusID(chunk.ID),
+				DocID:    chunk.ID,
 				Text:     chunk.Content,
 				ParentID: chunk.ParentID,
 				Metadata: chunk.Metadata,
@@ -138,13 +204,14 @@ func (s *MilvusStore) Upsert(ctx context.Context, chunk domain.Chunk) error {
 	return err
 }
 
-// Delete удаляет чанк по ID из Milvus.
-// Отправляет POST /v2/vectordb/entities/delete с фильтром id == "<id>" (DM-002).
-// @ds-task T2.2: Delete с фильтром id == "<id>" (AC-002)
+// Delete удаляет чанк по оригинальному строковому ID из Milvus.
+// Milvus primary key — Int64 (хеш), поэтому фильтруем по динамическому полю doc_id.
+// Отправляет POST /v2/vectordb/entities/delete с фильтром doc_id == "<id>" (DM-002).
+// @ds-task T2.2: Delete с фильтром doc_id == "<id>" (AC-002)
 func (s *MilvusStore) Delete(ctx context.Context, id string) error {
 	body := map[string]any{
 		"collectionName": s.collection,
-		"filter":         fmt.Sprintf(`id == "%s"`, id),
+		"filter":         fmt.Sprintf(`doc_id == "%s"`, id),
 	}
 	_, err := s.doRequest(ctx, "/v2/vectordb/entities/delete", body)
 	return err
@@ -176,7 +243,7 @@ func (s *MilvusStore) doSearch(ctx context.Context, embedding []float64, topK in
 		"collectionName": s.collection,
 		"data":           [][]float64{embedding},
 		"limit":          topK,
-		"outputFields":   []string{"id", "text", "parent_id", "metadata"},
+		"outputFields":   []string{"id", "doc_id", "text", "parent_id", "metadata"},
 	}
 	if filter != "" {
 		body["filter"] = filter
@@ -190,6 +257,7 @@ func (s *MilvusStore) doSearch(ctx context.Context, embedding []float64, topK in
 }
 
 // parseMilvusSearchData десериализует поле data из ответа Milvus Search в domain.RetrievalResult.
+// Milvus primary key id — Int64 (хеш); оригинальный строковый ID берётся из doc_id.
 // Пустой data или null → пустой слайс, не ошибка (DM-003).
 // metadata десериализуется из JSON-объекта в map[string]string (DEC-003).
 func parseMilvusSearchData(data json.RawMessage) (domain.RetrievalResult, error) {
@@ -198,7 +266,8 @@ func parseMilvusSearchData(data json.RawMessage) (domain.RetrievalResult, error)
 	}
 
 	var items []struct {
-		ID       string          `json:"id"`
+		ID       int64           `json:"id"`
+		DocID    string          `json:"doc_id"`
 		Text     string          `json:"text"`
 		ParentID string          `json:"parent_id"`
 		Metadata json.RawMessage `json:"metadata"`
@@ -213,8 +282,13 @@ func parseMilvusSearchData(data json.RawMessage) (domain.RetrievalResult, error)
 
 	chunks := make([]domain.RetrievedChunk, 0, len(items))
 	for _, item := range items {
+		id := item.DocID
+		if id == "" {
+			// fallback: если doc_id отсутствует, используем строковое представление хеша
+			id = fmt.Sprintf("%d", item.ID)
+		}
 		chunk := domain.Chunk{
-			ID:       item.ID,
+			ID:       id,
 			Content:  item.Text,
 			ParentID: item.ParentID,
 		}
@@ -331,7 +405,8 @@ func parseMilvusHybridSearchData(data json.RawMessage) (domain.RetrievalResult, 
 
 	var response struct {
 		Results []struct {
-			ID       string          `json:"id"`
+			ID       int64           `json:"id"`
+			DocID    string          `json:"doc_id"`
 			Text     string          `json:"text"`
 			ParentID string          `json:"parent_id"`
 			Metadata json.RawMessage `json:"metadata"`
@@ -347,8 +422,12 @@ func parseMilvusHybridSearchData(data json.RawMessage) (domain.RetrievalResult, 
 
 	chunks := make([]domain.RetrievedChunk, 0, len(response.Results))
 	for _, item := range response.Results {
+		id := item.DocID
+		if id == "" {
+			id = fmt.Sprintf("%d", item.ID)
+		}
 		chunk := domain.Chunk{
-			ID:       item.ID,
+			ID:       id,
 			Content:  item.Text,
 			ParentID: item.ParentID,
 		}

@@ -28,9 +28,10 @@ func TestCreateCollection(t *testing.T) {
 
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"result": true,
+			"result": map[string]interface{}{
+				"exists": true,
+			},
 			"status": "ok",
-			"time":   0.1,
 		})
 	}))
 	defer server.Close()
@@ -95,7 +96,9 @@ func TestCollectionExists(t *testing.T) {
 
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"result": true,
+			"result": map[string]interface{}{
+				"exists": true,
+			},
 			"status": "ok",
 		})
 	}))
@@ -115,7 +118,9 @@ func TestCollectionExists_NotFound(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"result": false,
+			"result": map[string]interface{}{
+				"exists": false,
+			},
 			"status": "ok",
 		})
 	}))

@@ -231,9 +231,10 @@ docker run -d -p 19530:19530 -p 9091:9091 milvusdb/milvus:latest
 
 ## Capability-таблица
 
+<!-- @sk-task docs-and-examples#T3.6: ссылки на examples/ в первой колонке capability-таблицы (AC-015) -->
 <!-- @sk-task api-consistency-pass#T3.5: docs sync — capability-таблица 6×6 = 36 ячеек (DEC-008, RQ-008, AC-014) -->
 
-| | In-Memory | pgvector | Qdrant | ChromaDB | Weaviate | Milvus |
+| | [In-Memory](examples/memory/) | [pgvector](examples/pgvector/) | [Qdrant](examples/qdrant/) | [ChromaDB](examples/chromadb/) | [Weaviate](examples/weaviate/) | [Milvus](examples/milvus/) |
 |---|---|---|---|---|---|---|
 | **Basic retrieval** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Metadata filter** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |

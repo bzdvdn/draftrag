@@ -6,6 +6,7 @@
 
 ## Реализовано ✅
 
+<!-- @sk-task docs-and-examples#T3.7: entry in Реализовано ✅ таблица (AC-013) -->
 <!-- @sk-task api-consistency-pass#T3.5: docs sync — Weaviate/Milvus moved to Реализовано ✅ (DEC-008, RQ-008, AC-015) -->
 
 | Фича | Статус | Примечание |
@@ -37,6 +38,7 @@
 | pgvector migrations | ✅ | Версионированные миграции |
 | Weaviate vector store | ✅ | Basic retrieval, фильтры, управление коллекциями; ⚠️ hybrid search не поддерживается (status: experimental) |
 | Milvus vector store | ✅ | High-performance distributed; basic retrieval, фильтры; ⚠️ hybrid search не поддерживается (public API в разработке) |
+| Обширные examples + tutorials (docs-and-examples) | ✅ | 6 backend'ов × Docker Compose, 10 tutorials в `docs/tutorials/ru/`, CI smoke matrix |
 
 ---
 

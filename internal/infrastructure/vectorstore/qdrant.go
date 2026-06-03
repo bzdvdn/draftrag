@@ -3,6 +3,7 @@ package vectorstore
 import (
 	"bytes"
 	"context"
+	"crypto/md5"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +14,14 @@ import (
 
 	"github.com/bzdvdn/draftrag/internal/domain"
 )
+
+// stringToQdrantID конвертирует строковый ID в UUIDv3-подобный формат
+// через MD5-хэш, т.к. Qdrant v1.12+ не принимает строковые point IDs.
+func stringToQdrantID(s string) string {
+	h := md5.Sum([]byte(s))
+	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
+		h[0:4], h[4:6], h[6:8], h[8:10], h[10:16])
+}
 
 // QdrantStore реализует domain.VectorStore и domain.VectorStoreWithFilters через Qdrant REST API.
 //
@@ -46,7 +55,12 @@ type qdrantSearchResponse struct {
 func qdrantToRetrievedChunks(points []qdrantPoint) []domain.RetrievedChunk {
 	chunks := make([]domain.RetrievedChunk, 0, len(points))
 	for _, point := range points {
-		chunk := domain.Chunk{ID: point.ID}
+		// Восстанавливаем оригинальный ID из payload (Qdrant хранит UUID, а исходный ID — в payload.id)
+		origID := point.ID
+		if id, ok := point.Payload["id"].(string); ok {
+			origID = id
+		}
+		chunk := domain.Chunk{ID: origID}
 
 		if content, ok := point.Payload["content"].(string); ok {
 			chunk.Content = content
@@ -177,9 +191,9 @@ func (s *QdrantStore) Upsert(ctx context.Context, chunk domain.Chunk) error {
 		payload["metadata."+k] = v
 	}
 
-	// Формирование запроса
+	// Формирование запроса (Qdrant v1.12+ требует UUID/числовой ID, используем UUID из хэша)
 	point := map[string]interface{}{
-		"id":      chunk.ID,
+		"id":      stringToQdrantID(chunk.ID),
 		"vector":  chunk.Embedding,
 		"payload": payload,
 	}
@@ -230,7 +244,7 @@ func (s *QdrantStore) Delete(ctx context.Context, id string) error {
 	return doJSONAndExpectStatus(
 		ctx, s.client,
 		http.MethodPost, url,
-		map[string]any{"points": []string{id}},
+		map[string]any{"points": []string{stringToQdrantID(id)}},
 		http.StatusOK,
 		"qdrant",
 		"qdrant",

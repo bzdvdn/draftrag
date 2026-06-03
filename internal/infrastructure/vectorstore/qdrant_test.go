@@ -105,7 +105,7 @@ func TestQdrantStore_UpsertDelete(t *testing.T) {
 				require.Len(t, points, 1)
 
 				point := points[0].(map[string]interface{})
-				assert.Equal(t, "chunk1", point["id"])
+				assert.Equal(t, stringToQdrantID("chunk1"), point["id"])
 
 				payload := point["payload"].(map[string]interface{})
 				assert.Equal(t, "test content", payload["content"])
@@ -127,7 +127,7 @@ func TestQdrantStore_UpsertDelete(t *testing.T) {
 
 				points, ok := req["points"].([]interface{})
 				require.True(t, ok)
-				assert.Contains(t, points, "chunk1")
+				assert.Contains(t, points, stringToQdrantID("chunk1"))
 
 				w.WriteHeader(http.StatusOK)
 				_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok"})

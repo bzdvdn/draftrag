@@ -139,7 +139,7 @@ func TestMilvusStore_Interfaces(t *testing.T) {
 	var _ domain.HybridSearcher = (*MilvusStore)(nil)
 
 	// Если скомпилируется - интерфейсы реализованы корректно
-	store := NewMilvusStore("http://localhost:19530", "test", "")
+	store := NewMilvusStore("http://localhost:19530", "test", "", 0)
 	if store == nil {
 		t.Error("expected non-nil store")
 	}

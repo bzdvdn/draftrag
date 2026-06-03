@@ -573,6 +573,9 @@ func (s *ChromaStore) CollectionExists(ctx context.Context) (bool, error) {
 		return true, nil
 	case http.StatusNotFound:
 		return false, nil
+	case http.StatusBadRequest:
+		// ChromaDB возвращает 400 с "does not exist" вместо 404
+		return false, nil
 	default:
 		b, _ := io.ReadAll(resp.Body)
 		return false, fmt.Errorf("chromadb: status=%d body=%s", resp.StatusCode, string(b))

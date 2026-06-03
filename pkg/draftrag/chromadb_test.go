@@ -86,13 +86,13 @@ func TestChromaDBCreateCollection(t *testing.T) {
 		Dimension:  768,
 	}
 
-	err := CreateChromaCollection(context.Background(), opts)
+	_, err := CreateChromaCollection(context.Background(), opts)
 	require.NoError(t, err)
 }
 
 // T3.2 Тест CreateCollection с валидацией
 func TestChromaDBCreateCollection_Validation(t *testing.T) {
-	err := CreateChromaCollection(context.Background(), ChromaDBOptions{
+	_, err := CreateChromaCollection(context.Background(), ChromaDBOptions{
 		Collection: "",
 		Dimension:  768,
 	})
@@ -209,7 +209,7 @@ func TestChromaDBCreateCollection_ContextTimeout(t *testing.T) {
 		Dimension:  768,
 	}
 
-	err := CreateChromaCollection(ctx, opts)
+	_, err := CreateChromaCollection(ctx, opts)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "context deadline exceeded")
 }
