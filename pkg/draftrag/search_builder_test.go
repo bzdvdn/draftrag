@@ -254,3 +254,78 @@ func TestSearchBuilder_StreamSources_StreamingNotSupported(t *testing.T) {
 		t.Error("RetrievalResult должен быть пустым при ошибке")
 	}
 }
+
+// @sk-test searchbuilder-generics#T3.1: table-driven test всех комбинаций маршрут × output-метод (AC-002)
+func TestSearchBuilder_RouteMatrix(t *testing.T) {
+	p, _ := setupPipeline(t)
+	ctx := context.Background()
+
+	routes := []struct {
+		name  string
+		setup func(*SearchBuilder) *SearchBuilder
+	}{
+		{"basic", func(b *SearchBuilder) *SearchBuilder { return b }},
+		{"HyDE", func(b *SearchBuilder) *SearchBuilder { return b.HyDE() }},
+		{"MultiQuery", func(b *SearchBuilder) *SearchBuilder { return b.MultiQuery(2) }},
+		{"Hybrid", func(b *SearchBuilder) *SearchBuilder { return b.Hybrid(HybridConfig{SemanticWeight: 0.7}) }},
+		{"ParentIDs", func(b *SearchBuilder) *SearchBuilder { return b.ParentIDs("doc-1") }},
+		{"Filter", func(b *SearchBuilder) *SearchBuilder { return b.Filter(MetadataFilter{Fields: map[string]string{"key": "val"}}) }},
+	}
+
+	methods := []struct {
+		name string
+		call func(*SearchBuilder) error
+	}{
+		{"Retrieve", func(b *SearchBuilder) error { _, err := b.TopK(3).Retrieve(ctx); return err }},
+		{"Answer", func(b *SearchBuilder) error { _, err := b.TopK(3).Answer(ctx); return err }},
+		{"Cite", func(b *SearchBuilder) error { _, _, err := b.TopK(3).Cite(ctx); return err }},
+		{"InlineCite", func(b *SearchBuilder) error { _, _, _, err := b.TopK(3).InlineCite(ctx); return err }},
+		{"Stream", func(b *SearchBuilder) error { _, err := b.TopK(3).Stream(ctx); return err }},
+		{"StreamSources", func(b *SearchBuilder) error { _, _, err := b.TopK(3).StreamSources(ctx); return err }},
+		{"StreamCite", func(b *SearchBuilder) error { _, _, _, err := b.TopK(3).StreamCite(ctx); return err }},
+	}
+
+	for _, rt := range routes {
+		for _, mt := range methods {
+			t.Run(rt.name+"_"+mt.name, func(t *testing.T) {
+				sb := rt.setup(p.Search("test question"))
+				err := mt.call(sb)
+				if errors.Is(err, ErrEmptyQuery) || errors.Is(err, ErrInvalidTopK) {
+					t.Fatalf("unexpected validation error for route %s: %v", rt.name, err)
+				}
+			})
+		}
+	}
+}
+
+// @sk-test searchbuilder-generics#T3.2: prototype добавления нового output-метода через router (AC-003)
+func TestSearchBuilder_AnalyzePrototype(t *testing.T) {
+	p, _ := setupPipeline(t)
+	ctx := context.Background()
+
+	// Определение result-типа для нового метода
+	type rAnalyze struct{ Result string }
+
+	// Регистрация handler-ов (6 маршрутов)
+	analyzeRouter := router[rAnalyze]{handlers: map[route]func(context.Context, string, int, *SearchBuilder) (rAnalyze, error){
+		routeBasic:      func(ctx context.Context, q string, topK int, b *SearchBuilder) (rAnalyze, error) { t, err := b.pipeline.core.Answer(ctx, q, topK); return rAnalyze{Result: t}, err },
+		routeHyDE:       func(ctx context.Context, q string, topK int, b *SearchBuilder) (rAnalyze, error) { t, err := b.pipeline.core.AnswerHyDE(ctx, q, topK); return rAnalyze{Result: t}, err },
+		routeMultiQuery: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rAnalyze, error) { t, err := b.pipeline.core.AnswerMulti(ctx, q, b.multiQuery, topK); return rAnalyze{Result: t}, err },
+		routeHybrid:     func(ctx context.Context, q string, topK int, b *SearchBuilder) (rAnalyze, error) { t, err := b.pipeline.core.AnswerHybrid(ctx, q, topK, *b.hybrid); return rAnalyze{Result: t}, err },
+		routeParentIDs:  func(ctx context.Context, q string, topK int, b *SearchBuilder) (rAnalyze, error) { t, err := b.pipeline.core.AnswerWithParentIDs(ctx, q, topK, b.parentIDs); return rAnalyze{Result: t}, err },
+		routeFilter:     func(ctx context.Context, q string, topK int, b *SearchBuilder) (rAnalyze, error) { t, err := b.pipeline.core.AnswerWithMetadataFilter(ctx, q, topK, b.filter); return rAnalyze{Result: t}, err },
+	}}
+
+	sb := p.Search("test").TopK(3)
+	q, r, err := sb.pickRoute()
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := analyzeRouter.execute(ctx, q, 3, r, sb)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Result == "" {
+		t.Fatal("expected non-empty result")
+	}
+}
