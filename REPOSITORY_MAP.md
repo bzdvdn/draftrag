@@ -15,6 +15,9 @@ Compact code-only navigation index for the draftRAG Go library.
 - `pkg/draftrag/ollama_llm.go` — `NewOllamaLLM` (Ollama LLM)
 - `pkg/draftrag/openai_compatible_llm.go` — `NewOpenAICompatibleLLM` (OpenAI-compatible LLM)
 - `pkg/draftrag/anthropic_llm.go` — `NewAnthropicLLM` (Anthropic Claude LLM)
+- `pkg/draftrag/mistral_llm.go` — `NewMistralLLM` (Mistral Chat Completions API)
+- `pkg/draftrag/mistral_embedder.go` — `NewMistralEmbedder` (Mistral embeddings)
+- `pkg/draftrag/deepseek_llm.go` — `NewDeepSeekLLM` (DeepSeek Chat Completions API)
 - `pkg/draftrag/basic_chunker.go` — `NewBasicChunker` (default chunker)
 - `pkg/draftrag/cached_embedder.go` — `NewCachedEmbedder` + `cached_embedder_redis.go::NewRedisCache`
 - `pkg/draftrag/resilience.go` — `NewRetryEmbedder` / `NewRetryLLMProvider`
@@ -27,11 +30,12 @@ Compact code-only navigation index for the draftRAG Go library.
 - `internal/application/` — application/orchestration layer: Pipeline implementation (index/query/retrieve/answer/stream), worker pool, atomic update, batch, MMR/rrf helpers, error sentinels
 - `internal/infrastructure/chunker/` — chunker implementation (`BasicChunker`)
 - `internal/infrastructure/embedder/` — concrete embedder HTTP clients (Ollama, OpenAI-compatible) + `cache/` subpackage (LRU + Redis + stats)
-- `internal/infrastructure/llm/` — concrete LLM HTTP clients (Anthropic, Ollama, OpenAI-compatible, mock streaming)
+- `internal/infrastructure/llm/` — concrete LLM HTTP clients (Anthropic, Ollama, OpenAI-compatible, OpenAI Chat Completions, mock streaming)
 - `internal/infrastructure/resilience/` — `circuitbreaker`, `retry`, `embedder`/`llm` wrappers, `hooks`, `errors`
 - `internal/infrastructure/vectorstore/` — concrete VectorStore implementations (pgvector with transactions, memory, qdrant, chromadb, weaviate, milvus, hybrid search) + extensive `*_test.go` per backend
 - `pkg/draftrag/` — public Go API surface: re-exports + facade + embedders/vectorstores/chunker/resilience/otel/eval/migrations
-- `examples/` — 6 runnable per-backend examples (memory, pgvector, qdrant, chromadb, weaviate, milvus) + shared mock/print helpers + legacy (chat, index-dir) — NOT part of library API, demo only
+- `examples/` — 8 runnable per-backend examples (memory, pgvector, qdrant, chromadb, weaviate, milvus, mistral, deepseek) + shared mock/print helpers + legacy (chat, index-dir) — NOT part of library API, demo only
+- `pkg/draftrag/mistral_embedder.go` — `NewMistralEmbedder` factory wrapping `OpenAICompatibleEmbedder` with Mistral defaults
 
 ## Key Paths
 
