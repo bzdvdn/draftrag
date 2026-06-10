@@ -46,6 +46,7 @@ func (b *SearchBuilder) pickRoute() (q string, r route, err error) {
 // retrieveHandlers maps routes to Retrieve handlers.
 //
 // @sk-task searchbuilder-generics#T2.1: handler maps для всех output-методов (AC-001)
+//
 //nolint:dupl
 var retrieveHandlers = map[route]func(context.Context, string, int, *SearchBuilder) (rRetrieve, error){
 	routeBasic: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rRetrieve, error) {
@@ -77,6 +78,7 @@ var retrieveHandlers = map[route]func(context.Context, string, int, *SearchBuild
 // answerHandlers maps routes to Answer handlers.
 //
 // @sk-task searchbuilder-generics#T2.1: handler maps для Answer (AC-001)
+//
 //nolint:dupl
 var answerHandlers = map[route]func(context.Context, string, int, *SearchBuilder) (rAnswer, error){
 	routeBasic: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rAnswer, error) {
@@ -108,6 +110,7 @@ var answerHandlers = map[route]func(context.Context, string, int, *SearchBuilder
 // citeHandlers maps routes to Cite handlers.
 //
 // @sk-task searchbuilder-generics#T2.1: handler maps для Cite (AC-001)
+//
 //nolint:dupl
 var citeHandlers = map[route]func(context.Context, string, int, *SearchBuilder) (rCite, error){
 	routeBasic: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rCite, error) {
@@ -139,6 +142,7 @@ var citeHandlers = map[route]func(context.Context, string, int, *SearchBuilder) 
 // inlineCiteHandlers maps routes to InlineCite handlers.
 //
 // @sk-task searchbuilder-generics#T2.1: handler maps для InlineCite (AC-001)
+//
 //nolint:dupl
 var inlineCiteHandlers = map[route]func(context.Context, string, int, *SearchBuilder) (rInlineCite, error){
 	routeBasic: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rInlineCite, error) {
@@ -170,6 +174,7 @@ var inlineCiteHandlers = map[route]func(context.Context, string, int, *SearchBui
 // streamHandlers maps routes to Stream handlers.
 //
 // @sk-task searchbuilder-generics#T2.1: handler maps для Stream (AC-001)
+//
 //nolint:dupl
 var streamHandlers = map[route]func(context.Context, string, int, *SearchBuilder) (rStream, error){
 	routeBasic: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rStream, error) {
@@ -201,6 +206,7 @@ var streamHandlers = map[route]func(context.Context, string, int, *SearchBuilder
 // streamSourcesHandlers maps routes to StreamSources handlers.
 //
 // @sk-task searchbuilder-generics#T2.1: handler maps для StreamSources (AC-001)
+//
 //nolint:dupl
 var streamSourcesHandlers = map[route]func(context.Context, string, int, *SearchBuilder) (rStreamSources, error){
 	routeBasic: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rStreamSources, error) {
@@ -232,6 +238,7 @@ var streamSourcesHandlers = map[route]func(context.Context, string, int, *Search
 // streamCiteHandlers maps routes to StreamCite handlers.
 //
 // @sk-task searchbuilder-generics#T2.1: handler maps для StreamCite (AC-001)
+//
 //nolint:dupl
 var streamCiteHandlers = map[route]func(context.Context, string, int, *SearchBuilder) (rStreamCite, error){
 	routeBasic: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rStreamCite, error) {

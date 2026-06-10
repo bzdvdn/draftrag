@@ -1,4 +1,4 @@
-package draftrag
+package draftrag //nolint:dupl // OpenAI-compatible LLM providers have similar structure
 
 import (
 	"context"

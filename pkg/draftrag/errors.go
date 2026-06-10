@@ -51,42 +51,30 @@ var (
 	ErrInvalidVectorStoreConfig = errors.New("invalid vector store config")
 )
 
-func validateEmbedderOptions(baseURL, apiKey, model string, timeout time.Duration) error {
+func validateOptions(baseURL, apiKey, model string, timeout time.Duration, configErr error) error {
 	if strings.TrimSpace(apiKey) == "" {
-		return fmt.Errorf("%w: APIKey is empty", ErrInvalidEmbedderConfig)
+		return fmt.Errorf("%w: APIKey is empty", configErr)
 	}
 	if strings.TrimSpace(baseURL) == "" {
-		return fmt.Errorf("%w: BaseURL is empty", ErrInvalidEmbedderConfig)
+		return fmt.Errorf("%w: BaseURL is empty", configErr)
 	}
 	if strings.TrimSpace(model) == "" {
-		return fmt.Errorf("%w: Model is empty", ErrInvalidEmbedderConfig)
+		return fmt.Errorf("%w: Model is empty", configErr)
 	}
 	if timeout < 0 {
-		return fmt.Errorf("%w: Timeout must be >= 0", ErrInvalidEmbedderConfig)
+		return fmt.Errorf("%w: Timeout must be >= 0", configErr)
 	}
 	u, err := url.Parse(baseURL)
 	if err != nil || u.Scheme == "" || u.Host == "" {
-		return fmt.Errorf("%w: BaseURL must include scheme and host", ErrInvalidEmbedderConfig)
+		return fmt.Errorf("%w: BaseURL must include scheme and host", configErr)
 	}
 	return nil
 }
 
+func validateEmbedderOptions(baseURL, apiKey, model string, timeout time.Duration) error {
+	return validateOptions(baseURL, apiKey, model, timeout, ErrInvalidEmbedderConfig)
+}
+
 func validateLLMOptions(baseURL, apiKey, model string, timeout time.Duration) error {
-	if strings.TrimSpace(apiKey) == "" {
-		return fmt.Errorf("%w: APIKey is empty", ErrInvalidLLMConfig)
-	}
-	if strings.TrimSpace(baseURL) == "" {
-		return fmt.Errorf("%w: BaseURL is empty", ErrInvalidLLMConfig)
-	}
-	if strings.TrimSpace(model) == "" {
-		return fmt.Errorf("%w: Model is empty", ErrInvalidLLMConfig)
-	}
-	if timeout < 0 {
-		return fmt.Errorf("%w: Timeout must be >= 0", ErrInvalidLLMConfig)
-	}
-	u, err := url.Parse(baseURL)
-	if err != nil || u.Scheme == "" || u.Host == "" {
-		return fmt.Errorf("%w: BaseURL must include scheme and host", ErrInvalidLLMConfig)
-	}
-	return nil
+	return validateOptions(baseURL, apiKey, model, timeout, ErrInvalidLLMConfig)
 }

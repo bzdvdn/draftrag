@@ -7,6 +7,7 @@ import (
 	"github.com/bzdvdn/draftrag/internal/infrastructure/embedder/cache"
 )
 
+// RedisClient is a type alias for cache.RedisClient.
 type RedisClient = cache.RedisClient
 
 // NewRedisCache creates a CachedEmbedder backed by Redis for embedding cache.

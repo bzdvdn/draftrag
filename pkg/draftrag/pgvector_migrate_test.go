@@ -15,7 +15,7 @@ func (m *mockQuerier) ExecContext(ctx context.Context, query string, args ...any
 	return m.execFn(ctx, query, args...)
 }
 
-func (m *mockQuerier) QueryRowContext(_ context.Context, query string, args ...any) *sql.Row {
+func (m *mockQuerier) QueryRowContext(_ context.Context, _ string, _ ...any) *sql.Row {
 	return nil
 }
 

@@ -78,8 +78,7 @@ func TestPipeline_StreamBackpressure_DefaultUnbuffered(t *testing.T) {
 		t.Fatalf("AnswerStream: %v", err)
 	}
 	defer func() {
-		for range stream {
-			// consume stream
+		for range stream { //nolint:revive // intentional: drain channel
 		}
 	}()
 
@@ -114,7 +113,7 @@ func TestPipeline_StreamBackpressure_BufferSizeApplied(t *testing.T) {
 				t.Fatalf("AnswerStream: %v", err)
 			}
 			defer func() {
-				for range stream {
+				for range stream { //nolint:revive // intentional: drain channel
 				}
 			}()
 
@@ -271,9 +270,8 @@ func TestPipeline_wrapStreamWithHook_ChannelCapacity(t *testing.T) {
 				t.Fatalf("expected cap=%d, got %d", size, got)
 			}
 			// Канал должен закрыться.
-		for range out {
-			// consume stream
-		}
+			for range out { //nolint:revive // intentional: drain channel
+			}
 		})
 	}
 }
@@ -298,8 +296,7 @@ func TestPipeline_StreamBackpressure_HooksCalledOnClose(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AnswerStream: %v", err)
 	}
-	for range stream {
-		// consume stream
+	for range stream { //nolint:revive // intentional: drain channel
 	}
 
 	if hooks.endCount[domain.HookStageGenerate] == 0 {
