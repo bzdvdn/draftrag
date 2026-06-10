@@ -3,7 +3,7 @@ package vectorstore
 import (
 	"bytes"
 	"context"
-	"crypto/md5"
+	"crypto/sha1"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,7 +18,7 @@ import (
 // stringToQdrantID конвертирует строковый ID в UUIDv3-подобный формат
 // через MD5-хэш, т.к. Qdrant v1.12+ не принимает строковые point IDs.
 func stringToQdrantID(s string) string {
-	h := md5.Sum([]byte(s))
+	h := sha1.Sum([]byte(s))
 	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
 		h[0:4], h[4:6], h[6:8], h[8:10], h[10:16])
 }

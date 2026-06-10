@@ -228,21 +228,21 @@ func NewPipelineWithOptions(store VectorStore, llm LLMProvider, embedder Embedde
 	}
 
 	core, err := application.NewPipelineWithConfig(store, llm, embedder, application.PipelineOptions{
-		SystemPrompt:        opts.SystemPrompt,
-			Chunker:             opts.Chunker,
-			Hooks:               opts.Hooks,
-			MaxContextChars:     opts.MaxContextChars,
-			MaxContextChunks:    opts.MaxContextChunks,
-			DedupByParentID:     opts.DedupByParentID,
-			MMREnabled:          opts.MMREnabled,
-			MMRLambda:           opts.MMRLambda,
-			MMRCandidatePool:    opts.MMRCandidatePool,
-			IndexConcurrency:    opts.IndexConcurrency,
-			IndexBatchRateLimit: opts.IndexBatchRateLimit,
-			IndexBatchRateLimitPerWorker: opts.IndexBatchRateLimitPerWorker,
-			StreamBufferSize:    opts.StreamBufferSize,
-			Reranker:            opts.Reranker,
-		})
+		SystemPrompt:                 opts.SystemPrompt,
+		Chunker:                      opts.Chunker,
+		Hooks:                        opts.Hooks,
+		MaxContextChars:              opts.MaxContextChars,
+		MaxContextChunks:             opts.MaxContextChunks,
+		DedupByParentID:              opts.DedupByParentID,
+		MMREnabled:                   opts.MMREnabled,
+		MMRLambda:                    opts.MMRLambda,
+		MMRCandidatePool:             opts.MMRCandidatePool,
+		IndexConcurrency:             opts.IndexConcurrency,
+		IndexBatchRateLimit:          opts.IndexBatchRateLimit,
+		IndexBatchRateLimitPerWorker: opts.IndexBatchRateLimitPerWorker,
+		StreamBufferSize:             opts.StreamBufferSize,
+		Reranker:                     opts.Reranker,
+	})
 	if err != nil {
 		return nil, err
 	}

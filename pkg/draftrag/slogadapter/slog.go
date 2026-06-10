@@ -13,8 +13,9 @@ type adapter struct {
 	logger *slog.Logger
 }
 
-// @sk-task slog-otel-adapters#T1.1: slogadapter.New — адаптер slog → domain.Logger с trace correlation
 // New создаёт domain.Logger из *slog.Logger.
+//
+// @sk-task slog-otel-adapters#T1.1: slogadapter.New — адаптер slog → domain.Logger с trace correlation
 func New(logger *slog.Logger) domain.Logger {
 	return &adapter{logger: logger}
 }

@@ -332,12 +332,12 @@ func (t *pgVectorTx) Rollback() error {
 	return t.tx.Rollback()
 }
 
-// @sk-task api-consistency-pass#T3.2: BeginTx — атомарный UpdateDocument через pgVectorTx (DEC-005, AC-008)
-//
 // BeginTx открывает новую SQL-транзакцию и возвращает domain.TransactionalTx,
 // через который Pipeline выполняет атомарное UpdateDocument. Не использует
 // runtime timeout (unlike Upsert/Delete) — длительность tx ограничена ctx
 // вызывающего кода.
+//
+// @sk-task api-consistency-pass#T3.2: BeginTx — атомарный UpdateDocument через pgVectorTx (DEC-005, AC-008)
 func (s *PGVectorStore) BeginTx(ctx context.Context) (domain.TransactionalTx, error) {
 	if ctx == nil {
 		panic("nil context")

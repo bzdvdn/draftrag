@@ -97,6 +97,7 @@ func TestSlogAdapter_NilContext(t *testing.T) {
 	var buf bytes.Buffer
 	logger := New(slog.New(slog.NewJSONHandler(&buf, nil)))
 
+	//nolint:staticcheck // intentional: testing nil context
 	logger.Log(nil, domain.LogLevelInfo, "nil ctx test")
 
 	var result map[string]any

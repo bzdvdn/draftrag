@@ -20,9 +20,6 @@ func TestNewMistralEmbedder_Interface(t *testing.T) {
 	if emb == nil {
 		t.Fatal("NewMistralEmbedder returned nil")
 	}
-	if _, ok := emb.(Embedder); !ok {
-		t.Error("expected Embedder interface")
-	}
 }
 
 // @sk-test llm-providers-mistral-deepseek#T2.3: TestMistralEmbedder_Defaults (AC-011)

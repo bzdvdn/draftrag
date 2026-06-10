@@ -93,9 +93,9 @@ func (m *qdrantMock) handleDelete(w http.ResponseWriter, r *http.Request) {
 
 func (m *qdrantMock) handleSearch(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Vector     []float64              `json:"vector"`
-		Limit      int                    `json:"limit"`
-		WithPayload bool                  `json:"with_payload"`
+		Vector      []float64 `json:"vector"`
+		Limit       int       `json:"limit"`
+		WithPayload bool      `json:"with_payload"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, fmt.Sprintf(`{"status":{"error":"%s"}}`, err.Error()), http.StatusBadRequest)

@@ -152,10 +152,10 @@ func buildComponents(provider string, dim int) (draftrag.LLMProvider, draftrag.E
 	case "ollama":
 		host := envOr("OLLAMA_HOST", "http://localhost:11434")
 		return draftrag.NewOllamaLLM(draftrag.OllamaLLMOptions{
-			BaseURL: host, Model: envOr("OLLAMA_LLM_MODEL", "llama3.2"),
-		}), draftrag.NewOllamaEmbedder(draftrag.OllamaEmbedderOptions{
-			BaseURL: host, Model: envOr("OLLAMA_EMBED_MODEL", "nomic-embed-text"),
-		})
+				BaseURL: host, Model: envOr("OLLAMA_LLM_MODEL", "llama3.2"),
+			}), draftrag.NewOllamaEmbedder(draftrag.OllamaEmbedderOptions{
+				BaseURL: host, Model: envOr("OLLAMA_EMBED_MODEL", "nomic-embed-text"),
+			})
 	case "openai":
 		key := os.Getenv("OPENAI_API_KEY")
 		if key == "" {
@@ -163,12 +163,12 @@ func buildComponents(provider string, dim int) (draftrag.LLMProvider, draftrag.E
 			os.Exit(1)
 		}
 		return draftrag.NewOpenAICompatibleLLM(draftrag.OpenAICompatibleLLMOptions{
-			APIKey: key, BaseURL: envOr("OPENAI_BASE_URL", "https://api.openai.com"),
-			Model: envOr("OPENAI_LLM_MODEL", "gpt-4o-mini"),
-		}), draftrag.NewOpenAICompatibleEmbedder(draftrag.OpenAICompatibleEmbedderOptions{
-			APIKey: key, BaseURL: envOr("OPENAI_BASE_URL", "https://api.openai.com"),
-			Model: envOr("OPENAI_EMBED_MODEL", "text-embedding-3-small"),
-		})
+				APIKey: key, BaseURL: envOr("OPENAI_BASE_URL", "https://api.openai.com"),
+				Model: envOr("OPENAI_LLM_MODEL", "gpt-4o-mini"),
+			}), draftrag.NewOpenAICompatibleEmbedder(draftrag.OpenAICompatibleEmbedderOptions{
+				APIKey: key, BaseURL: envOr("OPENAI_BASE_URL", "https://api.openai.com"),
+				Model: envOr("OPENAI_EMBED_MODEL", "text-embedding-3-small"),
+			})
 	case "anthropic":
 		key := os.Getenv("ANTHROPIC_API_KEY")
 		if key == "" {

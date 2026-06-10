@@ -21,9 +21,6 @@ func TestNewDeepSeekLLM_Interface(t *testing.T) {
 		t.Fatal("NewDeepSeekLLM returned nil")
 	}
 
-	if _, ok := provider.(LLMProvider); !ok {
-		t.Error("expected LLMProvider interface")
-	}
 	if _, ok := provider.(StreamingLLMProvider); !ok {
 		t.Error("expected StreamingLLMProvider interface")
 	}
@@ -85,7 +82,7 @@ func TestDeepSeekLLM_InvalidConfig(t *testing.T) {
 
 // @sk-test llm-providers-mistral-deepseek#T2.2: TestDeepSeekLLM_GenerateStream_Success (AC-004)
 func TestDeepSeekLLM_GenerateStream_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.WriteHeader(http.StatusOK)
 		flusher, _ := w.(http.Flusher)

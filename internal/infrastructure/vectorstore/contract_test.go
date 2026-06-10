@@ -400,5 +400,3 @@ func runFilterContract(t *testing.T, newStore StoreFactory) {
 		}
 	})
 }
-
-

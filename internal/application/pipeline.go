@@ -10,6 +10,7 @@ import (
 	"github.com/bzdvdn/draftrag/internal/domain"
 )
 
+// Sentinel errors returned by Pipeline operations.
 var (
 	ErrFiltersNotSupported = errors.New("vector store does not support filters")
 
@@ -18,46 +19,52 @@ var (
 	ErrDeleteNotSupported = errors.New("vector store does not support DeleteByParentID")
 )
 
+// PipelineOptions configures a Pipeline behaviour.
+//
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task arch-quality-pass#T3.2: единый struct конфигурации (AC-004)
 type PipelineOptions struct {
-	SystemPrompt        string
-	Chunker             domain.Chunker
-	MaxContextChars     int
-	MaxContextChunks    int
-	DedupByParentID     bool
-	MMREnabled          bool
-	MMRLambda           float64
-	MMRCandidatePool    int
-	Hooks                          domain.Hooks
-	IndexConcurrency               int
-	IndexBatchRateLimit            int
-	IndexBatchRateLimitPerWorker   bool
-	StreamBufferSize               int
-	Reranker                       domain.Reranker
+	SystemPrompt                 string
+	Chunker                      domain.Chunker
+	MaxContextChars              int
+	MaxContextChunks             int
+	DedupByParentID              bool
+	MMREnabled                   bool
+	MMRLambda                    float64
+	MMRCandidatePool             int
+	Hooks                        domain.Hooks
+	IndexConcurrency             int
+	IndexBatchRateLimit          int
+	IndexBatchRateLimitPerWorker bool
+	StreamBufferSize             int
+	Reranker                     domain.Reranker
 }
 
+// Pipeline is the core RAG pipeline coordinating store, LLM, and embedder.
+//
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 type Pipeline struct {
-	store                          domain.VectorStore
-	llm                            domain.LLMProvider
-	embedder                       domain.Embedder
-	chunker                        domain.Chunker
-	systemPrompt                   string
-	maxContextChars                int
-	maxContextChunks               int
-	dedupByParentID                bool
-	mmrEnabled                     bool
-	mmrLambda                      float64
-	mmrCandidatePool               int
-	hooks                          domain.Hooks
-	indexConcurrency               int
-	indexBatchRateLimit            int
-	indexBatchRateLimitPerWorker   bool
-	streamBufferSize               int
-	reranker                       domain.Reranker
+	store                        domain.VectorStore
+	llm                          domain.LLMProvider
+	embedder                     domain.Embedder
+	chunker                      domain.Chunker
+	systemPrompt                 string
+	maxContextChars              int
+	maxContextChunks             int
+	dedupByParentID              bool
+	mmrEnabled                   bool
+	mmrLambda                    float64
+	mmrCandidatePool             int
+	hooks                        domain.Hooks
+	indexConcurrency             int
+	indexBatchRateLimit          int
+	indexBatchRateLimitPerWorker bool
+	streamBufferSize             int
+	reranker                     domain.Reranker
 }
 
+// NewPipeline creates a Pipeline with required dependencies.
+//
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task arch-quality-pass#T2.1: error return вместо panic для конфигурации (AC-002)
 func NewPipeline(store domain.VectorStore, llm domain.LLMProvider, embedder domain.Embedder) (*Pipeline, error) {
@@ -80,6 +87,8 @@ func NewPipeline(store domain.VectorStore, llm domain.LLMProvider, embedder doma
 	}, nil
 }
 
+// NewPipelineWithConfig creates a Pipeline with the given configuration.
+//
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task arch-quality-pass#T2.1: error return вместо panic для конфигурации (AC-002)
 // @sk-task arch-quality-pass#T3.2: принимает PipelineOptions вместо PipelineConfig (AC-004)
@@ -126,6 +135,8 @@ func NewPipelineWithConfig(
 	return p, nil
 }
 
+// NewPipelineWithChunker creates a Pipeline with an optional chunker.
+//
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task arch-quality-pass#T2.1: error return вместо panic для конфигурации (AC-002)
 func NewPipelineWithChunker(
@@ -223,6 +234,8 @@ func (p *Pipeline) produceChunks(ctx context.Context, operationName string, doc 
 	return []domain.Chunk{chunk}, nil
 }
 
+// Index индексирует набор документов параллельно с ограничением
+//
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task api-consistency-pass#T3.1: параллельная обработка Index через processDocsConcurrently (DEC-004, RQ-004, AC-006)
 //
@@ -275,6 +288,8 @@ func (p *Pipeline) Index(ctx context.Context, docs []domain.Document) error {
 	return nil
 }
 
+// DeleteDocument deletes all chunks belonging to a document by its ID.
+//
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 func (p *Pipeline) DeleteDocument(ctx context.Context, docID string) error {
 	ds, ok := p.store.(domain.DocumentStore)
@@ -284,6 +299,8 @@ func (p *Pipeline) DeleteDocument(ctx context.Context, docID string) error {
 	return ds.DeleteByParentID(ctx, docID)
 }
 
+// UpdateDocument выполняет атомарное обновление документа через
+//
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task api-consistency-pass#T3.2: делегирует в updateDocumentAtomic (DEC-005, RQ-005, AC-008, AC-009)
 //

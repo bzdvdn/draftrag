@@ -9,11 +9,11 @@ import (
 	"github.com/bzdvdn/draftrag/internal/domain"
 )
 
-// @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // AnswerStream выполняет RAG-цикл с streaming генерацией ответа.
 // Возвращает канал для чтения текстовых чанков; канал закрывается при завершении или ошибке.
 // Retrieval выполняется синхронно перед началом streaming'а.
 //
+// @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
 // @ds-task T2.3: Реализовать AnswerStream в application Pipeline (AC-001, DEC-003)
 func (p *Pipeline) AnswerStream(
@@ -88,10 +88,10 @@ func (p *Pipeline) AnswerStream(
 	return p.wrapStreamWithHook(ctx, tokenChan, genStart), nil
 }
 
+// wrapStreamWithHook оборачивает канал токенов для вызова hook по завершении.
+//
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task api-consistency-pass#T3.3: bounded backpressure — output chan с cap=p.streamBufferSize (DEC-006, RQ-006, AC-010)
-//
-// wrapStreamWithHook оборачивает канал токенов для вызова hook по завершении.
 // При p.streamBufferSize > 0 выходной канал буферизуется с указанной ёмкостью —
 // producer (LLM-стрим) может обгонять consumer (вызывающий код) на cap токенов,
 // не блокируясь. При 0 канал unbuffered (backward-compat, OQ-2) — синхронная
@@ -123,10 +123,10 @@ func (p *Pipeline) wrapStreamWithHook(ctx context.Context, source <-chan string,
 	return output
 }
 
-// @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // AnswerStreamWithInlineCitations выполняет RAG-цикл с streaming генерацией и inline-цитатами.
 // Возвращает канал для чтения текстовых чанков и слайс цитат (заполняется синхронно перед streaming'ом).
 //
+// @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
 // @ds-task T2.4: Реализовать AnswerStreamWithInlineCitations в application Pipeline (AC-002)
 func (p *Pipeline) AnswerStreamWithInlineCitations(
@@ -244,8 +244,9 @@ func (p *Pipeline) streamInlineFromResult(ctx context.Context, question string, 
 	return p.wrapStreamWithHook(ctx, tokenChan, genStart), citations, nil
 }
 
-// @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // AnswerHyDEStream выполняет HyDE retrieval и streaming генерацию.
+//
+// @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 func (p *Pipeline) AnswerHyDEStream(ctx context.Context, question string, topK int) (<-chan string, error) {
 	result, err := p.QueryHyDE(ctx, question, topK)
 	if err != nil {
@@ -254,8 +255,9 @@ func (p *Pipeline) AnswerHyDEStream(ctx context.Context, question string, topK i
 	return p.streamFromResult(ctx, question, result)
 }
 
-// @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // AnswerMultiStream выполняет MultiQuery retrieval и streaming генерацию.
+//
+// @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 func (p *Pipeline) AnswerMultiStream(ctx context.Context, question string, n, topK int) (<-chan string, error) {
 	result, err := p.QueryMulti(ctx, question, n, topK)
 	if err != nil {
@@ -264,8 +266,9 @@ func (p *Pipeline) AnswerMultiStream(ctx context.Context, question string, n, to
 	return p.streamFromResult(ctx, question, result)
 }
 
-// @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // AnswerHybridStream выполняет Hybrid retrieval и streaming генерацию.
+//
+// @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 func (p *Pipeline) AnswerHybridStream(ctx context.Context, question string, topK int, cfg domain.HybridConfig) (<-chan string, error) {
 	result, err := p.QueryHybrid(ctx, question, topK, cfg)
 	if err != nil {
@@ -274,8 +277,9 @@ func (p *Pipeline) AnswerHybridStream(ctx context.Context, question string, topK
 	return p.streamFromResult(ctx, question, result)
 }
 
-// @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // AnswerStreamWithParentIDs выполняет retrieval с фильтром по ParentIDs и streaming генерацию.
+//
+// @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 func (p *Pipeline) AnswerStreamWithParentIDs(ctx context.Context, question string, topK int, parentIDs []string) (<-chan string, error) {
 	result, err := p.QueryWithParentIDs(ctx, question, topK, parentIDs)
 	if err != nil {
@@ -284,8 +288,9 @@ func (p *Pipeline) AnswerStreamWithParentIDs(ctx context.Context, question strin
 	return p.streamFromResult(ctx, question, result)
 }
 
-// @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // AnswerStreamWithMetadataFilter выполняет retrieval с фильтром по метаданным и streaming генерацию.
+//
+// @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 func (p *Pipeline) AnswerStreamWithMetadataFilter(ctx context.Context, question string, topK int, filter domain.MetadataFilter) (<-chan string, error) {
 	result, err := p.QueryWithMetadataFilter(ctx, question, topK, filter)
 	if err != nil {
@@ -294,6 +299,8 @@ func (p *Pipeline) AnswerStreamWithMetadataFilter(ctx context.Context, question 
 	return p.streamFromResult(ctx, question, result)
 }
 
+// AnswerStreamWithSources выполняет RAG-цикл с streaming и возвращает источники.
+//
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 func (p *Pipeline) AnswerStreamWithSources(ctx context.Context, question string, topK int) (<-chan string, domain.RetrievalResult, error) {
 	result, err := p.Query(ctx, question, topK)
@@ -304,6 +311,8 @@ func (p *Pipeline) AnswerStreamWithSources(ctx context.Context, question string,
 	return tokenChan, result, err
 }
 
+// AnswerHyDEStreamWithSources выполняет HyDE retrieval с streaming и возвращает источники.
+//
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 func (p *Pipeline) AnswerHyDEStreamWithSources(ctx context.Context, question string, topK int) (<-chan string, domain.RetrievalResult, error) {
 	result, err := p.QueryHyDE(ctx, question, topK)
@@ -314,6 +323,8 @@ func (p *Pipeline) AnswerHyDEStreamWithSources(ctx context.Context, question str
 	return tokenChan, result, err
 }
 
+// AnswerMultiStreamWithSources выполняет MultiQuery retrieval с streaming и возвращает источники.
+//
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 func (p *Pipeline) AnswerMultiStreamWithSources(ctx context.Context, question string, n, topK int) (<-chan string, domain.RetrievalResult, error) {
 	result, err := p.QueryMulti(ctx, question, n, topK)
@@ -324,6 +335,8 @@ func (p *Pipeline) AnswerMultiStreamWithSources(ctx context.Context, question st
 	return tokenChan, result, err
 }
 
+// AnswerHybridStreamWithSources выполняет Hybrid retrieval с streaming и возвращает источники.
+//
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 func (p *Pipeline) AnswerHybridStreamWithSources(ctx context.Context, question string, topK int, cfg domain.HybridConfig) (<-chan string, domain.RetrievalResult, error) {
 	result, err := p.QueryHybrid(ctx, question, topK, cfg)
@@ -334,6 +347,8 @@ func (p *Pipeline) AnswerHybridStreamWithSources(ctx context.Context, question s
 	return tokenChan, result, err
 }
 
+// AnswerStreamWithParentIDsWithSources выполняет retrieval с фильтром по ParentIDs с streaming и возвращает источники.
+//
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 func (p *Pipeline) AnswerStreamWithParentIDsWithSources(ctx context.Context, question string, topK int, parentIDs []string) (<-chan string, domain.RetrievalResult, error) {
 	result, err := p.QueryWithParentIDs(ctx, question, topK, parentIDs)
@@ -344,6 +359,8 @@ func (p *Pipeline) AnswerStreamWithParentIDsWithSources(ctx context.Context, que
 	return tokenChan, result, err
 }
 
+// AnswerStreamWithMetadataFilterWithSources выполняет retrieval с фильтром по метаданным с streaming и возвращает источники.
+//
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 func (p *Pipeline) AnswerStreamWithMetadataFilterWithSources(ctx context.Context, question string, topK int, filter domain.MetadataFilter) (<-chan string, domain.RetrievalResult, error) {
 	result, err := p.QueryWithMetadataFilter(ctx, question, topK, filter)
@@ -354,6 +371,8 @@ func (p *Pipeline) AnswerStreamWithMetadataFilterWithSources(ctx context.Context
 	return tokenChan, result, err
 }
 
+// AnswerHyDEStreamWithInlineCitations выполняет HyDE retrieval с streaming и inline-цитатами.
+//
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 func (p *Pipeline) AnswerHyDEStreamWithInlineCitations(ctx context.Context, question string, topK int) (<-chan string, domain.RetrievalResult, []domain.InlineCitation, error) {
 	result, err := p.QueryHyDE(ctx, question, topK)
@@ -364,6 +383,8 @@ func (p *Pipeline) AnswerHyDEStreamWithInlineCitations(ctx context.Context, ques
 	return tokenChan, result, citations, err
 }
 
+// AnswerMultiStreamWithInlineCitations выполняет MultiQuery retrieval с streaming и inline-цитатами.
+//
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 func (p *Pipeline) AnswerMultiStreamWithInlineCitations(ctx context.Context, question string, n, topK int) (<-chan string, domain.RetrievalResult, []domain.InlineCitation, error) {
 	result, err := p.QueryMulti(ctx, question, n, topK)
@@ -374,6 +395,8 @@ func (p *Pipeline) AnswerMultiStreamWithInlineCitations(ctx context.Context, que
 	return tokenChan, result, citations, err
 }
 
+// AnswerHybridStreamWithInlineCitations выполняет Hybrid retrieval с streaming и inline-цитатами.
+//
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 func (p *Pipeline) AnswerHybridStreamWithInlineCitations(ctx context.Context, question string, topK int, cfg domain.HybridConfig) (<-chan string, domain.RetrievalResult, []domain.InlineCitation, error) {
 	result, err := p.QueryHybrid(ctx, question, topK, cfg)
@@ -384,6 +407,8 @@ func (p *Pipeline) AnswerHybridStreamWithInlineCitations(ctx context.Context, qu
 	return tokenChan, result, citations, err
 }
 
+// AnswerStreamWithParentIDsWithInlineCitations выполняет retrieval с фильтром по ParentIDs с streaming и inline-цитатами.
+//
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 func (p *Pipeline) AnswerStreamWithParentIDsWithInlineCitations(ctx context.Context, question string, topK int, parentIDs []string) (<-chan string, domain.RetrievalResult, []domain.InlineCitation, error) {
 	result, err := p.QueryWithParentIDs(ctx, question, topK, parentIDs)
@@ -394,6 +419,8 @@ func (p *Pipeline) AnswerStreamWithParentIDsWithInlineCitations(ctx context.Cont
 	return tokenChan, result, citations, err
 }
 
+// AnswerStreamWithMetadataFilterWithInlineCitations выполняет retrieval с фильтром по метаданным с streaming и inline-цитатами.
+//
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 func (p *Pipeline) AnswerStreamWithMetadataFilterWithInlineCitations(ctx context.Context, question string, topK int, filter domain.MetadataFilter) (<-chan string, domain.RetrievalResult, []domain.InlineCitation, error) {
 	result, err := p.QueryWithMetadataFilter(ctx, question, topK, filter)

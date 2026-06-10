@@ -33,7 +33,7 @@ func FuzzSearchBuilderValidate(f *testing.F) {
 		f.Fatal(err)
 	}
 
-	f.Fuzz(func(t *testing.T, question string, topK int) {
+	f.Fuzz(func(_ *testing.T, question string, topK int) {
 		sb := p.Search(question).TopK(topK)
 		_, _ = sb.validate()
 	})

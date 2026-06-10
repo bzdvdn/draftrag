@@ -8,8 +8,8 @@ import (
 )
 
 type mockRedisClient struct {
-	mu     sync.Mutex
-	store  map[string][]byte
+	mu       sync.Mutex
+	store    map[string][]byte
 	getCalls int
 	setCalls int
 }

@@ -30,16 +30,30 @@ type rRetrieve struct{ Result RetrievalResult }
 type rAnswer struct{ Text string }
 
 // @sk-task searchbuilder-generics#T1.1: result-struct для Cite (AC-001)
-type rCite struct{ Text string; Sources RetrievalResult }
+type rCite struct {
+	Text    string
+	Sources RetrievalResult
+}
 
 // @sk-task searchbuilder-generics#T1.1: result-struct для InlineCite (AC-001)
-type rInlineCite struct{ Text string; Sources RetrievalResult; Citations []InlineCitation }
+type rInlineCite struct {
+	Text      string
+	Sources   RetrievalResult
+	Citations []InlineCitation
+}
 
 // @sk-task searchbuilder-generics#T1.1: result-struct для Stream (AC-001)
 type rStream struct{ Ch <-chan string }
 
 // @sk-task searchbuilder-generics#T1.1: result-struct для StreamSources (AC-001)
-type rStreamSources struct{ Ch <-chan string; Sources RetrievalResult }
+type rStreamSources struct {
+	Ch      <-chan string
+	Sources RetrievalResult
+}
 
 // @sk-task searchbuilder-generics#T1.1: result-struct для StreamCite (AC-001)
-type rStreamCite struct{ Ch <-chan string; Sources RetrievalResult; Citations []InlineCitation }
+type rStreamCite struct {
+	Ch        <-chan string
+	Sources   RetrievalResult
+	Citations []InlineCitation
+}

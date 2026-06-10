@@ -281,7 +281,7 @@ func TestSearchBuilder_Stream_Filter(t *testing.T) {
 	_ = store.Upsert(ctx, domain.Chunk{
 		ID: "c1", Content: "Go concurrency", ParentID: "doc-1",
 		Embedding: []float64{1, 0, 0}, Position: 0,
-		Metadata:  map[string]string{"key": "value"},
+		Metadata: map[string]string{"key": "value"},
 	})
 
 	tokens, err := p.Search("q").TopK(5).Filter(MetadataFilter{Fields: map[string]string{"key": "value"}}).Stream(ctx)
@@ -425,7 +425,7 @@ func TestSearchBuilder_StreamSources_Filter(t *testing.T) {
 	_ = store.Upsert(ctx, domain.Chunk{
 		ID: "c1", Content: "Go concurrency", ParentID: "doc-1",
 		Embedding: []float64{1, 0, 0}, Position: 0,
-		Metadata:  map[string]string{"key": "value"},
+		Metadata: map[string]string{"key": "value"},
 	})
 
 	tokens, sources, err := p.Search("q").TopK(5).Filter(MetadataFilter{Fields: map[string]string{"key": "value"}}).StreamSources(ctx)
@@ -575,7 +575,7 @@ func TestSearchBuilder_StreamCite_Filter(t *testing.T) {
 	_ = store.Upsert(ctx, domain.Chunk{
 		ID: "c1", Content: "Go concurrency", ParentID: "doc-1",
 		Embedding: []float64{1, 0, 0}, Position: 0,
-		Metadata:  map[string]string{"key": "value"},
+		Metadata: map[string]string{"key": "value"},
 	})
 
 	tokens, sources, citations, err := p.Search("q").TopK(5).Filter(MetadataFilter{Fields: map[string]string{"key": "value"}}).StreamCite(ctx)

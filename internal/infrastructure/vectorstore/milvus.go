@@ -256,6 +256,29 @@ func (s *MilvusStore) doSearch(ctx context.Context, embedding []float64, topK in
 	return parseMilvusSearchData(data)
 }
 
+// milvusItemToRetrievedChunk конвертирует один элемент результата поиска в domain.RetrievedChunk.
+func milvusItemToRetrievedChunk(id int64, docID, text, parentID string, metadata json.RawMessage, score float64) domain.RetrievedChunk {
+	chunkID := docID
+	if chunkID == "" {
+		chunkID = fmt.Sprintf("%d", id)
+	}
+	chunk := domain.Chunk{
+		ID:       chunkID,
+		Content:  text,
+		ParentID: parentID,
+	}
+	if len(metadata) > 0 && string(metadata) != "null" {
+		var meta map[string]string
+		if err := json.Unmarshal(metadata, &meta); err == nil {
+			chunk.Metadata = meta
+		}
+	}
+	return domain.RetrievedChunk{
+		Chunk: chunk,
+		Score: score,
+	}
+}
+
 // parseMilvusSearchData десериализует поле data из ответа Milvus Search в domain.RetrievalResult.
 // Milvus primary key id — Int64 (хеш); оригинальный строковый ID берётся из doc_id.
 // Пустой data или null → пустой слайс, не ошибка (DM-003).
@@ -282,27 +305,7 @@ func parseMilvusSearchData(data json.RawMessage) (domain.RetrievalResult, error)
 
 	chunks := make([]domain.RetrievedChunk, 0, len(items))
 	for _, item := range items {
-		id := item.DocID
-		if id == "" {
-			// fallback: если doc_id отсутствует, используем строковое представление хеша
-			id = fmt.Sprintf("%d", item.ID)
-		}
-		chunk := domain.Chunk{
-			ID:       id,
-			Content:  item.Text,
-			ParentID: item.ParentID,
-		}
-		// DEC-003: десериализовать metadata из JSON-объекта в map[string]string
-		if len(item.Metadata) > 0 && string(item.Metadata) != "null" {
-			var meta map[string]string
-			if err := json.Unmarshal(item.Metadata, &meta); err == nil {
-				chunk.Metadata = meta
-			}
-		}
-		chunks = append(chunks, domain.RetrievedChunk{
-			Chunk: chunk,
-			Score: item.Distance,
-		})
+		chunks = append(chunks, milvusItemToRetrievedChunk(item.ID, item.DocID, item.Text, item.ParentID, item.Metadata, item.Distance))
 	}
 	return domain.RetrievalResult{
 		Chunks:     chunks,
@@ -422,26 +425,7 @@ func parseMilvusHybridSearchData(data json.RawMessage) (domain.RetrievalResult, 
 
 	chunks := make([]domain.RetrievedChunk, 0, len(response.Results))
 	for _, item := range response.Results {
-		id := item.DocID
-		if id == "" {
-			id = fmt.Sprintf("%d", item.ID)
-		}
-		chunk := domain.Chunk{
-			ID:       id,
-			Content:  item.Text,
-			ParentID: item.ParentID,
-		}
-		// DEC-003: десериализовать metadata из JSON-объекта в map[string]string
-		if len(item.Metadata) > 0 && string(item.Metadata) != "null" {
-			var meta map[string]string
-			if err := json.Unmarshal(item.Metadata, &meta); err == nil {
-				chunk.Metadata = meta
-			}
-		}
-		chunks = append(chunks, domain.RetrievedChunk{
-			Chunk: chunk,
-			Score: item.Score,
-		})
+		chunks = append(chunks, milvusItemToRetrievedChunk(item.ID, item.DocID, item.Text, item.ParentID, item.Metadata, item.Score))
 	}
 	return domain.RetrievalResult{
 		Chunks:     chunks,

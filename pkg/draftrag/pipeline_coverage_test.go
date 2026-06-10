@@ -113,6 +113,7 @@ func TestRetrieve_NilContext(t *testing.T) {
 			t.Fatal("expected panic on nil context")
 		}
 	}()
+	//nolint:staticcheck // intentional: testing nil context panic
 	_, _ = p.Retrieve(nil, "q", 5)
 }
 
@@ -157,6 +158,7 @@ func TestUpdateDocument_NilContext(t *testing.T) {
 			t.Fatal("expected panic on nil context")
 		}
 	}()
+	//nolint:staticcheck // intentional: testing nil context panic
 	_ = p.UpdateDocument(nil, domain.Document{ID: "d", Content: "x"})
 }
 
@@ -201,6 +203,7 @@ func TestDeleteDocument_NilContext(t *testing.T) {
 			t.Fatal("expected panic on nil context")
 		}
 	}()
+	//nolint:staticcheck // intentional: testing nil context panic
 	_ = p.DeleteDocument(nil, "doc-1")
 }
 
@@ -238,6 +241,7 @@ func TestIndexBatch_NilContext(t *testing.T) {
 			t.Fatal("expected panic on nil context")
 		}
 	}()
+	//nolint:staticcheck // intentional: testing nil context panic
 	_, _ = p.IndexBatch(nil, []domain.Document{{ID: "d", Content: "x"}}, 2)
 }
 
@@ -458,6 +462,7 @@ func TestPipeline_NilContext_Index(t *testing.T) {
 			t.Fatal("expected panic")
 		}
 	}()
+	//nolint:staticcheck // intentional: testing nil context panic
 	_ = p.Index(nil, []domain.Document{{ID: "d", Content: "x"}})
 }
 
@@ -471,6 +476,7 @@ func TestPipeline_NilContext_Query(t *testing.T) {
 			t.Fatal("expected panic")
 		}
 	}()
+	//nolint:staticcheck // intentional: testing nil context panic
 	_, _ = p.Query(nil, "q")
 }
 
@@ -484,6 +490,7 @@ func TestSearch_NilContext_Cite(t *testing.T) {
 			t.Fatal("expected panic on nil context")
 		}
 	}()
+	//nolint:staticcheck // intentional: testing nil context panic
 	_, _, _ = p.Search("q").TopK(5).Cite(nil)
 }
 
@@ -497,6 +504,7 @@ func TestSearch_NilContext_InlineCite(t *testing.T) {
 			t.Fatal("expected panic on nil context")
 		}
 	}()
+	//nolint:staticcheck // intentional: testing nil context panic
 	_, _, _, _ = p.Search("q").TopK(5).InlineCite(nil)
 }
 
@@ -510,6 +518,7 @@ func TestSearch_NilContext_Stream(t *testing.T) {
 			t.Fatal("expected panic on nil context")
 		}
 	}()
+	//nolint:staticcheck // intentional: testing nil context panic
 	_, _ = p.Search("q").TopK(5).Stream(nil)
 }
 
@@ -523,6 +532,7 @@ func TestSearch_NilContext_StreamSources(t *testing.T) {
 			t.Fatal("expected panic on nil context")
 		}
 	}()
+	//nolint:staticcheck // intentional: testing nil context panic
 	_, _, _ = p.Search("q").TopK(5).StreamSources(nil)
 }
 
@@ -536,6 +546,7 @@ func TestSearch_NilContext_StreamCite(t *testing.T) {
 			t.Fatal("expected panic on nil context")
 		}
 	}()
+	//nolint:staticcheck // intentional: testing nil context panic
 	_, _, _, _ = p.Search("q").TopK(5).StreamCite(nil)
 }
 
@@ -654,6 +665,7 @@ func TestPipeline_NilContext_Answer(t *testing.T) {
 			t.Fatal("expected panic")
 		}
 	}()
+	//nolint:staticcheck // intentional: testing nil context panic
 	_, _ = p.Answer(nil, "q")
 }
 

@@ -2,10 +2,16 @@ package draftrag
 
 import (
 	"errors"
+	"fmt"
+	"net/url"
+	"strings"
+	"time"
 
 	"github.com/bzdvdn/draftrag/internal/domain"
 )
 
+// Sentinel errors returned by the public API.
+//
 // @sk-task hardening-2026q2#T3.1: Переэкспорт sentinel-ошибок в public API (AC-009)
 var (
 	// ErrEmptyDocument возвращается, если документ нельзя проиндексировать из-за пустого содержимого.
@@ -44,3 +50,43 @@ var (
 	// Ошибка предназначена для проверок через errors.Is.
 	ErrInvalidVectorStoreConfig = errors.New("invalid vector store config")
 )
+
+func validateEmbedderOptions(baseURL, apiKey, model string, timeout time.Duration) error {
+	if strings.TrimSpace(apiKey) == "" {
+		return fmt.Errorf("%w: APIKey is empty", ErrInvalidEmbedderConfig)
+	}
+	if strings.TrimSpace(baseURL) == "" {
+		return fmt.Errorf("%w: BaseURL is empty", ErrInvalidEmbedderConfig)
+	}
+	if strings.TrimSpace(model) == "" {
+		return fmt.Errorf("%w: Model is empty", ErrInvalidEmbedderConfig)
+	}
+	if timeout < 0 {
+		return fmt.Errorf("%w: Timeout must be >= 0", ErrInvalidEmbedderConfig)
+	}
+	u, err := url.Parse(baseURL)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return fmt.Errorf("%w: BaseURL must include scheme and host", ErrInvalidEmbedderConfig)
+	}
+	return nil
+}
+
+func validateLLMOptions(baseURL, apiKey, model string, timeout time.Duration) error {
+	if strings.TrimSpace(apiKey) == "" {
+		return fmt.Errorf("%w: APIKey is empty", ErrInvalidLLMConfig)
+	}
+	if strings.TrimSpace(baseURL) == "" {
+		return fmt.Errorf("%w: BaseURL is empty", ErrInvalidLLMConfig)
+	}
+	if strings.TrimSpace(model) == "" {
+		return fmt.Errorf("%w: Model is empty", ErrInvalidLLMConfig)
+	}
+	if timeout < 0 {
+		return fmt.Errorf("%w: Timeout must be >= 0", ErrInvalidLLMConfig)
+	}
+	u, err := url.Parse(baseURL)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return fmt.Errorf("%w: BaseURL must include scheme and host", ErrInvalidLLMConfig)
+	}
+	return nil
+}

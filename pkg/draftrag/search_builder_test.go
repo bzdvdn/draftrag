@@ -278,7 +278,9 @@ func TestSearchBuilder_RouteMatrix(t *testing.T) {
 		{"MultiQuery", func(b *SearchBuilder) *SearchBuilder { return b.MultiQuery(2) }},
 		{"Hybrid", func(b *SearchBuilder) *SearchBuilder { return b.Hybrid(HybridConfig{SemanticWeight: 0.7}) }},
 		{"ParentIDs", func(b *SearchBuilder) *SearchBuilder { return b.ParentIDs("doc-1") }},
-		{"Filter", func(b *SearchBuilder) *SearchBuilder { return b.Filter(MetadataFilter{Fields: map[string]string{"key": "val"}}) }},
+		{"Filter", func(b *SearchBuilder) *SearchBuilder {
+			return b.Filter(MetadataFilter{Fields: map[string]string{"key": "val"}})
+		}},
 	}
 
 	methods := []struct {
@@ -317,12 +319,30 @@ func TestSearchBuilder_AnalyzePrototype(t *testing.T) {
 
 	// Регистрация handler-ов (6 маршрутов)
 	analyzeRouter := router[rAnalyze]{handlers: map[route]func(context.Context, string, int, *SearchBuilder) (rAnalyze, error){
-		routeBasic:      func(ctx context.Context, q string, topK int, b *SearchBuilder) (rAnalyze, error) { t, err := b.pipeline.core.Answer(ctx, q, topK); return rAnalyze{Result: t}, err },
-		routeHyDE:       func(ctx context.Context, q string, topK int, b *SearchBuilder) (rAnalyze, error) { t, err := b.pipeline.core.AnswerHyDE(ctx, q, topK); return rAnalyze{Result: t}, err },
-		routeMultiQuery: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rAnalyze, error) { t, err := b.pipeline.core.AnswerMulti(ctx, q, b.multiQuery, topK); return rAnalyze{Result: t}, err },
-		routeHybrid:     func(ctx context.Context, q string, topK int, b *SearchBuilder) (rAnalyze, error) { t, err := b.pipeline.core.AnswerHybrid(ctx, q, topK, *b.hybrid); return rAnalyze{Result: t}, err },
-		routeParentIDs:  func(ctx context.Context, q string, topK int, b *SearchBuilder) (rAnalyze, error) { t, err := b.pipeline.core.AnswerWithParentIDs(ctx, q, topK, b.parentIDs); return rAnalyze{Result: t}, err },
-		routeFilter:     func(ctx context.Context, q string, topK int, b *SearchBuilder) (rAnalyze, error) { t, err := b.pipeline.core.AnswerWithMetadataFilter(ctx, q, topK, b.filter); return rAnalyze{Result: t}, err },
+		routeBasic: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rAnalyze, error) {
+			t, err := b.pipeline.core.Answer(ctx, q, topK)
+			return rAnalyze{Result: t}, err
+		},
+		routeHyDE: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rAnalyze, error) {
+			t, err := b.pipeline.core.AnswerHyDE(ctx, q, topK)
+			return rAnalyze{Result: t}, err
+		},
+		routeMultiQuery: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rAnalyze, error) {
+			t, err := b.pipeline.core.AnswerMulti(ctx, q, b.multiQuery, topK)
+			return rAnalyze{Result: t}, err
+		},
+		routeHybrid: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rAnalyze, error) {
+			t, err := b.pipeline.core.AnswerHybrid(ctx, q, topK, *b.hybrid)
+			return rAnalyze{Result: t}, err
+		},
+		routeParentIDs: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rAnalyze, error) {
+			t, err := b.pipeline.core.AnswerWithParentIDs(ctx, q, topK, b.parentIDs)
+			return rAnalyze{Result: t}, err
+		},
+		routeFilter: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rAnalyze, error) {
+			t, err := b.pipeline.core.AnswerWithMetadataFilter(ctx, q, topK, b.filter)
+			return rAnalyze{Result: t}, err
+		},
 	}}
 
 	sb := p.Search("test").TopK(3)

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -94,30 +93,14 @@ func (p *mistralLLM) GenerateStream(ctx context.Context, systemPrompt, userMessa
 
 // @sk-task llm-providers-mistral-deepseek#T2.1: validateMistralLLMOptions (AC-005)
 func validateMistralLLMOptions(opts MistralLLMOptions) error {
-	if strings.TrimSpace(opts.APIKey) == "" {
-		return fmt.Errorf("%w: APIKey is empty", ErrInvalidLLMConfig)
+	if err := validateLLMOptions(opts.BaseURL, opts.APIKey, opts.Model, opts.Timeout); err != nil {
+		return err
 	}
-	if strings.TrimSpace(opts.BaseURL) == "" {
-		return fmt.Errorf("%w: BaseURL is empty", ErrInvalidLLMConfig)
-	}
-	if strings.TrimSpace(opts.Model) == "" {
-		return fmt.Errorf("%w: Model is empty", ErrInvalidLLMConfig)
-	}
-	if opts.Timeout < 0 {
-		return fmt.Errorf("%w: Timeout must be >= 0", ErrInvalidLLMConfig)
-	}
-
-	u, err := url.Parse(opts.BaseURL)
-	if err != nil || u.Scheme == "" || u.Host == "" {
-		return fmt.Errorf("%w: BaseURL must include scheme and host", ErrInvalidLLMConfig)
-	}
-
 	if opts.Temperature != nil && *opts.Temperature < 0 {
 		return fmt.Errorf("%w: Temperature must be >= 0", ErrInvalidLLMConfig)
 	}
 	if opts.MaxTokens != nil && *opts.MaxTokens <= 0 {
 		return fmt.Errorf("%w: MaxTokens must be > 0", ErrInvalidLLMConfig)
 	}
-
 	return nil
 }

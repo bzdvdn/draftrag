@@ -2,10 +2,7 @@ package draftrag
 
 import (
 	"context"
-	"fmt"
 	"net/http"
-	"net/url"
-	"strings"
 	"time"
 
 	"github.com/bzdvdn/draftrag/internal/infrastructure/embedder"
@@ -56,23 +53,5 @@ func (e *openAICompatibleEmbedder) Embed(ctx context.Context, text string) ([]fl
 }
 
 func validateOpenAICompatibleEmbedderOptions(opts OpenAICompatibleEmbedderOptions) error {
-	if strings.TrimSpace(opts.BaseURL) == "" {
-		return fmt.Errorf("%w: BaseURL is empty", ErrInvalidEmbedderConfig)
-	}
-	if strings.TrimSpace(opts.APIKey) == "" {
-		return fmt.Errorf("%w: APIKey is empty", ErrInvalidEmbedderConfig)
-	}
-	if strings.TrimSpace(opts.Model) == "" {
-		return fmt.Errorf("%w: Model is empty", ErrInvalidEmbedderConfig)
-	}
-	if opts.Timeout < 0 {
-		return fmt.Errorf("%w: Timeout must be >= 0", ErrInvalidEmbedderConfig)
-	}
-
-	u, err := url.Parse(opts.BaseURL)
-	if err != nil || u.Scheme == "" || u.Host == "" {
-		return fmt.Errorf("%w: BaseURL must include scheme and host", ErrInvalidEmbedderConfig)
-	}
-
-	return nil
+	return validateEmbedderOptions(opts.BaseURL, opts.APIKey, opts.Model, opts.Timeout)
 }

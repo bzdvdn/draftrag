@@ -2,10 +2,7 @@ package draftrag
 
 import (
 	"context"
-	"fmt"
 	"net/http"
-	"net/url"
-	"strings"
 	"time"
 
 	"github.com/bzdvdn/draftrag/internal/infrastructure/embedder"
@@ -15,8 +12,9 @@ const (
 	defaultMistralEmbedModel = "mistral-embed"
 )
 
-// @sk-task llm-providers-mistral-deepseek#T2.3: MistralEmbedderOptions + NewMistralEmbedder (AC-008, AC-011)
 // MistralEmbedderOptions задаёт параметры для Mistral Embedder (embeddings endpoint).
+//
+// @sk-task llm-providers-mistral-deepseek#T2.3: MistralEmbedderOptions + NewMistralEmbedder (AC-008, AC-011)
 type MistralEmbedderOptions struct {
 	// BaseURL — базовый URL Mistral API. Если пустая строка, используется https://api.mistral.ai.
 	BaseURL string
@@ -71,23 +69,5 @@ func (e *mistralEmbedder) Embed(ctx context.Context, text string) ([]float64, er
 
 // @sk-task llm-providers-mistral-deepseek#T2.3: validateMistralEmbedderOptions (AC-010)
 func validateMistralEmbedderOptions(opts MistralEmbedderOptions) error {
-	if strings.TrimSpace(opts.APIKey) == "" {
-		return fmt.Errorf("%w: APIKey is empty", ErrInvalidEmbedderConfig)
-	}
-	if strings.TrimSpace(opts.BaseURL) == "" {
-		return fmt.Errorf("%w: BaseURL is empty", ErrInvalidEmbedderConfig)
-	}
-	if strings.TrimSpace(opts.Model) == "" {
-		return fmt.Errorf("%w: Model is empty", ErrInvalidEmbedderConfig)
-	}
-	if opts.Timeout < 0 {
-		return fmt.Errorf("%w: Timeout must be >= 0", ErrInvalidEmbedderConfig)
-	}
-
-	u, err := url.Parse(opts.BaseURL)
-	if err != nil || u.Scheme == "" || u.Host == "" {
-		return fmt.Errorf("%w: BaseURL must include scheme and host", ErrInvalidEmbedderConfig)
-	}
-
-	return nil
+	return validateEmbedderOptions(opts.BaseURL, opts.APIKey, opts.Model, opts.Timeout)
 }

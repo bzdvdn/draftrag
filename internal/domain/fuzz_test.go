@@ -25,7 +25,7 @@ func FuzzValidateDocument(f *testing.F) {
 		f.Add(s.id, s.content)
 	}
 
-	f.Fuzz(func(t *testing.T, id, content string) {
+	f.Fuzz(func(_ *testing.T, id, content string) {
 		doc := Document{ID: id, Content: content}
 		_ = doc.Validate()
 	})
@@ -53,7 +53,7 @@ func FuzzValidateChunk(f *testing.F) {
 		f.Add(s.id, s.content, s.parentID)
 	}
 
-	f.Fuzz(func(t *testing.T, id, content, parentID string) {
+	f.Fuzz(func(_ *testing.T, id, content, parentID string) {
 		chunk := Chunk{ID: id, Content: content, ParentID: parentID}
 		_ = chunk.Validate()
 	})
@@ -78,7 +78,7 @@ func FuzzValidateQuery(f *testing.F) {
 		f.Add(s.text, s.topK)
 	}
 
-	f.Fuzz(func(t *testing.T, text string, topK int) {
+	f.Fuzz(func(_ *testing.T, text string, topK int) {
 		q := Query{Text: text, TopK: topK}
 		_ = q.Validate()
 	})

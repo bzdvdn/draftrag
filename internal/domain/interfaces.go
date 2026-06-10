@@ -97,10 +97,10 @@ type DocumentStore interface {
 // TransactionalTx — транзакция в транзакционном vector store.
 //
 // Контракт:
-// - DeleteByParentID и Upsert работают в контексте открытой транзакции;
-//   изменения видимы только после Commit.
-// - При ошибке любого метода (или явном Rollback) все изменения откатываются.
-// - Методы НЕ ДОЛЖНЫ вызываться после Commit/Rollback — поведение зависит от реализации.
+//   - DeleteByParentID и Upsert работают в контексте открытой транзакции;
+//     изменения видимы только после Commit.
+//   - При ошибке любого метода (или явном Rollback) все изменения откатываются.
+//   - Методы НЕ ДОЛЖНЫ вызываться после Commit/Rollback — поведение зависит от реализации.
 //
 // @sk-task api-consistency-pass#T1.1: интерфейс для атомарного UpdateDocument (RQ-005, AC-008)
 type TransactionalTx interface {

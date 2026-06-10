@@ -21,18 +21,18 @@ const (
 
 // @sk-task llm-providers-mistral-deepseek#T1.1: Структуры запроса/ответа Chat Completions API (AC-003, AC-004)
 type chatRequest struct {
-	Model       string          `json:"model"`
-	Messages    []chatMessage   `json:"messages"`
-	Temperature *float64        `json:"temperature,omitempty"`
-	MaxTokens   *int            `json:"max_tokens,omitempty"`
+	Model       string        `json:"model"`
+	Messages    []chatMessage `json:"messages"`
+	Temperature *float64      `json:"temperature,omitempty"`
+	MaxTokens   *int          `json:"max_tokens,omitempty"`
 }
 
 type chatStreamRequest struct {
-	Model       string          `json:"model"`
-	Messages    []chatMessage   `json:"messages"`
-	Temperature *float64        `json:"temperature,omitempty"`
-	MaxTokens   *int            `json:"max_tokens,omitempty"`
-	Stream      bool            `json:"stream"`
+	Model       string        `json:"model"`
+	Messages    []chatMessage `json:"messages"`
+	Temperature *float64      `json:"temperature,omitempty"`
+	MaxTokens   *int          `json:"max_tokens,omitempty"`
+	Stream      bool          `json:"stream"`
 }
 
 type chatMessage struct {
@@ -94,6 +94,8 @@ func NewOpenAIChatLLM(
 	}
 }
 
+// Generate sends a chat completion request and returns the generated text.
+//
 // @sk-task llm-providers-mistral-deepseek#T1.1: Generate реализация (AC-003)
 //
 //nolint:gocyclo
@@ -161,6 +163,8 @@ func (c *OpenAIChatLLM) Generate(ctx context.Context, systemPrompt, userMessage 
 	return "", errors.New("invalid chat response: missing choices[0].message.content")
 }
 
+// GenerateStream sends a streaming chat completion request and returns a channel of text tokens.
+//
 // @sk-task llm-providers-mistral-deepseek#T1.1: GenerateStream реализация (AC-004)
 //
 //nolint:gocyclo

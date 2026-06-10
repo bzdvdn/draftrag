@@ -10,10 +10,11 @@ import (
 	"github.com/bzdvdn/draftrag/internal/domain"
 )
 
-// @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 const hydeSystemPrompt = "You are a helpful assistant. Write a short factual passage that would directly answer the question. Write only the passage."
 
 // QueryHyDE выполняет поиск с использованием Hypothetical Document Embeddings.
+//
+// @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // Сначала LLM генерирует гипотетический ответ на вопрос, затем ищем по его embedding.
 func (p *Pipeline) QueryHyDE(ctx context.Context, question string, topK int) (domain.RetrievalResult, error) {
 	if ctx == nil {
@@ -55,10 +56,11 @@ func (p *Pipeline) QueryHyDE(ctx context.Context, question string, topK int) (do
 	return result, nil
 }
 
-// @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 const multiQuerySystemPrompt = "You are a helpful assistant. Generate alternative phrasings of the given question to improve document retrieval. Output only the questions, one per line, no numbering, no extra text."
 
 // QueryMulti выполняет multi-query retrieval: генерирует n перефразировок вопроса,
+//
+// @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // выполняет поиск по каждой, объединяет результаты через Reciprocal Rank Fusion.
 func (p *Pipeline) QueryMulti(ctx context.Context, question string, n, topK int) (domain.RetrievalResult, error) {
 	if ctx == nil {
@@ -115,9 +117,10 @@ func (p *Pipeline) QueryMulti(ctx context.Context, question string, n, topK int)
 	return merged, nil
 }
 
+// Query выполняет поиск по вопросу и возвращает RetrievalResult.
+//
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
-// Query выполняет поиск по вопросу и возвращает RetrievalResult.
 func (p *Pipeline) Query(ctx context.Context, question string, topK int) (domain.RetrievalResult, error) {
 	if ctx == nil {
 		panic("nil context")
@@ -160,11 +163,12 @@ func (p *Pipeline) Query(ctx context.Context, question string, topK int) (domain
 	return result, nil
 }
 
-// @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
-// @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
 // QueryWithParentIDs выполняет поиск по вопросу с фильтром по ParentIDs.
 //
 // Если parentIDs пустой — эквивалентно Query.
+//
+// @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
+// @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
 func (p *Pipeline) QueryWithParentIDs(ctx context.Context, question string, topK int, parentIDs []string) (domain.RetrievalResult, error) {
 	if len(parentIDs) == 0 {
 		return p.Query(ctx, question, topK)
@@ -216,14 +220,14 @@ func (p *Pipeline) QueryWithParentIDs(ctx context.Context, question string, topK
 	return result, nil
 }
 
-// @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
-// @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
 // QueryWithMetadataFilter выполняет поиск по вопросу с фильтром по метаданным документа.
 //
 // Если filter.Fields пустой — эквивалентно Query.
 // Если store не реализует VectorStoreWithFilters — возвращает ErrFiltersNotSupported.
 //
 // @ds-task T3.1: Добавить QueryWithMetadataFilter в application.Pipeline (RQ-005, AC-003, DEC-003)
+// @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
+// @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
 func (p *Pipeline) QueryWithMetadataFilter(ctx context.Context, question string, topK int, filter domain.MetadataFilter) (domain.RetrievalResult, error) {
 	if len(filter.Fields) == 0 {
 		return p.Query(ctx, question, topK)
@@ -275,15 +279,16 @@ func (p *Pipeline) QueryWithMetadataFilter(ctx context.Context, question string,
 	return result, nil
 }
 
-// ErrHybridNotSupported возвращается, если pipeline-метод гибридного поиска вызван,
-// но underlying VectorStore не поддерживает HybridSearcher capability.
+// ErrHybridNotSupported is returned when a hybrid search method is called
+// but the underlying VectorStore does not implement HybridSearcher.
 var ErrHybridNotSupported = errors.New("vector store does not support hybrid search")
 
-// @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
-// @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
 // QueryHybrid выполняет гибридный поиск (BM25 + semantic) по вопросу.
 //
 // Если store не реализует HybridSearcher — возвращает ErrHybridNotSupported.
+//
+// @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
+// @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
 func (p *Pipeline) QueryHybrid(ctx context.Context, question string, topK int, config domain.HybridConfig) (domain.RetrievalResult, error) {
 	if ctx == nil {
 		panic("nil context")

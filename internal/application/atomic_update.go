@@ -16,16 +16,16 @@ import (
 // domain.ErrUpdateNotAtomic при сбое после успешного delete.
 //
 // Контракт:
-// - ctx обязателен; первый параметр; nil panic (как в других методах Pipeline).
-// - doc валидируется ДО открытия транзакции (избегаем пустого tx).
-// - Если store реализует TransactionalDocumentStore: BeginTx → DeleteByParentID +
-//   Upsert всех чанков в tx → Commit; при любой ошибке — Rollback (через deferred
-//   safety net) + wrapped error. Транзакция откатывается полностью: ни старые,
-//   ни новые чанки не сохраняются частично.
-// - Если store НЕ реализует TransactionalDocumentStore: DeleteByParentID + Index;
-//   при ошибке Index после успешного delete — return ErrUpdateNotAtomic с wrapped
-//   underlying error. Чанки, которые успели проиндексироваться до ошибки, остаются
-//   в store; чанки, которые не успели — отсутствуют. Консистентность best-effort.
+//   - ctx обязателен; первый параметр; nil panic (как в других методах Pipeline).
+//   - doc валидируется ДО открытия транзакции (избегаем пустого tx).
+//   - Если store реализует TransactionalDocumentStore: BeginTx → DeleteByParentID +
+//     Upsert всех чанков в tx → Commit; при любой ошибке — Rollback (через deferred
+//     safety net) + wrapped error. Транзакция откатывается полностью: ни старые,
+//     ни новые чанки не сохраняются частично.
+//   - Если store НЕ реализует TransactionalDocumentStore: DeleteByParentID + Index;
+//     при ошибке Index после успешного delete — return ErrUpdateNotAtomic с wrapped
+//     underlying error. Чанки, которые успели проиндексироваться до ошибки, остаются
+//     в store; чанки, которые не успели — отсутствуют. Консистентность best-effort.
 func (p *Pipeline) updateDocumentAtomic(ctx context.Context, doc domain.Document) error {
 	if ctx == nil {
 		panic("nil context")

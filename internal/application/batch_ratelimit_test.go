@@ -62,7 +62,7 @@ func TestProcessDocsConcurrently_PerWorker_RateIsPerWorker(t *testing.T) {
 		4,    // concurrency
 		10,   // rateLimit
 		true, // perWorker
-		func(ctx context.Context, doc domain.Document) error {
+		func(_ context.Context, doc domain.Document) error {
 			rec.record()
 			return nil
 		},
@@ -102,7 +102,7 @@ func TestProcessDocsConcurrently_Shared_RateIsPoolWide(t *testing.T) {
 		4,     // concurrency
 		10,    // rateLimit
 		false, // perWorker (shared)
-		func(ctx context.Context, doc domain.Document) error {
+		func(_ context.Context, doc domain.Document) error {
 			rec.record()
 			return nil
 		},
@@ -142,7 +142,7 @@ func TestProcessDocsConcurrently_ZeroRateLimit_NoThrottling(t *testing.T) {
 		4,    // concurrency
 		0,    // rateLimit (disabled)
 		true, // perWorker (irrelevant when rateLimit=0)
-		func(ctx context.Context, doc domain.Document) error {
+		func(_ context.Context, doc domain.Document) error {
 			rec.record()
 			return nil
 		},

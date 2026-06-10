@@ -79,6 +79,7 @@ func TestPipeline_StreamBackpressure_DefaultUnbuffered(t *testing.T) {
 	}
 	defer func() {
 		for range stream {
+			// consume stream
 		}
 	}()
 
@@ -179,11 +180,11 @@ func TestPipeline_StreamBackpressure_AllTokensDelivered(t *testing.T) {
 func TestPipeline_StreamBackpressure_ProducerRunsAhead(t *testing.T) {
 	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	const (
-		tokenCount    = 20
-		emitDelay     = 1 * time.Millisecond
-		consumeDelay  = 50 * time.Millisecond
-		bufferSize    = tokenCount
-		maxAheadFrac  = 0.5 // producer должен закончить ≤ 50% от consumer time
+		tokenCount   = 20
+		emitDelay    = 1 * time.Millisecond
+		consumeDelay = 50 * time.Millisecond
+		bufferSize   = tokenCount
+		maxAheadFrac = 0.5 // producer должен закончить ≤ 50% от consumer time
 	)
 
 	tokens := make([]string, tokenCount)
@@ -270,8 +271,9 @@ func TestPipeline_wrapStreamWithHook_ChannelCapacity(t *testing.T) {
 				t.Fatalf("expected cap=%d, got %d", size, got)
 			}
 			// Канал должен закрыться.
-			for range out {
-			}
+		for range out {
+			// consume stream
+		}
 		})
 	}
 }
@@ -297,6 +299,7 @@ func TestPipeline_StreamBackpressure_HooksCalledOnClose(t *testing.T) {
 		t.Fatalf("AnswerStream: %v", err)
 	}
 	for range stream {
+		// consume stream
 	}
 
 	if hooks.endCount[domain.HookStageGenerate] == 0 {
