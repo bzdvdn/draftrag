@@ -45,9 +45,12 @@ func TestPipeline_Index_UsesChunker_UpsertsMultipleChunks(t *testing.T) {
 		},
 	}
 
-	p := NewPipelineWithChunker(store, testLLM{}, emb, ch)
+	p, err := NewPipelineWithChunker(store, testLLM{}, emb, ch)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	err := p.Index(context.Background(), []domain.Document{{ID: "doc-1", Content: "ignored"}})
+	err = p.Index(context.Background(), []domain.Document{{ID: "doc-1", Content: "ignored"}})
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
@@ -68,9 +71,12 @@ func TestPipeline_Index_BackwardCompatibility_OneChunkPerDoc(t *testing.T) {
 	store := vectorstore.NewInMemoryStore()
 	emb := &countingEmbedder{}
 
-	p := NewPipeline(store, testLLM{}, emb)
+	p, err := NewPipeline(store, testLLM{}, emb)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	err := p.Index(context.Background(), []domain.Document{{ID: "doc-1", Content: "cat"}})
+	err = p.Index(context.Background(), []domain.Document{{ID: "doc-1", Content: "cat"}})
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
@@ -90,13 +96,16 @@ func TestPipeline_Index_ContextCancelFast(t *testing.T) {
 		},
 	}
 
-	p := NewPipelineWithChunker(store, testLLM{}, emb, ch)
+	p, err := NewPipelineWithChunker(store, testLLM{}, emb, ch)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	start := time.Now()
 	cancel()
 
-	err := p.Index(ctx, []domain.Document{{ID: "doc-1", Content: strings.Repeat("x", 100)}})
+	err = p.Index(ctx, []domain.Document{{ID: "doc-1", Content: strings.Repeat("x", 100)}})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected context.Canceled, got %v", err)
 	}

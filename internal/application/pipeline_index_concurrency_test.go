@@ -43,14 +43,18 @@ func (e *slowEmbedder) Embed(ctx context.Context, text string) ([]float64, error
 // rate limit выставлен высоким, чтобы изолировать проверку concurrency от
 // rate-limiter эффекта (T3.4 покрывает rate limiting отдельно).
 func TestPipeline_Index_ConcurrencySpeedup(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := vectorstore.NewInMemoryStore()
 	emb := &slowEmbedder{delay: 100 * time.Millisecond}
-	p := NewPipelineWithConfig(
+	p, err := NewPipelineWithConfig(
 		store,
 		testLLM{},
 		emb,
-		PipelineConfig{IndexConcurrency: 4, IndexBatchRateLimit: 1000},
+		PipelineOptions{IndexConcurrency: 4, IndexBatchRateLimit: 1000},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	docs := make([]domain.Document, 10)
 	for i := range docs {
@@ -85,14 +89,18 @@ func TestPipeline_Index_ConcurrencySpeedup(t *testing.T) {
 // гарантированно падающим; success-путь достаточно длинный, чтобы дать
 // goroutine время стартовать и быть отменённой через cancel().
 func TestPipeline_Index_FailFast_ReturnsOriginalError(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := vectorstore.NewInMemoryStore()
 	emb := &slowEmbedder{delay: 50 * time.Millisecond, failOn: "boom"}
-	p := NewPipelineWithConfig(
+	p, err := NewPipelineWithConfig(
 		store,
 		testLLM{},
 		emb,
-		PipelineConfig{IndexConcurrency: 4, IndexBatchRateLimit: 1000},
+		PipelineOptions{IndexConcurrency: 4, IndexBatchRateLimit: 1000},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	docs := []domain.Document{
 		{ID: "d1", Content: "ok-1"},
@@ -105,7 +113,7 @@ func TestPipeline_Index_FailFast_ReturnsOriginalError(t *testing.T) {
 		{ID: "d8", Content: "ok-7"},
 	}
 
-	err := p.Index(context.Background(), docs)
+	err = p.Index(context.Background(), docs)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -121,20 +129,24 @@ func TestPipeline_Index_FailFast_ReturnsOriginalError(t *testing.T) {
 // запуска Index, метод должен вернуть context.Canceled без запуска workers
 // (DEC-004, RQ-004, AC-006).
 func TestPipeline_Index_ContextCancelled(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := vectorstore.NewInMemoryStore()
 	emb := &slowEmbedder{delay: 100 * time.Millisecond}
-	p := NewPipelineWithConfig(
+	p, err := NewPipelineWithConfig(
 		store,
 		testLLM{},
 		emb,
-		PipelineConfig{IndexConcurrency: 4, IndexBatchRateLimit: 1000},
+		PipelineOptions{IndexConcurrency: 4, IndexBatchRateLimit: 1000},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
 	docs := []domain.Document{{ID: "d1", Content: "hello"}}
-	err := p.Index(ctx, docs)
+	err = p.Index(ctx, docs)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected context.Canceled, got %v", err)
 	}
@@ -147,14 +159,18 @@ func TestPipeline_Index_ContextCancelled(t *testing.T) {
 // ошибки также прерывают Index и возвращаются как оригинальная ошибка
 // (не ctx.Canceled) (DEC-004, RQ-004, AC-006).
 func TestPipeline_Index_ValidationErrorFailsFast(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := vectorstore.NewInMemoryStore()
 	emb := &slowEmbedder{delay: 50 * time.Millisecond}
-	p := NewPipelineWithConfig(
+	p, err := NewPipelineWithConfig(
 		store,
 		testLLM{},
 		emb,
-		PipelineConfig{IndexConcurrency: 4, IndexBatchRateLimit: 1000},
+		PipelineOptions{IndexConcurrency: 4, IndexBatchRateLimit: 1000},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	docs := []domain.Document{
 		{ID: "d1", Content: "ok-1"},
@@ -162,7 +178,7 @@ func TestPipeline_Index_ValidationErrorFailsFast(t *testing.T) {
 		{ID: "d3", Content: "ok-2"},
 	}
 
-	err := p.Index(context.Background(), docs)
+	err = p.Index(context.Background(), docs)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -178,14 +194,18 @@ func TestPipeline_Index_ValidationErrorFailsFast(t *testing.T) {
 // действительно даёт sequential-время (sanity check на параметр).
 // Sequential baseline: 5 * 100ms = 500ms; с overhead ≤ 800ms.
 func TestPipeline_Index_ConcurrencyOneSequential(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := vectorstore.NewInMemoryStore()
 	emb := &slowEmbedder{delay: 100 * time.Millisecond}
-	p := NewPipelineWithConfig(
+	p, err := NewPipelineWithConfig(
 		store,
 		testLLM{},
 		emb,
-		PipelineConfig{IndexConcurrency: 1, IndexBatchRateLimit: 1000},
+		PipelineOptions{IndexConcurrency: 1, IndexBatchRateLimit: 1000},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	docs := make([]domain.Document, 5)
 	for i := range docs {

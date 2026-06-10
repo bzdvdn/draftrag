@@ -28,6 +28,7 @@ func (l assertLLMInline) Generate(_ context.Context, _, userMessage string) (str
 }
 
 func TestPipeline_AnswerWithInlineCitations_ReturnsCitationsMapping(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	expected := domain.RetrievalResult{
 		Chunks: []domain.RetrievedChunk{
 			{Chunk: domain.Chunk{Content: "A"}, Score: 0.9},
@@ -36,7 +37,7 @@ func TestPipeline_AnswerWithInlineCitations_ReturnsCitationsMapping(t *testing.T
 		TotalFound: 2,
 	}
 
-	p := NewPipelineWithConfig(
+	p, err := NewPipelineWithConfig(
 		fixedSearchStore2{result: expected},
 		assertLLMInline{
 			t: t,
@@ -50,8 +51,11 @@ func TestPipeline_AnswerWithInlineCitations_ReturnsCitationsMapping(t *testing.T
 			answer: "ok [1]",
 		},
 		fixedEmbedder2{},
-		PipelineConfig{},
+		PipelineOptions{},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	answer, gotRetrieval, citations, err := p.AnswerWithInlineCitations(context.Background(), "Q", 2)
 	if err != nil {
@@ -76,6 +80,7 @@ func TestPipeline_AnswerWithInlineCitations_ReturnsCitationsMapping(t *testing.T
 }
 
 func TestPipeline_AnswerWithInlineCitations_RespectsMaxContextChunks(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	expected := domain.RetrievalResult{
 		Chunks: []domain.RetrievedChunk{
 			{Chunk: domain.Chunk{Content: "A"}, Score: 0.9},
@@ -84,7 +89,7 @@ func TestPipeline_AnswerWithInlineCitations_RespectsMaxContextChunks(t *testing.
 		TotalFound: 2,
 	}
 
-	p := NewPipelineWithConfig(
+	p, err := NewPipelineWithConfig(
 		fixedSearchStore2{result: expected},
 		assertLLMInline{
 			t: t,
@@ -94,8 +99,11 @@ func TestPipeline_AnswerWithInlineCitations_RespectsMaxContextChunks(t *testing.
 			answer: "ok [1]",
 		},
 		fixedEmbedder2{},
-		PipelineConfig{MaxContextChunks: 1},
+		PipelineOptions{MaxContextChunks: 1},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	_, _, citations, err := p.AnswerWithInlineCitations(context.Background(), "Q", 2)
 	if err != nil {

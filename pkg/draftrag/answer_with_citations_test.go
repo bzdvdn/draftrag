@@ -36,9 +36,12 @@ func (panicLLM2) Generate(_ context.Context, _, _ string) (string, error) {
 }
 
 func TestPipeline_Cite_Validation(t *testing.T) {
-	p := NewPipeline(panicStore2{}, panicLLM2{}, panicEmbedder2{})
+	p, err := NewPipeline(panicStore2{}, panicLLM2{}, panicEmbedder2{})
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, _, err := p.Search("   ").TopK(5).Cite(context.Background())
+	_, _, err = p.Search("   ").TopK(5).Cite(context.Background())
 	if !errors.Is(err, ErrEmptyQuery) {
 		t.Fatalf("expected ErrEmptyQuery, got %v", err)
 	}

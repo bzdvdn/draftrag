@@ -35,9 +35,12 @@ func (okLLM) Generate(_ context.Context, _, _ string) (string, error) {
 
 func TestPipelineOptions_DefaultTopK_AppliesToQueryAndAnswer(t *testing.T) {
 	store := &topKStore{}
-	p := NewPipelineWithOptions(store, okLLM{}, okEmbedder{}, PipelineOptions{
+	p, err := NewPipelineWithOptions(store, okLLM{}, okEmbedder{}, PipelineOptions{
 		DefaultTopK: 3,
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	_, _ = p.Query(context.Background(), "q")
 	if store.gotTopK != 3 {

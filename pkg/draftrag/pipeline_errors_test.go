@@ -12,7 +12,10 @@ import (
 // (errors.Is на ErrEmptyQuery/ErrInvalidTopK/ErrEmptyDocument). (AC-003, RQ-003)
 func TestPipelineErrorMapping_ValidationReachesPublicSentinels(t *testing.T) {
 	ctx := context.Background()
-	p := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	cases := []struct {
 		name string

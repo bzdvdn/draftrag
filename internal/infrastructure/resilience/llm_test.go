@@ -156,7 +156,7 @@ func TestRetryLLMProvider_HooksCalled(t *testing.T) {
 		Return("response", nil).Once()
 
 	mockHooks := new(MockHooks)
-	mockHooks.On("StageStart", mock.Anything, mock.Anything).Return()
+	mockHooks.On("StageStart", mock.Anything, mock.Anything).Return(context.Background())
 	mockHooks.On("StageEnd", mock.Anything, mock.Anything).Return()
 
 	config := &RetryConfig{
@@ -181,7 +181,7 @@ func TestRetryLLMProvider_HooksCalledOnRejection(t *testing.T) {
 	// AC-006: Hooks получают событие при отклонении circuit breaker
 	mockLLM := new(MockLLMProvider)
 	mockHooks := new(MockHooks)
-	mockHooks.On("StageStart", mock.Anything, mock.Anything).Return()
+	mockHooks.On("StageStart", mock.Anything, mock.Anything).Return(context.Background())
 	mockHooks.On("StageEnd", mock.Anything, mock.Anything).Return()
 
 	cbConfig := &CircuitBreakerConfig{

@@ -79,7 +79,10 @@ func TestPipeline_WithPGVectorStore(t *testing.T) {
 	})
 
 	store := NewPGVectorStore(db, opts)
-	pipeline := NewPipeline(store, pgvectorTestLLM{}, pgvectorTestEmbedder{})
+	pipeline, err := NewPipeline(store, pgvectorTestLLM{}, pgvectorTestEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if err := pipeline.Index(ctx, []Document{{ID: "doc-1", Content: "cat"}}); err != nil {
 		t.Fatalf("index: %v", err)

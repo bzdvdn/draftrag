@@ -28,7 +28,10 @@ func (testLLM) Generate(ctx context.Context, _, _ string) (string, error) {
 }
 
 func TestPipeline_ValidationErrors(t *testing.T) {
-	p := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
 
 	if err := p.Index(ctx, []domain.Document{{ID: "doc-1", Content: ""}}); !errors.Is(err, ErrEmptyDocument) {

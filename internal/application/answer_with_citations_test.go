@@ -39,6 +39,7 @@ func (l errLLM) Generate(_ context.Context, _, _ string) (string, error) {
 }
 
 func TestPipeline_AnswerWithCitations_ReturnsAnswerAndRetrieval(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	expected := domain.RetrievalResult{
 		Chunks: []domain.RetrievedChunk{
 			{Chunk: domain.Chunk{Content: "A"}, Score: 0.9},
@@ -46,12 +47,15 @@ func TestPipeline_AnswerWithCitations_ReturnsAnswerAndRetrieval(t *testing.T) {
 		TotalFound: 1,
 	}
 
-	p := NewPipelineWithConfig(
+	p, err := NewPipelineWithConfig(
 		fixedSearchStore2{result: expected},
 		okLLM2{},
 		fixedEmbedder2{},
-		PipelineConfig{},
+		PipelineOptions{},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	answer, gotRetrieval, err := p.AnswerWithCitations(context.Background(), "Q", 3)
 	if err != nil {
@@ -72,6 +76,7 @@ func TestPipeline_AnswerWithCitations_ReturnsAnswerAndRetrieval(t *testing.T) {
 }
 
 func TestPipeline_AnswerWithCitations_PartialResultOnGenerateError(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	expected := domain.RetrievalResult{
 		Chunks: []domain.RetrievedChunk{
 			{Chunk: domain.Chunk{Content: "A"}, Score: 0.9},
@@ -80,12 +85,15 @@ func TestPipeline_AnswerWithCitations_PartialResultOnGenerateError(t *testing.T)
 	}
 	genErr := errors.New("generate failed")
 
-	p := NewPipelineWithConfig(
+	p, err := NewPipelineWithConfig(
 		fixedSearchStore2{result: expected},
 		errLLM{err: genErr},
 		fixedEmbedder2{},
-		PipelineConfig{},
+		PipelineOptions{},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	answer, gotRetrieval, err := p.AnswerWithCitations(context.Background(), "Q", 3)
 	if !errors.Is(err, genErr) {

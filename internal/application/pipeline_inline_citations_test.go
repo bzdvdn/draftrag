@@ -12,9 +12,12 @@ func TestPipeline_AnswerWithInlineCitations_EmbedError(t *testing.T) {
 	llm := &mockLLMProvider{}
 	embedder := &errorEmbedder{}
 
-	p := NewPipeline(store, llm, embedder)
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, _, _, err := p.AnswerWithInlineCitations(context.Background(), "test query", 5)
+	_, _, _, err = p.AnswerWithInlineCitations(context.Background(), "test query", 5)
 	if err == nil {
 		t.Fatal("expected error for embed failure, got nil")
 	}
@@ -25,9 +28,12 @@ func TestPipeline_AnswerWithInlineCitations_GenerateError(t *testing.T) {
 	llm := &errorLLMProvider{}
 	embedder := &mockEmbedder{}
 
-	p := NewPipeline(store, llm, embedder)
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, _, _, err := p.AnswerWithInlineCitations(context.Background(), "test query", 5)
+	_, _, _, err = p.AnswerWithInlineCitations(context.Background(), "test query", 5)
 	if err == nil {
 		t.Fatal("expected error for generate failure, got nil")
 	}
@@ -38,7 +44,10 @@ func TestPipeline_AnswerWithInlineCitations_Success(t *testing.T) {
 	llm := &mockLLMProvider{}
 	embedder := &mockEmbedder{}
 
-	p := NewPipeline(store, llm, embedder)
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	answer, result, citations, err := p.AnswerWithInlineCitations(context.Background(), "test query", 5)
 	if err != nil {
@@ -56,9 +65,12 @@ func TestPipeline_AnswerWithInlineCitationsWithParentIDs_EmbedError(t *testing.T
 	llm := &mockLLMProvider{}
 	embedder := &errorEmbedder{}
 
-	p := NewPipeline(store, llm, embedder)
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, _, _, err := p.AnswerWithInlineCitationsWithParentIDs(context.Background(), "test query", 5, []string{"doc1"})
+	_, _, _, err = p.AnswerWithInlineCitationsWithParentIDs(context.Background(), "test query", 5, []string{"doc1"})
 	if err == nil {
 		t.Fatal("expected error for embed failure, got nil")
 	}
@@ -69,7 +81,10 @@ func TestPipeline_AnswerWithInlineCitationsWithParentIDs_Success(t *testing.T) {
 	llm := &mockLLMProvider{}
 	embedder := &mockEmbedder{}
 
-	p := NewPipeline(store, llm, embedder)
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	answer, result, citations, err := p.AnswerWithInlineCitationsWithParentIDs(context.Background(), "test query", 5, []string{"doc1"})
 	if err != nil {
@@ -87,10 +102,13 @@ func TestPipeline_AnswerWithInlineCitationsWithMetadataFilter_EmbedError(t *test
 	llm := &mockLLMProvider{}
 	embedder := &errorEmbedder{}
 
-	p := NewPipeline(store, llm, embedder)
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	filter := domain.MetadataFilter{Fields: map[string]string{"source": "wiki"}}
-	_, _, _, err := p.AnswerWithInlineCitationsWithMetadataFilter(context.Background(), "test query", 5, filter)
+	_, _, _, err = p.AnswerWithInlineCitationsWithMetadataFilter(context.Background(), "test query", 5, filter)
 	if err == nil {
 		t.Fatal("expected error for embed failure, got nil")
 	}
@@ -101,7 +119,10 @@ func TestPipeline_AnswerWithInlineCitationsWithMetadataFilter_Success(t *testing
 	llm := &mockLLMProvider{}
 	embedder := &mockEmbedder{}
 
-	p := NewPipeline(store, llm, embedder)
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	filter := domain.MetadataFilter{Fields: map[string]string{"source": "wiki"}}
 	answer, result, citations, err := p.AnswerWithInlineCitationsWithMetadataFilter(context.Background(), "test query", 5, filter)
@@ -120,9 +141,12 @@ func TestPipeline_AnswerHyDEWithInlineCitations_EmbedError(t *testing.T) {
 	llm := &mockLLMProvider{}
 	embedder := &errorEmbedder{}
 
-	p := NewPipeline(store, llm, embedder)
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, _, _, err := p.AnswerHyDEWithInlineCitations(context.Background(), "test query", 5)
+	_, _, _, err = p.AnswerHyDEWithInlineCitations(context.Background(), "test query", 5)
 	if err == nil {
 		t.Fatal("expected error for embed failure, got nil")
 	}
@@ -133,7 +157,10 @@ func TestPipeline_AnswerHyDEWithInlineCitations_Success(t *testing.T) {
 	llm := &mockLLMProvider{}
 	embedder := &mockEmbedder{}
 
-	p := NewPipeline(store, llm, embedder)
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	answer, result, citations, err := p.AnswerHyDEWithInlineCitations(context.Background(), "test query", 5)
 	if err != nil {
@@ -151,9 +178,12 @@ func TestPipeline_AnswerMultiWithInlineCitations_EmbedError(t *testing.T) {
 	llm := &mockLLMProvider{}
 	embedder := &errorEmbedder{}
 
-	p := NewPipeline(store, llm, embedder)
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, _, _, err := p.AnswerMultiWithInlineCitations(context.Background(), "test query", 3, 5)
+	_, _, _, err = p.AnswerMultiWithInlineCitations(context.Background(), "test query", 3, 5)
 	if err == nil {
 		t.Fatal("expected error for embed failure, got nil")
 	}
@@ -164,7 +194,10 @@ func TestPipeline_AnswerMultiWithInlineCitations_Success(t *testing.T) {
 	llm := &mockLLMProvider{}
 	embedder := &mockEmbedder{}
 
-	p := NewPipeline(store, llm, embedder)
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	answer, result, citations, err := p.AnswerMultiWithInlineCitations(context.Background(), "test query", 3, 5)
 	if err != nil {
@@ -182,10 +215,13 @@ func TestPipeline_AnswerHybridWithInlineCitations_EmbedError(t *testing.T) {
 	llm := &mockLLMProvider{}
 	embedder := &errorEmbedder{}
 
-	p := NewPipeline(store, llm, embedder)
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	config := domain.DefaultHybridConfig()
-	_, _, _, err := p.AnswerHybridWithInlineCitations(context.Background(), "test query", 5, config)
+	_, _, _, err = p.AnswerHybridWithInlineCitations(context.Background(), "test query", 5, config)
 	if err == nil {
 		t.Fatal("expected error for embed failure, got nil")
 	}
@@ -196,7 +232,10 @@ func TestPipeline_AnswerHybridWithInlineCitations_Success(t *testing.T) {
 	llm := &mockLLMProvider{}
 	embedder := &mockEmbedder{}
 
-	p := NewPipeline(store, llm, embedder)
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	config := domain.DefaultHybridConfig()
 	answer, result, citations, err := p.AnswerHybridWithInlineCitations(context.Background(), "test query", 5, config)
@@ -215,10 +254,13 @@ func TestPipeline_AnswerHybridWithInlineCitations_NotSupported(t *testing.T) {
 	llm := &mockLLMProvider{}
 	embedder := &mockEmbedder{}
 
-	p := NewPipeline(store, llm, embedder)
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	config := domain.DefaultHybridConfig()
-	_, _, _, err := p.AnswerHybridWithInlineCitations(context.Background(), "test query", 5, config)
+	_, _, _, err = p.AnswerHybridWithInlineCitations(context.Background(), "test query", 5, config)
 	if err == nil {
 		t.Fatal("expected error for unsupported operation, got nil")
 	}

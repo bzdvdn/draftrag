@@ -44,9 +44,12 @@ func TestPipeline_ContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	p := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, err := p.Query(ctx, "cat", 5)
+	_, err = p.Query(ctx, "cat", 5)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected context.Canceled, got %v", err)
 	}
@@ -54,7 +57,10 @@ func TestPipeline_ContextCancellation(t *testing.T) {
 
 func TestPipeline_FullCycle(t *testing.T) {
 	ctx := context.Background()
-	p := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	docs := []domain.Document{
 		{
@@ -82,9 +88,12 @@ func TestPipeline_FullCycle(t *testing.T) {
 func TestPipeline_QueryWithParentIDs_FiltersNotSupported(t *testing.T) {
 	// InMemoryStore теперь реализует VectorStoreWithFilters; используем non-filter store.
 	ctx := context.Background()
-	p := NewPipeline(&noFilterStore{}, testLLM{}, testEmbedder{})
+	p, err := NewPipeline(&noFilterStore{}, testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, err := p.QueryWithParentIDs(ctx, "cat", 5, []string{"doc-1"})
+	_, err = p.QueryWithParentIDs(ctx, "cat", 5, []string{"doc-1"})
 	if !errors.Is(err, ErrFiltersNotSupported) {
 		t.Fatalf("expected ErrFiltersNotSupported, got %v", err)
 	}
@@ -92,10 +101,13 @@ func TestPipeline_QueryWithParentIDs_FiltersNotSupported(t *testing.T) {
 
 func TestPipeline_QueryWithParentIDs_EmptyFilterFallsBack(t *testing.T) {
 	ctx := context.Background()
-	p := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Пустой фильтр не должен требовать capability.
-	_, err := p.QueryWithParentIDs(ctx, "cat", 5, nil)
+	_, err = p.QueryWithParentIDs(ctx, "cat", 5, nil)
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
@@ -108,9 +120,12 @@ func TestPipeline_QueryWithParentIDs_EmptyFilterFallsBack(t *testing.T) {
 func TestPipeline_QueryWithMetadataFilter_FiltersNotSupported(t *testing.T) {
 	// InMemoryStore теперь реализует VectorStoreWithFilters, используем минимальный non-filter store.
 	ctx := context.Background()
-	p := NewPipeline(&noFilterStore{}, testLLM{}, testEmbedder{})
+	p, err := NewPipeline(&noFilterStore{}, testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, err := p.QueryWithMetadataFilter(ctx, "cat", 5, domain.MetadataFilter{
+	_, err = p.QueryWithMetadataFilter(ctx, "cat", 5, domain.MetadataFilter{
 		Fields: map[string]string{"category": "legal"},
 	})
 	if !errors.Is(err, ErrFiltersNotSupported) {
@@ -122,9 +137,12 @@ func TestPipeline_QueryWithMetadataFilter_FiltersNotSupported(t *testing.T) {
 // не требует VectorStoreWithFilters capability и возвращает результат без ошибки (AC-002).
 func TestPipeline_QueryWithMetadataFilter_EmptyFilterFallsBack(t *testing.T) {
 	ctx := context.Background()
-	p := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, err := p.QueryWithMetadataFilter(ctx, "cat", 5, domain.MetadataFilter{})
+	_, err = p.QueryWithMetadataFilter(ctx, "cat", 5, domain.MetadataFilter{})
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
@@ -135,7 +153,10 @@ func TestPipeline_QueryWithMetadataFilter_EmptyFilterFallsBack(t *testing.T) {
 func TestPipeline_QueryWithMetadataFilter_PassesFilterToStore(t *testing.T) {
 	ctx := context.Background()
 	store := vectorstore.NewInMemoryStore()
-	p := NewPipeline(store, testLLM{}, testEmbedder{})
+	p, err := NewPipeline(store, testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	docs := []domain.Document{
 		{ID: "doc-legal", Content: "cat"},
@@ -182,9 +203,12 @@ func TestPipeline_QueryWithMetadataFilter_PassesFilterToStore(t *testing.T) {
 // возвращает ErrFiltersNotSupported на non-filter store (DEC-003).
 func TestPipeline_AnswerWithMetadataFilter_FiltersNotSupported(t *testing.T) {
 	ctx := context.Background()
-	p := NewPipeline(&noFilterStore{}, testLLM{}, testEmbedder{})
+	p, err := NewPipeline(&noFilterStore{}, testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, err := p.AnswerWithMetadataFilter(ctx, "cat", 5, domain.MetadataFilter{
+	_, err = p.AnswerWithMetadataFilter(ctx, "cat", 5, domain.MetadataFilter{
 		Fields: map[string]string{"category": "legal"},
 	})
 	if !errors.Is(err, ErrFiltersNotSupported) {
@@ -232,7 +256,10 @@ func (e *failOnEmbedder) Embed(ctx context.Context, text string) ([]float64, err
 func TestPipeline_UpdateDocument_BestEffort_ReturnsErrUpdateNotAtomic(t *testing.T) {
 	ctx := context.Background()
 	store := vectorstore.NewInMemoryStore()
-	p := NewPipeline(store, testLLM{}, &failOnEmbedder{failOn: "boom"})
+	p, err := NewPipeline(store, testLLM{}, &failOnEmbedder{failOn: "boom"})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// 1. Index исходного документа — успешный.
 	if err := p.Index(ctx, []domain.Document{
@@ -242,7 +269,7 @@ func TestPipeline_UpdateDocument_BestEffort_ReturnsErrUpdateNotAtomic(t *testing
 	}
 
 	// 2. UpdateDocument с failing embedder — должен вернуть ErrUpdateNotAtomic.
-	err := p.UpdateDocument(ctx, domain.Document{ID: "doc-1", Content: "boom"})
+	err = p.UpdateDocument(ctx, domain.Document{ID: "doc-1", Content: "boom"})
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -262,9 +289,12 @@ func TestPipeline_UpdateDocument_BestEffort_DeleteErrorPropagatesRaw(t *testing.
 	ctx := context.Background()
 	// noFilterStore не реализует DocumentStore, поэтому DeleteByParentID вернёт
 	// ErrDeleteNotSupported напрямую.
-	p := NewPipeline(&noFilterStore{}, testLLM{}, &failOnEmbedder{})
+	p, err := NewPipeline(&noFilterStore{}, testLLM{}, &failOnEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	err := p.UpdateDocument(ctx, domain.Document{ID: "doc-1", Content: "ok"})
+	err = p.UpdateDocument(ctx, domain.Document{ID: "doc-1", Content: "ok"})
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -281,7 +311,10 @@ func TestPipeline_UpdateDocument_BestEffort_DeleteErrorPropagatesRaw(t *testing.
 func TestPipeline_UpdateDocument_ValidationFailsBeforeDelete(t *testing.T) {
 	ctx := context.Background()
 	store := vectorstore.NewInMemoryStore()
-	p := NewPipeline(store, testLLM{}, &failOnEmbedder{})
+	p, err := NewPipeline(store, testLLM{}, &failOnEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Сначала проиндексируем валидный doc, чтобы в store было что удалять.
 	if err := p.Index(ctx, []domain.Document{
@@ -292,7 +325,7 @@ func TestPipeline_UpdateDocument_ValidationFailsBeforeDelete(t *testing.T) {
 
 	// UpdateDocument с пустым Content → должен вернуть ErrEmptyDocumentContent
 	// и НЕ удалить существующие чанки.
-	err := p.UpdateDocument(ctx, domain.Document{ID: "doc-1", Content: ""})
+	err = p.UpdateDocument(ctx, domain.Document{ID: "doc-1", Content: ""})
 	if !errors.Is(err, domain.ErrEmptyDocumentContent) {
 		t.Fatalf("expected ErrEmptyDocumentContent, got %v", err)
 	}

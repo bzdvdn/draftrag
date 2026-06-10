@@ -33,6 +33,7 @@ func (l *captureUserMessageLLM) Generate(_ context.Context, _, userMessage strin
 }
 
 func TestPromptContextLimit_MaxContextChunks(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	llm := &captureUserMessageLLM{}
 	store := fixedSearchStore{
 		result: domain.RetrievalResult{
@@ -44,8 +45,12 @@ func TestPromptContextLimit_MaxContextChunks(t *testing.T) {
 		},
 	}
 
-	p := NewPipelineWithConfig(store, llm, fixedEmbedder{}, PipelineConfig{MaxContextChunks: 1})
-	_, err := p.Answer(context.Background(), "Q", 10)
+	p, err := NewPipelineWithConfig(store, llm, fixedEmbedder{}, PipelineOptions{MaxContextChunks: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = p.Answer(context.Background(), "Q", 10)
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
@@ -57,6 +62,7 @@ func TestPromptContextLimit_MaxContextChunks(t *testing.T) {
 }
 
 func TestPromptContextLimit_MaxContextChars(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	llm := &captureUserMessageLLM{}
 	store := fixedSearchStore{
 		result: domain.RetrievalResult{
@@ -68,8 +74,12 @@ func TestPromptContextLimit_MaxContextChars(t *testing.T) {
 		},
 	}
 
-	p := NewPipelineWithConfig(store, llm, fixedEmbedder{}, PipelineConfig{MaxContextChars: 2})
-	_, err := p.Answer(context.Background(), "Q", 10)
+	p, err := NewPipelineWithConfig(store, llm, fixedEmbedder{}, PipelineOptions{MaxContextChars: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = p.Answer(context.Background(), "Q", 10)
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
@@ -81,6 +91,7 @@ func TestPromptContextLimit_MaxContextChars(t *testing.T) {
 }
 
 func TestPromptContextLimit_BothLimits(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	llm := &captureUserMessageLLM{}
 	store := fixedSearchStore{
 		result: domain.RetrievalResult{
@@ -92,11 +103,15 @@ func TestPromptContextLimit_BothLimits(t *testing.T) {
 		},
 	}
 
-	p := NewPipelineWithConfig(store, llm, fixedEmbedder{}, PipelineConfig{
+	p, err := NewPipelineWithConfig(store, llm, fixedEmbedder{}, PipelineOptions{
 		MaxContextChunks: 2,
 		MaxContextChars:  5,
 	})
-	_, err := p.Answer(context.Background(), "Q", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = p.Answer(context.Background(), "Q", 10)
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}

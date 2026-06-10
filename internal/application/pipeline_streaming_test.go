@@ -23,9 +23,12 @@ func TestPipeline_AnswerStream_NotSupported(t *testing.T) {
 	llm := &mockLLMProvider{} // не реализует StreamingLLMProvider
 	embedder := &mockEmbedder{}
 
-	p := NewPipeline(store, llm, embedder)
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, err := p.AnswerStream(context.Background(), "test query", 5)
+	_, err = p.AnswerStream(context.Background(), "test query", 5)
 	if err == nil {
 		t.Fatal("expected error for unsupported streaming, got nil")
 	}
@@ -36,9 +39,12 @@ func TestPipeline_AnswerStream_EmbedError(t *testing.T) {
 	llm := &streamingLLM{}
 	embedder := &errorEmbedder{}
 
-	p := NewPipeline(store, llm, embedder)
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, err := p.AnswerStream(context.Background(), "test query", 5)
+	_, err = p.AnswerStream(context.Background(), "test query", 5)
 	if err == nil {
 		t.Fatal("expected error for embed failure, got nil")
 	}
@@ -49,7 +55,10 @@ func TestPipeline_AnswerStream_Success(t *testing.T) {
 	llm := &streamingLLM{}
 	embedder := &mockEmbedder{}
 
-	p := NewPipeline(store, llm, embedder)
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	stream, err := p.AnswerStream(context.Background(), "test query", 5)
 	if err != nil {
@@ -72,9 +81,12 @@ func TestPipeline_AnswerStreamWithSources_NotSupported(t *testing.T) {
 	llm := &mockLLMProvider{} // не реализует StreamingLLMProvider
 	embedder := &mockEmbedder{}
 
-	p := NewPipeline(store, llm, embedder)
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, _, err := p.AnswerStreamWithSources(context.Background(), "test query", 5)
+	_, _, err = p.AnswerStreamWithSources(context.Background(), "test query", 5)
 	if err == nil {
 		t.Fatal("expected error for unsupported streaming, got nil")
 	}
@@ -85,9 +97,12 @@ func TestPipeline_AnswerStreamWithSources_EmbedError(t *testing.T) {
 	llm := &streamingLLM{}
 	embedder := &errorEmbedder{}
 
-	p := NewPipeline(store, llm, embedder)
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, _, err := p.AnswerStreamWithSources(context.Background(), "test query", 5)
+	_, _, err = p.AnswerStreamWithSources(context.Background(), "test query", 5)
 	if err == nil {
 		t.Fatal("expected error for embed failure, got nil")
 	}
@@ -98,7 +113,10 @@ func TestPipeline_AnswerStreamWithSources_Success(t *testing.T) {
 	llm := &streamingLLM{}
 	embedder := &mockEmbedder{}
 
-	p := NewPipeline(store, llm, embedder)
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	stream, result, err := p.AnswerStreamWithSources(context.Background(), "test query", 5)
 	if err != nil {

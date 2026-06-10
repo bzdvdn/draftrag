@@ -82,8 +82,12 @@ func (t *txMockTx) Rollback() error {
 // dispatcher идёт в transactional ветку: produceChunks → BeginTx → tx.DeleteByParentID
 // → tx.Upsert × N → tx.Commit. Rollback не вызывается.
 func TestPipeline_UpdateDocument_Transactional_HappyPath(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := &txMockStore{tx: &txMockTx{}}
-	p := NewPipeline(store, testLLM{}, &testEmbedder{})
+	p, err := NewPipeline(store, testLLM{}, &testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if err := p.UpdateDocument(context.Background(), domain.Document{ID: "d-1", Content: "hello"}); err != nil {
 		t.Fatalf("UpdateDocument: %v", err)
@@ -108,10 +112,14 @@ func TestPipeline_UpdateDocument_Transactional_HappyPath(t *testing.T) {
 // на Rollback path при ошибке tx.Commit. В этом случае tx.Rollback должен быть вызван
 // через deferred safety net.
 func TestPipeline_UpdateDocument_Transactional_CommitErrorTriggersRollback(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := &txMockStore{tx: &txMockTx{injectErr: errors.New("commit failed")}}
-	p := NewPipeline(store, testLLM{}, &testEmbedder{})
+	p, err := NewPipeline(store, testLLM{}, &testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	err := p.UpdateDocument(context.Background(), domain.Document{ID: "d-1", Content: "hello"})
+	err = p.UpdateDocument(context.Background(), domain.Document{ID: "d-1", Content: "hello"})
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -131,10 +139,14 @@ func TestPipeline_UpdateDocument_Transactional_CommitErrorTriggersRollback(t *te
 // @sk-test api-consistency-pass#T4.1-coverage: покрывает updateDocumentAtomicTransactional
 // на Rollback path при ошибке tx.Upsert.
 func TestPipeline_UpdateDocument_Transactional_UpsertErrorTriggersRollback(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := &txMockStore{tx: &txMockTx{injectErr: errors.New("upsert failed")}}
-	p := NewPipeline(store, testLLM{}, &testEmbedder{})
+	p, err := NewPipeline(store, testLLM{}, &testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	err := p.UpdateDocument(context.Background(), domain.Document{ID: "d-1", Content: "hello"})
+	err = p.UpdateDocument(context.Background(), domain.Document{ID: "d-1", Content: "hello"})
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -154,12 +166,16 @@ func TestPipeline_UpdateDocument_Transactional_UpsertErrorTriggersRollback(t *te
 // @sk-test api-consistency-pass#T4.1-coverage: Index использует новую T3.4 perWorker
 // signature — вызов должен пройти happy path.
 func TestPipeline_Index_PerWorker_HappyPath(t *testing.T) {
-	p := NewPipelineWithConfig(
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
+	p, err := NewPipelineWithConfig(
 		vectorstore.NewInMemoryStore(),
 		testLLM{},
 		&testEmbedder{},
-		PipelineConfig{IndexConcurrency: 2, IndexBatchRateLimit: 1000},
+		PipelineOptions{IndexConcurrency: 2, IndexBatchRateLimit: 1000},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := p.Index(context.Background(), []domain.Document{{ID: "a", Content: "x"}}); err != nil {
 		t.Fatalf("Index: %v", err)
 	}
@@ -169,6 +185,7 @@ func TestPipeline_Index_PerWorker_HappyPath(t *testing.T) {
 // на входе — worker pool обнаруживает отмену до запуска горутин, ctxErr возвращается,
 // docs не обрабатываются.
 func TestProcessDocsConcurrently_CancelledCtx(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 

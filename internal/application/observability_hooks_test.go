@@ -13,8 +13,10 @@ type recordHooks struct {
 	ends   []domain.StageEndEvent
 }
 
-func (h *recordHooks) StageStart(_ context.Context, ev domain.StageStartEvent) {
+// @sk-test arch-quality-pass#T1.2: recordHooks обновлён (AC-001)
+func (h *recordHooks) StageStart(ctx context.Context, ev domain.StageStartEvent) context.Context {
 	h.events = append(h.events, "start:"+ev.Operation+":"+string(ev.Stage))
+	return ctx
 }
 
 func (h *recordHooks) StageEnd(_ context.Context, ev domain.StageEndEvent) {
@@ -44,6 +46,7 @@ func (oneChunkChunker) Chunk(_ context.Context, doc domain.Document) ([]domain.C
 }
 
 func TestPipeline_Hooks_AnswerStages_Order(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	expected := domain.RetrievalResult{
 		Chunks: []domain.RetrievedChunk{
 			{Chunk: domain.Chunk{Content: "A", ParentID: "p1"}, Score: 0.9},
@@ -53,14 +56,17 @@ func TestPipeline_Hooks_AnswerStages_Order(t *testing.T) {
 
 	hooks := &recordHooks{}
 
-	p := NewPipelineWithConfig(
+	p, err := NewPipelineWithConfig(
 		fixedSearchStore2{result: expected},
 		okLLM2{},
 		fixedEmbedder2{},
-		PipelineConfig{Hooks: hooks},
+		PipelineOptions{Hooks: hooks},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, err := p.Answer(context.Background(), "Q", 3)
+	_, err = p.Answer(context.Background(), "Q", 3)
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
@@ -90,19 +96,23 @@ func TestPipeline_Hooks_AnswerStages_Order(t *testing.T) {
 }
 
 func TestPipeline_Hooks_IndexChunkingStage_CalledWhenChunkerEnabled(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	hooks := &recordHooks{}
 
-	p := NewPipelineWithConfig(
+	p, err := NewPipelineWithConfig(
 		okStoreForIndex{},
 		okLLM2{},
 		fixedEmbedder2{},
-		PipelineConfig{
+		PipelineOptions{
 			Chunker: oneChunkChunker{},
 			Hooks:   hooks,
 		},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	err := p.Index(context.Background(), []domain.Document{
+	err = p.Index(context.Background(), []domain.Document{
 		{ID: "doc1", Content: "Hello"},
 	})
 	if err != nil {

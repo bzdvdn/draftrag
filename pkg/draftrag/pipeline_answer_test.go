@@ -38,9 +38,12 @@ func (panicLLM) Generate(_ context.Context, _, _ string) (string, error) {
 }
 
 func TestPipeline_Answer_Validation(t *testing.T) {
-	p := NewPipeline(panicStore{}, panicLLM{}, panicEmbedder{})
+	p, err := NewPipeline(panicStore{}, panicLLM{}, panicEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, err := p.Search("   ").TopK(5).Answer(context.Background())
+	_, err = p.Search("   ").TopK(5).Answer(context.Background())
 	if !errors.Is(err, ErrEmptyQuery) {
 		t.Fatalf("expected ErrEmptyQuery, got %v", err)
 	}
@@ -52,13 +55,16 @@ func TestPipeline_Answer_Validation(t *testing.T) {
 }
 
 func TestPipeline_Answer_ContextCancelFast(t *testing.T) {
-	p := NewPipeline(panicStore{}, panicLLM{}, panicEmbedder{})
+	p, err := NewPipeline(panicStore{}, panicLLM{}, panicEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	start := time.Now()
 	cancel()
 
-	_, err := p.Search("q").TopK(5).Answer(ctx)
+	_, err = p.Search("q").TopK(5).Answer(ctx)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected context.Canceled, got %v", err)
 	}

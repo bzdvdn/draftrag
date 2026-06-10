@@ -28,7 +28,10 @@ func setupPipeline(t *testing.T) (*Pipeline, *vectorstore.InMemoryStore) {
 	store := vectorstore.NewInMemoryStore()
 	emb := &fixedEmbedder{vec: []float64{1, 0, 0}}
 	llm := &mockLLM{reply: "answer"}
-	p := NewPipeline(store, llm, emb)
+	p, err := NewPipeline(store, llm, emb)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{
@@ -224,10 +227,13 @@ func (noFilterStore) Search(_ context.Context, _ []float64, _ int) (domain.Retri
 
 // @sk-task T2.1: тест маппинга ErrFiltersNotSupported в InlineCite (AC-001, AC-003)
 func TestSearchBuilder_InlineCite_FilterNotSupported(t *testing.T) {
-	p := NewPipeline(noFilterStore{}, &mockLLM{reply: "answer"}, &fixedEmbedder{vec: []float64{1, 0, 0}})
+	p, err := NewPipeline(noFilterStore{}, &mockLLM{reply: "answer"}, &fixedEmbedder{vec: []float64{1, 0, 0}})
+	if err != nil {
+		t.Fatal(err)
+	}
 	filter := MetadataFilter{Fields: map[string]string{"key": "value"}}
 
-	_, _, _, err := p.Search("вопрос").TopK(5).Filter(filter).InlineCite(context.Background())
+	_, _, _, err = p.Search("вопрос").TopK(5).Filter(filter).InlineCite(context.Background())
 
 	// AC-001: публичный ErrFiltersNotSupported возвращается (не internal application-ошибка).
 	// AC-003: маппинг через errors.Is корректно обрабатывает и обёрнутые ошибки.
@@ -240,7 +246,10 @@ func TestSearchBuilder_InlineCite_FilterNotSupported(t *testing.T) {
 func TestSearchBuilder_StreamSources_StreamingNotSupported(t *testing.T) {
 	// mockLLM реализует только LLMProvider (не StreamingLLMProvider),
 	// поэтому StreamSources должен вернуть ErrStreamingNotSupported.
-	p := NewPipeline(vectorstore.NewInMemoryStore(), &mockLLM{reply: "answer"}, &fixedEmbedder{vec: []float64{1, 0, 0}})
+	p, err := NewPipeline(vectorstore.NewInMemoryStore(), &mockLLM{reply: "answer"}, &fixedEmbedder{vec: []float64{1, 0, 0}})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ch, sources, err := p.Search("вопрос").TopK(5).StreamSources(context.Background())
 

@@ -8,11 +8,13 @@ import (
 )
 
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
-func (p *Pipeline) hookStart(ctx context.Context, op string, stage domain.HookStage) {
+// @sk-task arch-quality-pass#T1.2: hookStart возвращает context из Hooks.StageStart (AC-001)
+// @sk-task arch-quality-pass#T3.1: передаёт возвращённый из StageStart context c span (AC-001, AC-005)
+func (p *Pipeline) hookStart(ctx context.Context, op string, stage domain.HookStage) context.Context {
 	if p.hooks == nil {
-		return
+		return ctx
 	}
-	p.hooks.StageStart(ctx, domain.StageStartEvent{
+	return p.hooks.StageStart(ctx, domain.StageStartEvent{
 		Operation: op,
 		Stage:     stage,
 	})

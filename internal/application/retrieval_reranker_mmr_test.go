@@ -38,6 +38,7 @@ func (okLLM) Generate(_ context.Context, _, _ string) (string, error) {
 }
 
 func TestPipeline_MMR_ChangesSelectionWhenEnabled(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := &mmrStore{
 		candidates: []domain.RetrievedChunk{
 			// Кластер A (очень похожи друг на друга), высокие score.
@@ -49,16 +50,19 @@ func TestPipeline_MMR_ChangesSelectionWhenEnabled(t *testing.T) {
 		},
 	}
 
-	p := NewPipelineWithConfig(
+	p, err := NewPipelineWithConfig(
 		store,
 		okLLM{},
 		fixedEmbedderMMR{v: []float64{1, 0}},
-		PipelineConfig{
+		PipelineOptions{
 			MMREnabled:       true,
 			MMRLambda:        0.5,
 			MMRCandidatePool: 4,
 		},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	_, retrieval, err := p.AnswerWithCitations(context.Background(), "Q", 2)
 	if err != nil {
@@ -83,6 +87,7 @@ func TestPipeline_MMR_ChangesSelectionWhenEnabled(t *testing.T) {
 }
 
 func TestPipeline_MMR_DisabledDoesNotChangeBehavior(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := &mmrStore{
 		candidates: []domain.RetrievedChunk{
 			{Chunk: domain.Chunk{Content: "A1", ParentID: "A1", Embedding: []float64{1, 0}}, Score: 0.95},
@@ -91,20 +96,23 @@ func TestPipeline_MMR_DisabledDoesNotChangeBehavior(t *testing.T) {
 		},
 	}
 
-	p := NewPipelineWithConfig(
+	p, err := NewPipelineWithConfig(
 		store,
 		okLLM{},
 		fixedEmbedderMMR{v: []float64{1, 0}},
-		PipelineConfig{
+		PipelineOptions{
 			MMREnabled:       false,
 			MMRLambda:        0.5,
 			MMRCandidatePool: 10,
 		},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	_, retrieval, err := p.AnswerWithCitations(context.Background(), "Q", 2)
 	if err != nil {
-		t.Fatalf("expected nil error, got %v", err)
+		t.Fatalf("expected no error, got %v", err)
 	}
 	if store.lastTopK != 2 {
 		t.Fatalf("expected topK=2 when MMR disabled, got %d", store.lastTopK)
@@ -118,6 +126,7 @@ func TestPipeline_MMR_DisabledDoesNotChangeBehavior(t *testing.T) {
 }
 
 func TestPipeline_MMR_EnabledRequiresEmbeddings(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := &mmrStore{
 		candidates: []domain.RetrievedChunk{
 			{Chunk: domain.Chunk{Content: "A1", ParentID: "A1", Embedding: []float64{1, 0}}, Score: 0.95},
@@ -125,18 +134,21 @@ func TestPipeline_MMR_EnabledRequiresEmbeddings(t *testing.T) {
 		},
 	}
 
-	p := NewPipelineWithConfig(
+	p, err := NewPipelineWithConfig(
 		store,
 		okLLM{},
 		fixedEmbedderMMR{v: []float64{1, 0}},
-		PipelineConfig{
+		PipelineOptions{
 			MMREnabled:       true,
 			MMRLambda:        0.5,
 			MMRCandidatePool: 2,
 		},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, _, err := p.AnswerWithCitations(context.Background(), "Q", 2)
+	_, _, err = p.AnswerWithCitations(context.Background(), "Q", 2)
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}

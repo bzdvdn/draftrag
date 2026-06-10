@@ -11,7 +11,6 @@ import (
 	"github.com/bzdvdn/draftrag/internal/domain"
 )
 
-// mockBatchStore имитирует VectorStore для тестов batch-индексации.
 type mockBatchStore struct {
 	chunks []domain.Chunk
 	mu     sync.Mutex
@@ -29,7 +28,6 @@ func (m *mockBatchStore) Search(_ context.Context, _ []float64, _ int) (domain.R
 	return domain.RetrievalResult{}, nil
 }
 
-// fixedBatchEmbedder возвращает фиксированный embedding.
 type fixedBatchEmbedder struct {
 	delay time.Duration
 }
@@ -41,7 +39,6 @@ func (f fixedBatchEmbedder) Embed(_ context.Context, _ string) ([]float64, error
 	return []float64{0.1, 0.2, 0.3}, nil
 }
 
-// countingBatchEmbedder считает количество вызовов Embed.
 type countingBatchEmbedder struct {
 	fixedBatchEmbedder
 	count atomic.Int32
@@ -52,7 +49,6 @@ func (c *countingBatchEmbedder) Embed(ctx context.Context, text string) ([]float
 	return c.fixedBatchEmbedder.Embed(ctx, text)
 }
 
-// erroringBatchEmbedder возвращает ошибку для определённых текстов.
 type erroringBatchEmbedder struct {
 	fixedBatchEmbedder
 	errorText string
@@ -65,7 +61,6 @@ func (e erroringBatchEmbedder) Embed(ctx context.Context, text string) ([]float6
 	return e.fixedBatchEmbedder.Embed(ctx, text)
 }
 
-// mockChunker разбивает документ на 2 чанка для тестирования chunking.
 type mockChunker struct{}
 
 func (m mockChunker) Chunk(_ context.Context, doc domain.Document) ([]domain.Chunk, error) {
@@ -75,36 +70,31 @@ func (m mockChunker) Chunk(_ context.Context, doc domain.Document) ([]domain.Chu
 	}, nil
 }
 
-// okBatchLLM для тестов.
 type okBatchLLM struct{}
 
 func (okBatchLLM) Generate(_ context.Context, _, _ string) (string, error) {
 	return "ok", nil
 }
 
-// TestPipeline_IndexBatch_ParallelProcessing проверяет AC-001: параллельная обработка документов.
-//
-// @sk-task T3.1: Тест на параллельность IndexBatch (AC-001)
 func TestPipeline_IndexBatch_ParallelProcessing(t *testing.T) {
-	// 10 документов, каждый задерживает embed на 50ms
-	// При concurrency=5 и последовательной обработке: 10 * 50ms = 500ms
-	// При параллельной обработке с concurrency=5: ~2 * 50ms = 100ms (плюс overhead)
-
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := &mockBatchStore{}
 	embedder := &countingBatchEmbedder{
 		fixedBatchEmbedder: fixedBatchEmbedder{delay: 50 * time.Millisecond},
 	}
 
-	// Высокий rate limit чтобы не мешать тесту параллельности
-	p := NewPipelineWithConfig(
+	p, err := NewPipelineWithConfig(
 		store,
 		okBatchLLM{},
 		embedder,
-		PipelineConfig{
+		PipelineOptions{
 			IndexConcurrency:    5,
-			IndexBatchRateLimit: 1000, // 1000 calls/sec - rate limit не bottleneck
+			IndexBatchRateLimit: 1000,
 		},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	docs := make([]domain.Document, 10)
 	for i := 0; i < 10; i++ {
@@ -119,8 +109,6 @@ func TestPipeline_IndexBatch_ParallelProcessing(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// При параллельной обработке с concurrency=5 должно занять < 500ms
-	// (10 документов / 5 workers * 50ms = 100ms + goroutine overhead)
 	if elapsed > 500*time.Millisecond {
 		t.Fatalf("expected parallel processing (< 500ms), got %v", elapsed)
 	}
@@ -137,32 +125,28 @@ func TestPipeline_IndexBatch_ParallelProcessing(t *testing.T) {
 		t.Fatalf("expected 10 chunks in store, got %d", len(store.chunks))
 	}
 
-	// Проверяем что все 10 документов были обработаны
 	if embedder.count.Load() != 10 {
 		t.Fatalf("expected 10 embed calls, got %d", embedder.count.Load())
 	}
 }
 
-// TestPipeline_IndexBatch_RateLimiting проверяет AC-002: rate limiting.
-//
-// @sk-task T3.1: Тест на rate limiting IndexBatch (AC-002)
 func TestPipeline_IndexBatch_RateLimiting(t *testing.T) {
-	// Rate limit 10/sec, 20 документов
-	// Без rate limiting: ~instant
-	// С rate limiting 10/sec: минимум 2 секунды
-
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := &mockBatchStore{}
 	embedder := fixedBatchEmbedder{}
 
-	p := NewPipelineWithConfig(
+	p, err := NewPipelineWithConfig(
 		store,
 		okBatchLLM{},
 		embedder,
-		PipelineConfig{
-			IndexConcurrency:    10, // больше rate limit чтобы rate limit был bottleneck
+		PipelineOptions{
+			IndexConcurrency:    10,
 			IndexBatchRateLimit: 10,
 		},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	docs := make([]domain.Document, 20)
 	for i := 0; i < 20; i++ {
@@ -177,8 +161,6 @@ func TestPipeline_IndexBatch_RateLimiting(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// С rate limit 10/sec, 20 документов должны занять минимум 1.9 секунд
-	// (20 токенов / 10 токенов в секунду = 2 секунды минус первая итерация)
 	if elapsed < 1900*time.Millisecond {
 		t.Fatalf("expected rate limiting (>= 1.9s for 20 docs at 10/sec), got %v", elapsed)
 	}
@@ -188,33 +170,33 @@ func TestPipeline_IndexBatch_RateLimiting(t *testing.T) {
 	}
 }
 
-// TestPipeline_IndexBatch_PartialErrors проверяет AC-003: обработка частичных ошибок.
-//
-// @sk-task T3.1: Тест на частичные ошибки IndexBatch (AC-003)
 func TestPipeline_IndexBatch_PartialErrors(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := &mockBatchStore{}
 	embedder := erroringBatchEmbedder{
 		errorText: "error content",
 	}
 
-	p := NewPipelineWithConfig(
+	p, err := NewPipelineWithConfig(
 		store,
 		okBatchLLM{},
 		embedder,
-		PipelineConfig{IndexConcurrency: 2},
+		PipelineOptions{IndexConcurrency: 2},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	docs := []domain.Document{
 		{ID: "doc1", Content: "ok content 1"},
-		{ID: "doc2", Content: "error content"}, // будет ошибка
+		{ID: "doc2", Content: "error content"},
 		{ID: "doc3", Content: "ok content 2"},
-		{ID: "doc4", Content: "error content"}, // будет ошибка
+		{ID: "doc4", Content: "error content"},
 		{ID: "doc5", Content: "ok content 3"},
 	}
 
 	result, err := p.IndexBatch(context.Background(), docs, 0)
 
-	// Ошибки документов не должны возвращать ошибку сверху
 	if err != nil {
 		t.Fatalf("unexpected top-level error: %v", err)
 	}
@@ -231,7 +213,6 @@ func TestPipeline_IndexBatch_PartialErrors(t *testing.T) {
 		t.Fatalf("expected 2 errors, got %d", len(result.Errors))
 	}
 
-	// Проверяем что ошибки содержат DocumentID
 	for _, err := range result.Errors {
 		if err.DocumentID == "" {
 			t.Fatalf("expected non-empty DocumentID in error")
@@ -241,7 +222,6 @@ func TestPipeline_IndexBatch_PartialErrors(t *testing.T) {
 		}
 	}
 
-	// Проверяем что успешные документы сохранены
 	successfulIDs := make(map[string]bool)
 	for _, doc := range result.Successful {
 		successfulIDs[doc.ID] = true
@@ -251,30 +231,27 @@ func TestPipeline_IndexBatch_PartialErrors(t *testing.T) {
 	}
 }
 
-// TestPipeline_IndexBatch_ContextCancellation проверяет AC-004: отмена через контекст.
-//
-// @sk-task T3.1: Тест на отмену контекста в IndexBatch (AC-004)
 func TestPipeline_IndexBatch_ContextCancellation(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := &mockBatchStore{}
-	// Embedder с большой задержкой чтобы таймаут точно сработал
 	embedder := fixedBatchEmbedder{delay: 200 * time.Millisecond}
 
-	// Высокий rate limit чтобы таймаут был bottleneck
-	p := NewPipelineWithConfig(
+	p, err := NewPipelineWithConfig(
 		store,
 		okBatchLLM{},
 		embedder,
-		PipelineConfig{
+		PipelineOptions{
 			IndexConcurrency:    5,
-			IndexBatchRateLimit: 1000, // без rate limiting
+			IndexBatchRateLimit: 1000,
 		},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	// Контекст с коротким таймаутом 100ms
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
-	// Много документов чтобы обработка точно не успела
 	docs := make([]domain.Document, 100)
 	for i := 0; i < 100; i++ {
 		docs[i] = domain.Document{ID: "doc" + string(rune('0'+i%10)), Content: "content"}
@@ -282,46 +259,42 @@ func TestPipeline_IndexBatch_ContextCancellation(t *testing.T) {
 
 	result, err := p.IndexBatch(ctx, docs, 0)
 
-	// Должна быть ошибка контекста
 	if err == nil {
 		t.Fatalf("expected error from cancelled context, got nil")
 	}
 
-	// Проверяем что это ошибка контекста (DeadlineExceeded или Canceled)
 	if !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected context error, got %v", err)
 	}
 
-	// Должен быть partial result
 	if result == nil {
 		t.Fatalf("expected partial result, got nil")
 	}
 
-	// ProcessedCount должен быть консистентен с Successful + Errors
 	if result.ProcessedCount != len(result.Successful)+len(result.Errors) {
 		t.Fatalf("invariant violated: ProcessedCount=%d, Successful=%d, Errors=%d",
 			result.ProcessedCount, len(result.Successful), len(result.Errors))
 	}
 }
 
-// TestPipeline_IndexBatch_WithChunker проверяет AC-005: интеграция с Chunker.
-//
-// @sk-task T3.1: Тест на интеграцию с Chunker в IndexBatch (AC-005)
 func TestPipeline_IndexBatch_WithChunker(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := &mockBatchStore{}
 	embedder := fixedBatchEmbedder{}
 
-	p := NewPipelineWithConfig(
+	p, err := NewPipelineWithConfig(
 		store,
 		okBatchLLM{},
 		embedder,
-		PipelineConfig{
+		PipelineOptions{
 			IndexConcurrency: 2,
 			Chunker:          mockChunker{},
 		},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	// 3 документа, каждый разбивается на 2 чанка
 	docs := []domain.Document{
 		{ID: "doc1", Content: "content1"},
 		{ID: "doc2", Content: "content2"},
@@ -342,12 +315,10 @@ func TestPipeline_IndexBatch_WithChunker(t *testing.T) {
 		t.Fatalf("expected 3 successful docs, got %d", len(result.Successful))
 	}
 
-	// В store должно быть 6 чанков (3 документа * 2 чанка каждый)
 	if len(store.chunks) != 6 {
 		t.Fatalf("expected 6 chunks (3 docs * 2 chunks each), got %d", len(store.chunks))
 	}
 
-	// Проверяем что чанки имеют правильную структуру
 	for _, chunk := range store.chunks {
 		if chunk.ID == "" {
 			t.Fatalf("expected non-empty chunk ID")
@@ -361,19 +332,20 @@ func TestPipeline_IndexBatch_WithChunker(t *testing.T) {
 	}
 }
 
-// TestPipeline_IndexBatch_EmptyDocs проверяет edge case: пустой слайс документов.
-//
-// @sk-task T3.1: Тест на edge case — пустой batch (краевой случай)
 func TestPipeline_IndexBatch_EmptyDocs(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := &mockBatchStore{}
 	embedder := fixedBatchEmbedder{}
 
-	p := NewPipelineWithConfig(
+	p, err := NewPipelineWithConfig(
 		store,
 		okBatchLLM{},
 		embedder,
-		PipelineConfig{IndexConcurrency: 4},
+		PipelineOptions{IndexConcurrency: 4},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	result, err := p.IndexBatch(context.Background(), []domain.Document{}, 0)
 
@@ -394,29 +366,29 @@ func TestPipeline_IndexBatch_EmptyDocs(t *testing.T) {
 	}
 }
 
-// TestPipeline_IndexBatch_InvalidDocument проверяет edge case: невалидный документ.
-//
-// @sk-task T3.1: Тест на edge case — невалидный документ (краевой случай)
 func TestPipeline_IndexBatch_InvalidDocument(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := &mockBatchStore{}
 	embedder := fixedBatchEmbedder{}
 
-	p := NewPipelineWithConfig(
+	p, err := NewPipelineWithConfig(
 		store,
 		okBatchLLM{},
 		embedder,
-		PipelineConfig{IndexConcurrency: 2},
+		PipelineOptions{IndexConcurrency: 2},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	docs := []domain.Document{
 		{ID: "doc1", Content: "valid content"},
-		{ID: "", Content: "invalid doc - no ID"}, // невалидный
+		{ID: "", Content: "invalid doc - no ID"},
 		{ID: "doc3", Content: "valid content"},
 	}
 
 	result, err := p.IndexBatch(context.Background(), docs, 0)
 
-	// Ошибки валидации документов не должны прерывать batch
 	if err != nil {
 		t.Fatalf("unexpected top-level error: %v", err)
 	}
@@ -433,7 +405,6 @@ func TestPipeline_IndexBatch_InvalidDocument(t *testing.T) {
 		t.Fatalf("expected 1 error, got %d", len(result.Errors))
 	}
 
-	// Проверяем что ошибка - это ошибка валидации
 	if result.Errors[0].Error == nil {
 		t.Fatalf("expected validation error, got nil")
 	}

@@ -90,10 +90,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	pipeline := draftrag.NewPipelineWithChunker(store, llm, embedder, draftrag.NewBasicChunker(draftrag.BasicChunkerOptions{
+	pipeline, err := draftrag.NewPipelineWithChunker(store, llm, embedder, draftrag.NewBasicChunker(draftrag.BasicChunkerOptions{
 		ChunkSize: 1000,
 		Overlap:   100,
 	}))
+	if err != nil {
+		shared.PrintError("pipeline creation: %v", err)
+		os.Exit(1)
+	}
 
 	shared.PrintInfo("индексируем %d документов", len(documents))
 	if err := pipeline.Index(ctx, documents); err != nil {

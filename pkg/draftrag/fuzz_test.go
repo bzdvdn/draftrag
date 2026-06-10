@@ -28,7 +28,10 @@ func FuzzSearchBuilderValidate(f *testing.F) {
 	}
 
 	store := vectorstore.NewInMemoryStore()
-	p := NewPipeline(store, benchLLM{}, benchEmbedder{})
+	p, err := NewPipeline(store, benchLLM{}, benchEmbedder{})
+	if err != nil {
+		f.Fatal(err)
+	}
 
 	f.Fuzz(func(t *testing.T, question string, topK int) {
 		sb := p.Search(question).TopK(topK)

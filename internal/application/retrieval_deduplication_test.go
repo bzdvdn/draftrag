@@ -30,6 +30,7 @@ func (panicLLMDedup) Generate(_ context.Context, _, _ string) (string, error) {
 }
 
 func TestPipeline_Query_DedupByParentID_Enabled(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	input := domain.RetrievalResult{
 		Chunks: []domain.RetrievedChunk{
 			{Chunk: domain.Chunk{ParentID: "A", Content: "A1"}, Score: 0.8},
@@ -39,12 +40,15 @@ func TestPipeline_Query_DedupByParentID_Enabled(t *testing.T) {
 		TotalFound: 3,
 	}
 
-	p := NewPipelineWithConfig(
+	p, err := NewPipelineWithConfig(
 		fixedSearchStoreDedup{result: input},
 		panicLLMDedup{},
 		fixedEmbedderDedup{},
-		PipelineConfig{DedupByParentID: true},
+		PipelineOptions{DedupByParentID: true},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	got, err := p.Query(context.Background(), "Q", 10)
 	if err != nil {
@@ -69,6 +73,7 @@ func TestPipeline_Query_DedupByParentID_Enabled(t *testing.T) {
 }
 
 func TestPipeline_Query_DedupByParentID_Disabled_NoChanges(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	input := domain.RetrievalResult{
 		Chunks: []domain.RetrievedChunk{
 			{Chunk: domain.Chunk{ParentID: "A", Content: "A1"}, Score: 0.8},
@@ -78,12 +83,15 @@ func TestPipeline_Query_DedupByParentID_Disabled_NoChanges(t *testing.T) {
 		TotalFound: 3,
 	}
 
-	p := NewPipelineWithConfig(
+	p, err := NewPipelineWithConfig(
 		fixedSearchStoreDedup{result: input},
 		panicLLMDedup{},
 		fixedEmbedderDedup{},
-		PipelineConfig{DedupByParentID: false},
+		PipelineOptions{DedupByParentID: false},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	got, err := p.Query(context.Background(), "Q", 10)
 	if err != nil {

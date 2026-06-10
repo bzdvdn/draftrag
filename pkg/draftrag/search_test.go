@@ -39,7 +39,10 @@ func TestSearchBuilder_Stream_UsesStreamingLLM(t *testing.T) {
 	store := vectorstore.NewInMemoryStore()
 	emb := &fixedEmbedder{vec: []float64{1, 0, 0}}
 	streamingLLM := &llm.MockStreamingLLM{Tokens: []string{"hello", " ", "world"}}
-	p := NewPipeline(store, streamingLLM, emb)
+	p, err := NewPipeline(store, streamingLLM, emb)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{
@@ -64,7 +67,10 @@ func TestSearchBuilder_StreamSources_UsesStreamingLLM(t *testing.T) {
 	store := vectorstore.NewInMemoryStore()
 	emb := &fixedEmbedder{vec: []float64{1, 0, 0}}
 	streamingLLM := &llm.MockStreamingLLM{Tokens: []string{"answer"}}
-	p := NewPipeline(store, streamingLLM, emb)
+	p, err := NewPipeline(store, streamingLLM, emb)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{
@@ -92,7 +98,10 @@ func TestSearchBuilder_StreamCite_UsesStreamingLLM(t *testing.T) {
 	store := vectorstore.NewInMemoryStore()
 	emb := &fixedEmbedder{vec: []float64{1, 0, 0}}
 	streamingLLM := &llm.MockStreamingLLM{Tokens: []string{"answer"}}
-	p := NewPipeline(store, streamingLLM, emb)
+	p, err := NewPipeline(store, streamingLLM, emb)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{
@@ -190,7 +199,10 @@ func TestSearchBuilder_Stream_HyDE(t *testing.T) {
 		Tokens:         []string{"hello", " ", "world"},
 		GenerateResult: "hypothetical document",
 	}
-	p := NewPipeline(store, streamingLLM, emb)
+	p, err := NewPipeline(store, streamingLLM, emb)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{
@@ -219,7 +231,10 @@ func TestSearchBuilder_Stream_MultiQuery(t *testing.T) {
 		Tokens:         []string{"answer"},
 		GenerateResult: "Go concurrency",
 	}
-	p := NewPipeline(store, streamingLLM, emb)
+	p, err := NewPipeline(store, streamingLLM, emb)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{
@@ -242,8 +257,11 @@ func TestSearchBuilder_Stream_MultiQuery(t *testing.T) {
 
 // @sk-test hardening-2026q2#AC-007: Stream routing — Hybrid (not supported on InMemoryStore)
 func TestSearchBuilder_Stream_Hybrid_NotSupported(t *testing.T) {
-	p := NewPipeline(vectorstore.NewInMemoryStore(), &llm.MockStreamingLLM{}, &fixedEmbedder{})
-	_, err := p.Search("q").TopK(5).Hybrid(HybridConfig{SemanticWeight: 0.5, RRFK: 60}).Stream(context.Background())
+	p, err := NewPipeline(vectorstore.NewInMemoryStore(), &llm.MockStreamingLLM{}, &fixedEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.Search("q").TopK(5).Hybrid(HybridConfig{SemanticWeight: 0.5, RRFK: 60}).Stream(context.Background())
 	if !errors.Is(err, ErrHybridNotSupported) {
 		t.Fatalf("expected ErrHybridNotSupported, got %v", err)
 	}
@@ -254,7 +272,10 @@ func TestSearchBuilder_Stream_Filter(t *testing.T) {
 	store := vectorstore.NewInMemoryStore()
 	emb := &fixedEmbedder{vec: []float64{1, 0, 0}}
 	streamingLLM := &llm.MockStreamingLLM{Tokens: []string{"answer"}}
-	p := NewPipeline(store, streamingLLM, emb)
+	p, err := NewPipeline(store, streamingLLM, emb)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{
@@ -284,7 +305,10 @@ func TestSearchBuilder_StreamSources_HyDE(t *testing.T) {
 		Tokens:         []string{"answer"},
 		GenerateResult: "hypothetical document",
 	}
-	p := NewPipeline(store, streamingLLM, emb)
+	p, err := NewPipeline(store, streamingLLM, emb)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{
@@ -316,7 +340,10 @@ func TestSearchBuilder_StreamSources_MultiQuery(t *testing.T) {
 		Tokens:         []string{"answer"},
 		GenerateResult: "Go concurrency",
 	}
-	p := NewPipeline(store, streamingLLM, emb)
+	p, err := NewPipeline(store, streamingLLM, emb)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{
@@ -342,8 +369,11 @@ func TestSearchBuilder_StreamSources_MultiQuery(t *testing.T) {
 
 // @sk-test hardening-2026q2#AC-007: StreamSources routing — Hybrid (not supported)
 func TestSearchBuilder_StreamSources_Hybrid_NotSupported(t *testing.T) {
-	p := NewPipeline(vectorstore.NewInMemoryStore(), &llm.MockStreamingLLM{}, &fixedEmbedder{})
-	_, _, err := p.Search("q").TopK(5).Hybrid(HybridConfig{SemanticWeight: 0.5, RRFK: 60}).StreamSources(context.Background())
+	p, err := NewPipeline(vectorstore.NewInMemoryStore(), &llm.MockStreamingLLM{}, &fixedEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = p.Search("q").TopK(5).Hybrid(HybridConfig{SemanticWeight: 0.5, RRFK: 60}).StreamSources(context.Background())
 	if !errors.Is(err, ErrHybridNotSupported) {
 		t.Fatalf("expected ErrHybridNotSupported, got %v", err)
 	}
@@ -354,7 +384,10 @@ func TestSearchBuilder_StreamSources_ParentIDs(t *testing.T) {
 	store := vectorstore.NewInMemoryStore()
 	emb := &fixedEmbedder{vec: []float64{1, 0, 0}}
 	streamingLLM := &llm.MockStreamingLLM{Tokens: []string{"answer"}}
-	p := NewPipeline(store, streamingLLM, emb)
+	p, err := NewPipeline(store, streamingLLM, emb)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{
@@ -383,7 +416,10 @@ func TestSearchBuilder_StreamSources_Filter(t *testing.T) {
 	store := vectorstore.NewInMemoryStore()
 	emb := &fixedEmbedder{vec: []float64{1, 0, 0}}
 	streamingLLM := &llm.MockStreamingLLM{Tokens: []string{"answer"}}
-	p := NewPipeline(store, streamingLLM, emb)
+	p, err := NewPipeline(store, streamingLLM, emb)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{
@@ -416,7 +452,10 @@ func TestSearchBuilder_StreamCite_HyDE(t *testing.T) {
 		Tokens:         []string{"answer"},
 		GenerateResult: "hypothetical document",
 	}
-	p := NewPipeline(store, streamingLLM, emb)
+	p, err := NewPipeline(store, streamingLLM, emb)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{
@@ -449,7 +488,10 @@ func TestSearchBuilder_StreamCite_MultiQuery(t *testing.T) {
 		Tokens:         []string{"answer"},
 		GenerateResult: "Go concurrency",
 	}
-	p := NewPipeline(store, streamingLLM, emb)
+	p, err := NewPipeline(store, streamingLLM, emb)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{
@@ -476,8 +518,11 @@ func TestSearchBuilder_StreamCite_MultiQuery(t *testing.T) {
 
 // @sk-test hardening-2026q2#AC-007: StreamCite routing — Hybrid (not supported)
 func TestSearchBuilder_StreamCite_Hybrid_NotSupported(t *testing.T) {
-	p := NewPipeline(vectorstore.NewInMemoryStore(), &llm.MockStreamingLLM{}, &fixedEmbedder{})
-	_, _, _, err := p.Search("q").TopK(5).Hybrid(HybridConfig{SemanticWeight: 0.5, RRFK: 60}).StreamCite(context.Background())
+	p, err := NewPipeline(vectorstore.NewInMemoryStore(), &llm.MockStreamingLLM{}, &fixedEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, _, err = p.Search("q").TopK(5).Hybrid(HybridConfig{SemanticWeight: 0.5, RRFK: 60}).StreamCite(context.Background())
 	if !errors.Is(err, ErrHybridNotSupported) {
 		t.Fatalf("expected ErrHybridNotSupported, got %v", err)
 	}
@@ -488,7 +533,10 @@ func TestSearchBuilder_StreamCite_ParentIDs(t *testing.T) {
 	store := vectorstore.NewInMemoryStore()
 	emb := &fixedEmbedder{vec: []float64{1, 0, 0}}
 	streamingLLM := &llm.MockStreamingLLM{Tokens: []string{"answer"}}
-	p := NewPipeline(store, streamingLLM, emb)
+	p, err := NewPipeline(store, streamingLLM, emb)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{
@@ -518,7 +566,10 @@ func TestSearchBuilder_StreamCite_Filter(t *testing.T) {
 	store := vectorstore.NewInMemoryStore()
 	emb := &fixedEmbedder{vec: []float64{1, 0, 0}}
 	streamingLLM := &llm.MockStreamingLLM{Tokens: []string{"answer"}}
-	p := NewPipeline(store, streamingLLM, emb)
+	p, err := NewPipeline(store, streamingLLM, emb)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{
@@ -572,7 +623,10 @@ func TestSearchBuilder_Answer_Hybrid_NotSupported(t *testing.T) {
 // @sk-test hardening-2026q2#AC-007: Answer routing — Filter success path
 func TestSearchBuilder_Answer_Filter(t *testing.T) {
 	store := vectorstore.NewInMemoryStore()
-	p := NewPipeline(store, testLLM{}, testEmbedder{})
+	p, err := NewPipeline(store, testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{
 		ID: "c1", Content: "Go concurrency", ParentID: "doc-1",
@@ -592,7 +646,10 @@ func TestSearchBuilder_Answer_Filter(t *testing.T) {
 func TestSearchBuilder_Cite_HyDE(t *testing.T) {
 	store := vectorstore.NewInMemoryStore()
 	emb := &fixedEmbedder{vec: []float64{1, 0, 0}}
-	p := NewPipeline(store, &mockLLM{reply: "answer"}, emb)
+	p, err := NewPipeline(store, &mockLLM{reply: "answer"}, emb)
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{
 		ID: "c1", Content: "Go concurrency", ParentID: "doc-1",
@@ -614,7 +671,10 @@ func TestSearchBuilder_Cite_HyDE(t *testing.T) {
 func TestSearchBuilder_Cite_MultiQuery(t *testing.T) {
 	store := vectorstore.NewInMemoryStore()
 	emb := &fixedEmbedder{vec: []float64{1, 0, 0}}
-	p := NewPipeline(store, &mockLLM{reply: "answer"}, emb)
+	p, err := NewPipeline(store, &mockLLM{reply: "answer"}, emb)
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{
 		ID: "c1", Content: "Go concurrency", ParentID: "doc-1",
@@ -645,7 +705,10 @@ func TestSearchBuilder_Cite_Hybrid_NotSupported(t *testing.T) {
 func TestSearchBuilder_InlineCite_HyDE(t *testing.T) {
 	store := vectorstore.NewInMemoryStore()
 	emb := &fixedEmbedder{vec: []float64{1, 0, 0}}
-	p := NewPipeline(store, &mockLLM{reply: "answer"}, emb)
+	p, err := NewPipeline(store, &mockLLM{reply: "answer"}, emb)
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{
 		ID: "c1", Content: "Go concurrency", ParentID: "doc-1",
@@ -668,7 +731,10 @@ func TestSearchBuilder_InlineCite_HyDE(t *testing.T) {
 func TestSearchBuilder_InlineCite_MultiQuery(t *testing.T) {
 	store := vectorstore.NewInMemoryStore()
 	emb := &fixedEmbedder{vec: []float64{1, 0, 0}}
-	p := NewPipeline(store, &mockLLM{reply: "answer"}, emb)
+	p, err := NewPipeline(store, &mockLLM{reply: "answer"}, emb)
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{
 		ID: "c1", Content: "Go concurrency", ParentID: "doc-1",

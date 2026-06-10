@@ -38,10 +38,14 @@ func main() {
 	embedder := shared.NewMockEmbedder(1536)
 
 	store := draftrag.NewInMemoryStore()
-	pipeline := draftrag.NewPipelineWithOptions(store, llm, embedder, draftrag.PipelineOptions{
+	pipeline, err := draftrag.NewPipelineWithOptions(store, llm, embedder, draftrag.PipelineOptions{
 		DefaultTopK: 3,
 		Chunker:     draftrag.NewBasicChunker(draftrag.BasicChunkerOptions{ChunkSize: 500, Overlap: 50}),
 	})
+	if err != nil {
+		shared.PrintError("pipeline creation: %v", err)
+		os.Exit(1)
+	}
 
 	shared.PrintInfo("индексируем %d документов", len(documents))
 	if err := pipeline.Index(ctx, documents); err != nil {

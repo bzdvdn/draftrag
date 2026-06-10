@@ -37,7 +37,10 @@ func genDocs(count, contentSize int) []domain.Document {
 func setupBenchPipeline(b *testing.B) (*Pipeline, *vectorstore.InMemoryStore) {
 	b.Helper()
 	store := vectorstore.NewInMemoryStore()
-	p := NewPipeline(store, benchLLM{}, benchEmbedder{})
+	p, err := NewPipeline(store, benchLLM{}, benchEmbedder{})
+	if err != nil {
+		b.Fatal(err)
+	}
 	return p, store
 }
 
@@ -48,7 +51,10 @@ func setupBenchPipelineWithChunker(b *testing.B) *Pipeline {
 		ChunkSize: 100,
 		Overlap:   20,
 	})
-	p := NewPipelineWithChunker(store, benchLLM{}, benchEmbedder{}, chunker)
+	p, err := NewPipelineWithChunker(store, benchLLM{}, benchEmbedder{}, chunker)
+	if err != nil {
+		b.Fatal(err)
+	}
 	return p
 }
 

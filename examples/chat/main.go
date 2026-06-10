@@ -92,13 +92,16 @@ func main() {
 	})
 
 	store := draftrag.NewInMemoryStore()
-	pipeline := draftrag.NewPipelineWithOptions(store, llm, embedder, draftrag.PipelineOptions{
+	pipeline, err := draftrag.NewPipelineWithOptions(store, llm, embedder, draftrag.PipelineOptions{
 		DefaultTopK: 3,
 		Chunker: draftrag.NewBasicChunker(draftrag.BasicChunkerOptions{
 			ChunkSize: 300,
 			Overlap:   40,
 		}),
 	})
+	if err != nil {
+		fatalf("ошибка создания pipeline: %v\n", err)
+	}
 
 	fmt.Println("Индексируем базу знаний...")
 	if err := pipeline.Index(ctx, knowledgeBase); err != nil {

@@ -19,7 +19,8 @@ var (
 )
 
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
-type PipelineConfig struct {
+// @sk-task arch-quality-pass#T3.2: единый struct конфигурации (AC-004)
+type PipelineOptions struct {
 	SystemPrompt        string
 	Chunker             domain.Chunker
 	MaxContextChars     int
@@ -58,15 +59,16 @@ type Pipeline struct {
 }
 
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
-func NewPipeline(store domain.VectorStore, llm domain.LLMProvider, embedder domain.Embedder) *Pipeline {
+// @sk-task arch-quality-pass#T2.1: error return вместо panic для конфигурации (AC-002)
+func NewPipeline(store domain.VectorStore, llm domain.LLMProvider, embedder domain.Embedder) (*Pipeline, error) {
 	if store == nil {
-		panic("nil store")
+		return nil, errors.New("nil store")
 	}
 	if llm == nil {
-		panic("nil llm")
+		return nil, errors.New("nil llm")
 	}
 	if embedder == nil {
-		panic("nil embedder")
+		return nil, errors.New("nil embedder")
 	}
 
 	return &Pipeline{
@@ -75,17 +77,27 @@ func NewPipeline(store domain.VectorStore, llm domain.LLMProvider, embedder doma
 		embedder:     embedder,
 		chunker:      nil,
 		systemPrompt: defaultSystemPromptV1,
-	}
+	}, nil
 }
 
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
+// @sk-task arch-quality-pass#T2.1: error return вместо panic для конфигурации (AC-002)
+// @sk-task arch-quality-pass#T3.2: принимает PipelineOptions вместо PipelineConfig (AC-004)
 func NewPipelineWithConfig(
 	store domain.VectorStore,
 	llm domain.LLMProvider,
 	embedder domain.Embedder,
-	cfg PipelineConfig,
-) *Pipeline {
-	p := NewPipeline(store, llm, embedder)
+	cfg PipelineOptions,
+) (*Pipeline, error) {
+	if cfg.StreamBufferSize < 0 {
+		return nil, fmt.Errorf("StreamBufferSize must be >= 0, got %d", cfg.StreamBufferSize)
+	}
+
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		return nil, err
+	}
+
 	if strings.TrimSpace(cfg.SystemPrompt) != "" {
 		p.systemPrompt = cfg.SystemPrompt
 	}
@@ -110,25 +122,23 @@ func NewPipelineWithConfig(
 	}
 	p.indexBatchRateLimitPerWorker = cfg.IndexBatchRateLimitPerWorker
 	p.streamBufferSize = cfg.StreamBufferSize
-	if p.streamBufferSize < 0 {
-		panic("StreamBufferSize must be >= 0")
-	}
 	p.reranker = cfg.Reranker
-	return p
+	return p, nil
 }
 
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
+// @sk-task arch-quality-pass#T2.1: error return вместо panic для конфигурации (AC-002)
 func NewPipelineWithChunker(
 	store domain.VectorStore,
 	llm domain.LLMProvider,
 	embedder domain.Embedder,
 	chunker domain.Chunker,
-) *Pipeline {
+) (*Pipeline, error) {
 	if chunker == nil {
-		panic("nil chunker")
+		return nil, errors.New("nil chunker")
 	}
 
-	return NewPipelineWithConfig(store, llm, embedder, PipelineConfig{Chunker: chunker})
+	return NewPipelineWithConfig(store, llm, embedder, PipelineOptions{Chunker: chunker})
 }
 
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
@@ -158,6 +168,8 @@ func (p *Pipeline) processDocumentOp(ctx context.Context, operationName string, 
 }
 
 // @sk-task api-consistency-pass#T3.2: shared chunk+embed helper для atomic update (DEC-005, AC-008)
+// @sk-task arch-quality-pass#T1.2: use context from hookStart (AC-001)
+// @sk-task arch-quality-pass#T3.1: использует context из hookStart для embed; передаёт его же в hookEnd (AC-001, AC-005)
 //
 // produceChunks выполняет chunking + embedding + validation для одного документа
 // без персистенции. Вызывающий код отвечает за upsert (в store или в tx).
@@ -168,17 +180,17 @@ func (p *Pipeline) processDocumentOp(ctx context.Context, operationName string, 
 func (p *Pipeline) produceChunks(ctx context.Context, operationName string, doc domain.Document) ([]domain.Chunk, error) {
 	if p.chunker != nil {
 		chunkStart := time.Now()
-		p.hookStart(ctx, operationName, domain.HookStageChunking)
-		chunks, err := p.chunker.Chunk(ctx, doc)
-		p.hookEnd(ctx, operationName, domain.HookStageChunking, chunkStart, err)
+		traceCtx := p.hookStart(ctx, operationName, domain.HookStageChunking)
+		chunks, err := p.chunker.Chunk(traceCtx, doc)
+		p.hookEnd(traceCtx, operationName, domain.HookStageChunking, chunkStart, err)
 		if err != nil {
 			return nil, err
 		}
 		for i := range chunks {
 			embedStart := time.Now()
-			p.hookStart(ctx, operationName, domain.HookStageEmbed)
-			embedding, err := p.embedder.Embed(ctx, chunks[i].Content)
-			p.hookEnd(ctx, operationName, domain.HookStageEmbed, embedStart, err)
+			traceCtx := p.hookStart(ctx, operationName, domain.HookStageEmbed)
+			embedding, err := p.embedder.Embed(traceCtx, chunks[i].Content)
+			p.hookEnd(traceCtx, operationName, domain.HookStageEmbed, embedStart, err)
 			if err != nil {
 				return nil, err
 			}
@@ -191,9 +203,9 @@ func (p *Pipeline) produceChunks(ctx context.Context, operationName string, doc 
 	}
 
 	embedStart := time.Now()
-	p.hookStart(ctx, operationName, domain.HookStageEmbed)
-	embedding, err := p.embedder.Embed(ctx, doc.Content)
-	p.hookEnd(ctx, operationName, domain.HookStageEmbed, embedStart, err)
+	traceCtx := p.hookStart(ctx, operationName, domain.HookStageEmbed)
+	embedding, err := p.embedder.Embed(traceCtx, doc.Content)
+	p.hookEnd(traceCtx, operationName, domain.HookStageEmbed, embedStart, err)
 	if err != nil {
 		return nil, err
 	}

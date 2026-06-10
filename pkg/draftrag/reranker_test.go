@@ -26,9 +26,12 @@ func TestPipeline_Reranker_IsCalled(t *testing.T) {
 	llm := &mockLLM{reply: "ok"}
 	rr := &reverseReranker{}
 
-	p := NewPipelineWithOptions(store, llm, emb, PipelineOptions{
+	p, err := NewPipelineWithOptions(store, llm, emb, PipelineOptions{
 		Reranker: rr,
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{
@@ -56,7 +59,10 @@ func TestPipeline_NoReranker_Works(t *testing.T) {
 	store := vectorstore.NewInMemoryStore()
 	emb := &fixedEmbedder{vec: []float64{1, 0, 0}}
 	llm := &mockLLM{reply: "ok"}
-	p := NewPipeline(store, llm, emb)
+	p, err := NewPipeline(store, llm, emb)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{

@@ -37,11 +37,15 @@ func (m *errorEmbedder) Embed(_ context.Context, _ string) ([]float64, error) {
 }
 
 func TestPipeline_Index_EmbedError(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := &mockVectorStore{}
 	llm := &mockLLMProvider{}
 	embedder := &errorEmbedder{}
 
-	p := NewPipeline(store, llm, embedder)
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	docs := []domain.Document{
 		{
@@ -50,18 +54,22 @@ func TestPipeline_Index_EmbedError(t *testing.T) {
 		},
 	}
 
-	err := p.Index(context.Background(), docs)
+	err = p.Index(context.Background(), docs)
 	if err == nil {
 		t.Fatal("expected error for embed failure, got nil")
 	}
 }
 
 func TestPipeline_Index_UpsertError(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := &errorVectorStore{}
 	llm := &mockLLMProvider{}
 	embedder := &mockEmbedder{}
 
-	p := NewPipeline(store, llm, embedder)
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	docs := []domain.Document{
 		{
@@ -70,18 +78,22 @@ func TestPipeline_Index_UpsertError(t *testing.T) {
 		},
 	}
 
-	err := p.Index(context.Background(), docs)
+	err = p.Index(context.Background(), docs)
 	if err == nil {
 		t.Fatal("expected error for upsert failure, got nil")
 	}
 }
 
 func TestPipeline_Index_WithoutChunker(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := &mockVectorStore{}
 	llm := &mockLLMProvider{}
 	embedder := &mockEmbedder{}
 
-	p := NewPipeline(store, llm, embedder)
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	docs := []domain.Document{
 		{
@@ -90,7 +102,7 @@ func TestPipeline_Index_WithoutChunker(t *testing.T) {
 		},
 	}
 
-	err := p.Index(context.Background(), docs)
+	err = p.Index(context.Background(), docs)
 	// Без chunker документ должен индексироваться как один чанк
 	if err != nil {
 		t.Fatalf("expected no error for index without chunker, got %v", err)
@@ -98,14 +110,18 @@ func TestPipeline_Index_WithoutChunker(t *testing.T) {
 }
 
 func TestPipeline_Index_WithChunker(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := &mockVectorStore{}
 	llm := &mockLLMProvider{}
 	embedder := &mockEmbedder{}
 	chunker := &testChunker{}
 
-	p := NewPipelineWithConfig(store, llm, embedder, PipelineConfig{
+	p, err := NewPipelineWithConfig(store, llm, embedder, PipelineOptions{
 		Chunker: chunker,
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	docs := []domain.Document{
 		{
@@ -114,18 +130,22 @@ func TestPipeline_Index_WithChunker(t *testing.T) {
 		},
 	}
 
-	err := p.Index(context.Background(), docs)
+	err = p.Index(context.Background(), docs)
 	if err != nil {
 		t.Fatalf("expected no error for index with chunker, got %v", err)
 	}
 }
 
 func TestPipeline_Index_ContextCancellation(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := &mockVectorStore{}
 	llm := &mockLLMProvider{}
 	embedder := &mockEmbedder{}
 
-	p := NewPipeline(store, llm, embedder)
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // сразу отменяем
@@ -137,44 +157,56 @@ func TestPipeline_Index_ContextCancellation(t *testing.T) {
 		},
 	}
 
-	err := p.Index(ctx, docs)
+	err = p.Index(ctx, docs)
 	if err == nil {
 		t.Fatal("expected context cancellation error, got nil")
 	}
 }
 
 func TestPipeline_Query_SearchError(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := &errorVectorStore{}
 	llm := &mockLLMProvider{}
 	embedder := &mockEmbedder{}
 
-	p := NewPipeline(store, llm, embedder)
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, err := p.Query(context.Background(), "test query", 5)
+	_, err = p.Query(context.Background(), "test query", 5)
 	if err == nil {
 		t.Fatal("expected error for search failure, got nil")
 	}
 }
 
 func TestPipeline_Query_EmbedError(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := &mockVectorStore{}
 	llm := &mockLLMProvider{}
 	embedder := &errorEmbedder{}
 
-	p := NewPipeline(store, llm, embedder)
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, err := p.Query(context.Background(), "test query", 5)
+	_, err = p.Query(context.Background(), "test query", 5)
 	if err == nil {
 		t.Fatal("expected error for embed failure, got nil")
 	}
 }
 
 func TestPipeline_Query_Success(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := &mockVectorStore{}
 	llm := &mockLLMProvider{}
 	embedder := &mockEmbedder{}
 
-	p := NewPipeline(store, llm, embedder)
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	result, err := p.Query(context.Background(), "test query", 5)
 	if err != nil {
@@ -187,43 +219,55 @@ func TestPipeline_Query_Success(t *testing.T) {
 }
 
 func TestPipeline_Answer_GenerateError(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := &mockVectorStore{}
 	llm := &errorLLMProvider{}
 	embedder := &mockEmbedder{}
 
-	p := NewPipeline(store, llm, embedder)
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, err := p.Answer(context.Background(), "test query", 5)
+	_, err = p.Answer(context.Background(), "test query", 5)
 	if err == nil {
 		t.Fatal("expected error for generate failure, got nil")
 	}
 }
 
 func TestPipeline_Answer_EmptyResult(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := &mockVectorStore{}
 	llm := &mockLLMProvider{}
 	embedder := &mockEmbedder{}
 
-	p := NewPipeline(store, llm, embedder)
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// mockVectorStore возвращает пустой result
-	_, err := p.Answer(context.Background(), "test query", 5)
+	_, err = p.Answer(context.Background(), "test query", 5)
 	if err != nil {
 		t.Fatalf("expected no error for empty result, got %v", err)
 	}
 }
 
 func TestPipeline_Answer_ContextCancellation(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := &mockVectorStore{}
 	llm := &mockLLMProvider{}
 	embedder := &mockEmbedder{}
 
-	p := NewPipeline(store, llm, embedder)
+	p, err := NewPipeline(store, llm, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := p.Answer(ctx, "test query", 5)
+	_, err = p.Answer(ctx, "test query", 5)
 	if err == nil {
 		t.Fatal("expected context cancellation error, got nil")
 	}

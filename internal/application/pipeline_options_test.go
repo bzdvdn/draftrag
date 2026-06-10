@@ -17,16 +17,20 @@ func (l *captureLLM) Generate(_ context.Context, systemPrompt, _ string) (string
 	return "ok", nil
 }
 
-func TestPipelineConfig_SystemPromptOverride(t *testing.T) {
+func TestPipelineOptions_SystemPromptOverride(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	llm := &captureLLM{}
-	p := NewPipelineWithConfig(
+	p, err := NewPipelineWithConfig(
 		vectorstore.NewInMemoryStore(),
 		llm,
 		testEmbedder{},
-		PipelineConfig{SystemPrompt: "X"},
+		PipelineOptions{SystemPrompt: "X"},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, err := p.Answer(context.Background(), "cat", 1)
+	_, err = p.Answer(context.Background(), "cat", 1)
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
@@ -35,7 +39,8 @@ func TestPipelineConfig_SystemPromptOverride(t *testing.T) {
 	}
 }
 
-func TestPipelineConfig_ChunkerEnablesChunkingPath(t *testing.T) {
+func TestPipelineOptions_ChunkerEnablesChunkingPath(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := vectorstore.NewInMemoryStore()
 	emb := &countingEmbedder{}
 
@@ -46,7 +51,10 @@ func TestPipelineConfig_ChunkerEnablesChunkingPath(t *testing.T) {
 		},
 	}
 
-	p := NewPipelineWithConfig(store, testLLM{}, emb, PipelineConfig{Chunker: ch})
+	p, err := NewPipelineWithConfig(store, testLLM{}, emb, PipelineOptions{Chunker: ch})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if err := p.Index(context.Background(), []domain.Document{{ID: "doc-1", Content: "ignored"}}); err != nil {
 		t.Fatalf("index: %v", err)

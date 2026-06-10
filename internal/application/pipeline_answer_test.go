@@ -55,7 +55,7 @@ func TestPipeline_Answer_CallsOrderAndReturnsAnswer(t *testing.T) {
 	var calls []string
 	llm := &recordingLLM{calls: &calls}
 
-	p := NewPipeline(
+	p, err := NewPipeline(
 		recordingStore{
 			calls: &calls,
 			result: domain.RetrievalResult{
@@ -68,6 +68,9 @@ func TestPipeline_Answer_CallsOrderAndReturnsAnswer(t *testing.T) {
 		llm,
 		recordingEmbedder{calls: &calls},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	got, err := p.Answer(context.Background(), "what?", 2)
 	if err != nil {
@@ -92,7 +95,7 @@ func TestPipeline_Answer_PromptContractV1(t *testing.T) {
 	var calls []string
 	llm := &recordingLLM{calls: &calls}
 
-	p := NewPipeline(
+	p, err := NewPipeline(
 		recordingStore{
 			calls: &calls,
 			result: domain.RetrievalResult{
@@ -105,8 +108,11 @@ func TestPipeline_Answer_PromptContractV1(t *testing.T) {
 		llm,
 		recordingEmbedder{calls: &calls},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, err := p.Answer(context.Background(), "Q", 2)
+	_, err = p.Answer(context.Background(), "Q", 2)
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
@@ -124,17 +130,20 @@ func TestPipeline_Answer_ContextCanceledFastAndNoCalls(t *testing.T) {
 	var calls []string
 	llm := &recordingLLM{calls: &calls}
 
-	p := NewPipeline(
+	p, err := NewPipeline(
 		recordingStore{calls: &calls},
 		llm,
 		recordingEmbedder{calls: &calls},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	start := time.Now()
 	cancel()
 
-	_, err := p.Answer(ctx, "Q", 2)
+	_, err = p.Answer(ctx, "Q", 2)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected context.Canceled, got %v", err)
 	}

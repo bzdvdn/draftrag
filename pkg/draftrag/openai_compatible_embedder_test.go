@@ -61,7 +61,10 @@ func TestOpenAICompatibleEmbedder_PipelineFullCycle(t *testing.T) {
 	})
 
 	store := vectorstore.NewInMemoryStore()
-	p := NewPipeline(store, testLLMProvider{}, emb)
+	p, err := NewPipeline(store, testLLMProvider{}, emb)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx := context.Background()
 	if err := p.Index(ctx, []Document{{ID: "doc-1", Content: "cat"}}); err != nil {

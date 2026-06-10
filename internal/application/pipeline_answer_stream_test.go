@@ -48,7 +48,10 @@ func TestAnswerStream_Success(t *testing.T) {
 		Delay:  1 * time.Millisecond,
 	}
 
-	pipeline := NewPipeline(store, streamingLLM, embedder)
+	pipeline, err := NewPipeline(store, streamingLLM, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ch, err := pipeline.AnswerStream(ctx, "test question", 5)
 	if err != nil {
@@ -74,7 +77,10 @@ func TestAnswerStream_NonStreamingLLM(t *testing.T) {
 	embedder := &MockEmbedder{Embedding: []float64{0.1, 0.2, 0.3}}
 	nonStreamingLLM := &llm.NonStreamingLLM{Result: "static answer"}
 
-	pipeline := NewPipeline(store, nonStreamingLLM, embedder)
+	pipeline, err := NewPipeline(store, nonStreamingLLM, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ch, err := pipeline.AnswerStream(ctx, "test question", 5)
 
@@ -110,7 +116,10 @@ func TestAnswerStreamWithInlineCitations_Success(t *testing.T) {
 		Delay:  1 * time.Millisecond,
 	}
 
-	pipeline := NewPipeline(store, streamingLLM, embedder)
+	pipeline, err := NewPipeline(store, streamingLLM, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ch, retrieval, citations, err := pipeline.AnswerStreamWithInlineCitations(ctx, "test question", 5)
 	if err != nil {
@@ -147,7 +156,10 @@ func TestAnswerStreamWithInlineCitations_NonStreamingLLM(t *testing.T) {
 	embedder := &MockEmbedder{Embedding: []float64{0.1, 0.2, 0.3}}
 	nonStreamingLLM := &llm.NonStreamingLLM{Result: "static answer"}
 
-	pipeline := NewPipeline(store, nonStreamingLLM, embedder)
+	pipeline, err := NewPipeline(store, nonStreamingLLM, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ch, _, _, err := pipeline.AnswerStreamWithInlineCitations(ctx, "test question", 5)
 
@@ -184,7 +196,10 @@ func TestAnswerStream_ContextCancellation(t *testing.T) {
 		Delay:  30 * time.Millisecond,
 	}
 
-	pipeline := NewPipeline(store, streamingLLM, embedder)
+	pipeline, err := NewPipeline(store, streamingLLM, embedder)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ch, err := pipeline.AnswerStream(ctx, "test question", 5)
 	if err != nil {

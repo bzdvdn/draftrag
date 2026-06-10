@@ -35,9 +35,14 @@ type StageEndEvent struct {
 
 // Hooks — опциональный интерфейс наблюдаемости для pipeline стадий.
 //
-// В v1 hooks вызываются синхронно: обработчики ДОЛЖНЫ быть лёгкими и быстрыми.
+// Hooks вызываются синхронно: обработчики ДОЛЖНЫ быть лёгкими и быстрыми.
 // При nil hooks pipeline работает как обычно (no-op).
+//
+// StageStart возвращает context.Context, который может содержать span или другие
+// инструментационные данные, пробрасываемые в StageEnd.
+//
+// @sk-task arch-quality-pass#T1.2: StageStart returns context.Context (AC-001)
 type Hooks interface {
-	StageStart(ctx context.Context, ev StageStartEvent)
+	StageStart(ctx context.Context, ev StageStartEvent) context.Context
 	StageEnd(ctx context.Context, ev StageEndEvent)
 }

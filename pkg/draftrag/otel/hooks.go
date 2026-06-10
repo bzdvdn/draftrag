@@ -2,7 +2,6 @@ package otel
 
 import (
 	"context"
-	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -100,14 +99,23 @@ func NewHooks(opts HooksOptions) (*Hooks, error) {
 
 // StageStart реализует `Hooks` интерфейс pipeline (domain.Hooks).
 //
-// В v1 мы не создаём span на старте, т.к. интерфейс hooks не возвращает `context.Context`.
-// Вместо этого создаём ретроспективный stage span на `StageEnd` по измеренной длительности.
-func (h *Hooks) StageStart(ctx context.Context, ev domain.StageStartEvent) {
-	_ = ctx
-	_ = ev
+// @sk-task arch-quality-pass#T1.2: возвращает ctx для compatibility; span создаётся в T3.1 (AC-001)
+// @sk-task arch-quality-pass#T3.1: OTel StageStart создаёт span (AC-001, AC-005)
+func (h *Hooks) StageStart(ctx context.Context, ev domain.StageStartEvent) context.Context {
+	spanCtx, span := h.tracer.Start(ctx, "draftrag."+string(ev.Stage),
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			attribute.String(SpanAttributeOperation, ev.Operation),
+			attribute.String(SpanAttributeStage, string(ev.Stage)),
+		),
+	)
+	_ = span
+	return spanCtx
 }
 
 // StageEnd реализует `Hooks` интерфейс pipeline (domain.Hooks).
+//
+// @sk-task arch-quality-pass#T3.1: StageEnd завершает span из context (AC-001, AC-005)
 func (h *Hooks) StageEnd(ctx context.Context, ev domain.StageEndEvent) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -115,11 +123,6 @@ func (h *Hooks) StageEnd(ctx context.Context, ev domain.StageEndEvent) {
 
 	operation := ev.Operation
 	stage := string(ev.Stage)
-
-	spanAttrs := []attribute.KeyValue{
-		attribute.String(SpanAttributeOperation, operation),
-		attribute.String(SpanAttributeStage, stage),
-	}
 
 	metricAttrs := []attribute.KeyValue{
 		attribute.String(MetricLabelOperation, operation),
@@ -132,19 +135,12 @@ func (h *Hooks) StageEnd(ctx context.Context, ev domain.StageEndEvent) {
 		h.errors.Add(ctx, 1, metric.WithAttributes(metricAttrs...))
 	}
 
-	// Пишем tracing: ретроспективный span со start/end timestamp.
-	startTime := time.Now().Add(-ev.Duration)
-	spanCtx, span := h.tracer.Start(
-		ctx,
-		"draftrag."+stage,
-		trace.WithTimestamp(startTime),
-		trace.WithSpanKind(trace.SpanKindInternal),
-		trace.WithAttributes(spanAttrs...),
-	)
-	if ev.Err != nil {
-		span.RecordError(ev.Err)
-		span.SetStatus(codes.Error, ev.Err.Error())
+	// Завершаем span, созданный в StageStart.
+	if span := trace.SpanFromContext(ctx); span.IsRecording() {
+		if ev.Err != nil {
+			span.RecordError(ev.Err)
+			span.SetStatus(codes.Error, ev.Err.Error())
+		}
+		span.End()
 	}
-	span.End(trace.WithTimestamp(startTime.Add(ev.Duration)))
-	_ = spanCtx
 }

@@ -62,12 +62,16 @@ func (m *counterStreamingLLM) producedCount() int {
 // @sk-test api-consistency-pass#T3.3: при StreamBufferSize=0 (default) output
 // канал unbuffered (cap=0) — backward-compat с OQ-2 (DEC-006, RQ-006, AC-010).
 func TestPipeline_StreamBackpressure_DefaultUnbuffered(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := &mockVectorStore{}
 	emb := &mockEmbedder{}
 	llm := &streamingLLM{}
-	p := NewPipelineWithConfig(store, llm, emb, PipelineConfig{
+	p, err := NewPipelineWithConfig(store, llm, emb, PipelineOptions{
 		// StreamBufferSize: 0 (default)
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	stream, err := p.AnswerStream(context.Background(), "q", 5)
 	if err != nil {
@@ -90,15 +94,19 @@ func TestPipeline_StreamBackpressure_DefaultUnbuffered(t *testing.T) {
 // @sk-test api-consistency-pass#T3.3: при StreamBufferSize=N output канал
 // имеет cap=N (DEC-006, RQ-006, AC-010).
 func TestPipeline_StreamBackpressure_BufferSizeApplied(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	cases := []int{1, 5, 16, 64}
 	for _, size := range cases {
 		t.Run("", func(t *testing.T) {
 			store := &mockVectorStore{}
 			emb := &mockEmbedder{}
 			llm := &streamingLLM{}
-			p := NewPipelineWithConfig(store, llm, emb, PipelineConfig{
+			p, err := NewPipelineWithConfig(store, llm, emb, PipelineOptions{
 				StreamBufferSize: size,
 			})
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			stream, err := p.AnswerStream(context.Background(), "q", 5)
 			if err != nil {
@@ -120,6 +128,7 @@ func TestPipeline_StreamBackpressure_BufferSizeApplied(t *testing.T) {
 // @sk-test api-consistency-pass#T3.3: независимо от размера буфера, все N
 // токенов доходят до consumer'а (DEC-006, RQ-006, AC-010).
 func TestPipeline_StreamBackpressure_AllTokensDelivered(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	cases := []int{0, 1, 5, 32}
 	tokens := []string{"a", "b", "c", "d", "e", "f", "g", "h"}
 	for _, size := range cases {
@@ -127,9 +136,12 @@ func TestPipeline_StreamBackpressure_AllTokensDelivered(t *testing.T) {
 			store := &mockVectorStore{}
 			emb := &mockEmbedder{}
 			llm := &counterStreamingLLM{tokens: tokens, emitDelay: 0}
-			p := NewPipelineWithConfig(store, llm, emb, PipelineConfig{
+			p, err := NewPipelineWithConfig(store, llm, emb, PipelineOptions{
 				StreamBufferSize: size,
 			})
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			stream, err := p.AnswerStream(context.Background(), "q", 5)
 			if err != nil {
@@ -165,6 +177,7 @@ func TestPipeline_StreamBackpressure_AllTokensDelivered(t *testing.T) {
 // за < 50% от времени, нужного consumer'у; (b) без буфера producer
 // завершает не раньше, чем consumer прочитает все токены.
 func TestPipeline_StreamBackpressure_ProducerRunsAhead(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	const (
 		tokenCount    = 20
 		emitDelay     = 1 * time.Millisecond
@@ -191,9 +204,12 @@ func TestPipeline_StreamBackpressure_ProducerRunsAhead(t *testing.T) {
 	store := &mockVectorStore{}
 	emb := &mockEmbedder{}
 	llm := &counterStreamingLLM{tokens: tokens, emitDelay: emitDelay}
-	p := NewPipelineWithConfig(store, llm, emb, PipelineConfig{
+	p, err := NewPipelineWithConfig(store, llm, emb, PipelineOptions{
 		StreamBufferSize: bufferSize,
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	stream, err := p.AnswerStream(context.Background(), "q", 5)
 	if err != nil {
@@ -228,15 +244,19 @@ func TestPipeline_StreamBackpressure_ProducerRunsAhead(t *testing.T) {
 // соответствует p.streamBufferSize (0 или N). Прямая проверка через
 // рефлексию, не зависит от LLM-выборки.
 func TestPipeline_wrapStreamWithHook_ChannelCapacity(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	cases := []int{0, 1, 8, 100}
 	for _, size := range cases {
 		t.Run("", func(t *testing.T) {
 			store := &mockVectorStore{}
 			emb := &mockEmbedder{}
 			llm := &mockLLMProvider{} // не streaming — нужна обёртка
-			p := NewPipelineWithConfig(store, llm, emb, PipelineConfig{
+			p, err := NewPipelineWithConfig(store, llm, emb, PipelineOptions{
 				StreamBufferSize: size,
 			})
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			source := make(chan string)
 			close(source)
@@ -259,14 +279,18 @@ func TestPipeline_wrapStreamWithHook_ChannelCapacity(t *testing.T) {
 // @sk-test api-consistency-pass#T3.3: domain.Hooks вызываются корректно при
 // streaming'е с буфером. hookEnd Generate вызывается после закрытия канала.
 func TestPipeline_StreamBackpressure_HooksCalledOnClose(t *testing.T) {
+	// @sk-test arch-quality-pass#T3.3: migrate to draftrag.PipelineOptions (AC-004)
 	store := &mockVectorStore{}
 	emb := &mockEmbedder{}
 	llm := &counterStreamingLLM{tokens: []string{"a", "b", "c"}, emitDelay: 0}
 	hooks := &countingHooks{}
-	p := NewPipelineWithConfig(store, llm, emb, PipelineConfig{
+	p, err := NewPipelineWithConfig(store, llm, emb, PipelineOptions{
 		StreamBufferSize: 5,
 		Hooks:            hooks,
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	stream, err := p.AnswerStream(context.Background(), "q", 5)
 	if err != nil {
@@ -287,13 +311,15 @@ type countingHooks struct {
 	mu         sync.Mutex
 }
 
-func (h *countingHooks) StageStart(_ context.Context, ev domain.StageStartEvent) {
+// @sk-test arch-quality-pass#T1.2: countingHooks обновлён (AC-001)
+func (h *countingHooks) StageStart(ctx context.Context, ev domain.StageStartEvent) context.Context {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.startCount == nil {
 		h.startCount = make(map[domain.HookStage]int)
 	}
 	h.startCount[ev.Stage]++
+	return ctx
 }
 
 func (h *countingHooks) StageEnd(_ context.Context, ev domain.StageEndEvent) {

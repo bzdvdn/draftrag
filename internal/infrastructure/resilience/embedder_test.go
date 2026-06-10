@@ -33,8 +33,15 @@ type MockHooks struct {
 	mock.Mock
 }
 
-func (m *MockHooks) StageStart(ctx context.Context, ev domain.StageStartEvent) {
-	m.Called(ctx, ev)
+// @sk-test arch-quality-pass#T1.2: MockHooks обновлён (AC-001)
+func (m *MockHooks) StageStart(ctx context.Context, ev domain.StageStartEvent) context.Context {
+	args := m.Called(ctx, ev)
+	if v := args.Get(0); v != nil {
+		if c, ok := v.(context.Context); ok {
+			return c
+		}
+	}
+	return ctx
 }
 
 func (m *MockHooks) StageEnd(ctx context.Context, ev domain.StageEndEvent) {
@@ -203,7 +210,7 @@ func TestRetryEmbedder_HooksCalled(t *testing.T) {
 
 	mockHooks := new(MockHooks)
 	// Ожидаем вызовы hooks: start и end для каждой попытки
-	mockHooks.On("StageStart", mock.Anything, mock.Anything).Return()
+	mockHooks.On("StageStart", mock.Anything, mock.Anything).Return(context.Background())
 	mockHooks.On("StageEnd", mock.Anything, mock.Anything).Return()
 
 	config := &RetryConfig{
@@ -228,7 +235,7 @@ func TestRetryEmbedder_HooksCalledOnRejection(t *testing.T) {
 	// AC-006: Hooks получают событие при отклонении circuit breaker
 	mockEmb := new(MockEmbedder)
 	mockHooks := new(MockHooks)
-	mockHooks.On("StageStart", mock.Anything, mock.Anything).Return()
+	mockHooks.On("StageStart", mock.Anything, mock.Anything).Return(context.Background())
 	mockHooks.On("StageEnd", mock.Anything, mock.Anything).Return()
 
 	cbConfig := &CircuitBreakerConfig{

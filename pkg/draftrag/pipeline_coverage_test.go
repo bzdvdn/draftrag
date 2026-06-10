@@ -29,7 +29,10 @@ func (mockChunker) Chunk(_ context.Context, doc domain.Document) ([]domain.Chunk
 }
 
 func TestNewPipelineWithChunker_Constructs(t *testing.T) {
-	p := NewPipelineWithChunker(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{}, mockChunker{})
+	p, err := NewPipelineWithChunker(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{}, mockChunker{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if p == nil {
 		t.Fatal("expected non-nil Pipeline")
 	}
@@ -37,10 +40,13 @@ func TestNewPipelineWithChunker_Constructs(t *testing.T) {
 
 func TestNewPipelineWithChunker_IndexesViaChunker(t *testing.T) {
 	store := vectorstore.NewInMemoryStore()
-	p := NewPipelineWithChunker(store, testLLM{}, testEmbedder{}, mockChunker{})
+	p, err := NewPipelineWithChunker(store, testLLM{}, testEmbedder{}, mockChunker{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
 
-	err := p.Index(ctx, []domain.Document{{ID: "doc-1", Content: "hello"}})
+	err = p.Index(ctx, []domain.Document{{ID: "doc-1", Content: "hello"}})
 	if err != nil {
 		t.Fatalf("Index failed: %v", err)
 	}
@@ -56,7 +62,10 @@ func TestNewPipelineWithChunker_IndexesViaChunker(t *testing.T) {
 
 func TestRetrieve_ReturnsResults(t *testing.T) {
 	store := vectorstore.NewInMemoryStore()
-	p := NewPipeline(store, testLLM{}, testEmbedder{})
+	p, err := NewPipeline(store, testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{
 		ID: "c1", Content: "Go channels", ParentID: "doc-1",
@@ -73,23 +82,32 @@ func TestRetrieve_ReturnsResults(t *testing.T) {
 }
 
 func TestRetrieve_EmptyQuestion(t *testing.T) {
-	p := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
-	_, err := p.Retrieve(context.Background(), "", 5)
+	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.Retrieve(context.Background(), "", 5)
 	if !errors.Is(err, ErrEmptyQuery) {
 		t.Fatalf("expected ErrEmptyQuery, got %v", err)
 	}
 }
 
 func TestRetrieve_InvalidTopK(t *testing.T) {
-	p := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
-	_, err := p.Retrieve(context.Background(), "q", 0)
+	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.Retrieve(context.Background(), "q", 0)
 	if !errors.Is(err, ErrInvalidTopK) {
 		t.Fatalf("expected ErrInvalidTopK, got %v", err)
 	}
 }
 
 func TestRetrieve_NilContext(t *testing.T) {
-	p := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("expected panic on nil context")
@@ -100,7 +118,10 @@ func TestRetrieve_NilContext(t *testing.T) {
 
 func TestUpdateDocument_Updates(t *testing.T) {
 	store := vectorstore.NewInMemoryStore()
-	p := NewPipeline(store, testLLM{}, testEmbedder{})
+	p, err := NewPipeline(store, testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
 
 	_ = store.Upsert(ctx, domain.Chunk{
@@ -108,7 +129,7 @@ func TestUpdateDocument_Updates(t *testing.T) {
 		Embedding: []float64{1, 0}, Position: 0,
 	})
 
-	err := p.UpdateDocument(ctx, domain.Document{ID: "doc-1", Content: "new content"})
+	err = p.UpdateDocument(ctx, domain.Document{ID: "doc-1", Content: "new content"})
 	if err != nil {
 		t.Fatalf("UpdateDocument failed: %v", err)
 	}
@@ -116,15 +137,21 @@ func TestUpdateDocument_Updates(t *testing.T) {
 
 func TestUpdateDocument_EmptyContent(t *testing.T) {
 	store := vectorstore.NewInMemoryStore()
-	p := NewPipeline(store, testLLM{}, testEmbedder{})
-	err := p.UpdateDocument(context.Background(), domain.Document{ID: "doc-1", Content: ""})
+	p, err := NewPipeline(store, testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = p.UpdateDocument(context.Background(), domain.Document{ID: "doc-1", Content: ""})
 	if !errors.Is(err, ErrEmptyDocument) {
 		t.Fatalf("expected ErrEmptyDocument, got %v", err)
 	}
 }
 
 func TestUpdateDocument_NilContext(t *testing.T) {
-	p := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("expected panic on nil context")
@@ -135,7 +162,10 @@ func TestUpdateDocument_NilContext(t *testing.T) {
 
 func TestDeleteDocument_Deletes(t *testing.T) {
 	store := vectorstore.NewInMemoryStore()
-	p := NewPipeline(store, testLLM{}, testEmbedder{})
+	p, err := NewPipeline(store, testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
 
 	_ = store.Upsert(ctx, domain.Chunk{
@@ -143,7 +173,7 @@ func TestDeleteDocument_Deletes(t *testing.T) {
 		Embedding: []float64{1, 0}, Position: 0,
 	})
 
-	err := p.DeleteDocument(ctx, "doc-1")
+	err = p.DeleteDocument(ctx, "doc-1")
 	if err != nil {
 		t.Fatalf("DeleteDocument failed: %v", err)
 	}
@@ -151,15 +181,21 @@ func TestDeleteDocument_Deletes(t *testing.T) {
 
 func TestDeleteDocument_EmptyID(t *testing.T) {
 	store := vectorstore.NewInMemoryStore()
-	p := NewPipeline(store, testLLM{}, testEmbedder{})
-	err := p.DeleteDocument(context.Background(), "")
+	p, err := NewPipeline(store, testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = p.DeleteDocument(context.Background(), "")
 	if !errors.Is(err, ErrEmptyDocumentID) {
 		t.Fatalf("expected ErrEmptyDocumentID, got %v", err)
 	}
 }
 
 func TestDeleteDocument_NilContext(t *testing.T) {
-	p := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("expected panic on nil context")
@@ -169,16 +205,22 @@ func TestDeleteDocument_NilContext(t *testing.T) {
 }
 
 func TestDeleteDocument_StoreWithoutCapability(t *testing.T) {
-	p := NewPipeline(noDocStore{}, testLLM{}, testEmbedder{})
-	err := p.DeleteDocument(context.Background(), "doc-1")
+	p, err := NewPipeline(noDocStore{}, testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = p.DeleteDocument(context.Background(), "doc-1")
 	if !errors.Is(err, ErrDeleteNotSupported) {
 		t.Fatalf("expected ErrDeleteNotSupported, got %v", err)
 	}
 }
 
 func TestIndexBatch_EmptyDocument(t *testing.T) {
-	p := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
-	_, err := p.IndexBatch(context.Background(), []domain.Document{
+	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.IndexBatch(context.Background(), []domain.Document{
 		{ID: "doc-1", Content: ""},
 	}, 2)
 	if !errors.Is(err, ErrEmptyDocument) {
@@ -187,7 +229,10 @@ func TestIndexBatch_EmptyDocument(t *testing.T) {
 }
 
 func TestIndexBatch_NilContext(t *testing.T) {
-	p := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("expected panic on nil context")
@@ -197,27 +242,36 @@ func TestIndexBatch_NilContext(t *testing.T) {
 }
 
 func TestSearch_Stream_FilterNotSupported(t *testing.T) {
-	p := NewPipeline(noFilterStore{}, testLLM{}, testEmbedder{})
+	p, err := NewPipeline(noFilterStore{}, testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	filter := MetadataFilter{Fields: map[string]string{"key": "value"}}
-	_, err := p.Search("q").TopK(5).Filter(filter).Stream(context.Background())
+	_, err = p.Search("q").TopK(5).Filter(filter).Stream(context.Background())
 	if !errors.Is(err, ErrFiltersNotSupported) {
 		t.Fatalf("expected ErrFiltersNotSupported, got %v", err)
 	}
 }
 
 func TestSearch_StreamSources_FilterNotSupported(t *testing.T) {
-	p := NewPipeline(noFilterStore{}, testLLM{}, testEmbedder{})
+	p, err := NewPipeline(noFilterStore{}, testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	filter := MetadataFilter{Fields: map[string]string{"key": "value"}}
-	_, _, err := p.Search("q").TopK(5).Filter(filter).StreamSources(context.Background())
+	_, _, err = p.Search("q").TopK(5).Filter(filter).StreamSources(context.Background())
 	if !errors.Is(err, ErrFiltersNotSupported) {
 		t.Fatalf("expected ErrFiltersNotSupported, got %v", err)
 	}
 }
 
 func TestSearch_StreamCite_FilterNotSupported(t *testing.T) {
-	p := NewPipeline(noFilterStore{}, testLLM{}, testEmbedder{})
+	p, err := NewPipeline(noFilterStore{}, testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	filter := MetadataFilter{Fields: map[string]string{"key": "value"}}
-	_, _, _, err := p.Search("q").TopK(5).Filter(filter).StreamCite(context.Background())
+	_, _, _, err = p.Search("q").TopK(5).Filter(filter).StreamCite(context.Background())
 	if !errors.Is(err, ErrFiltersNotSupported) {
 		t.Fatalf("expected ErrFiltersNotSupported, got %v", err)
 	}
@@ -227,7 +281,10 @@ func TestSearch_Stream_ParentIDs(t *testing.T) {
 	store := vectorstore.NewInMemoryStore()
 	emb := &fixedEmbedder{vec: []float64{1, 0, 0}}
 	streamingLLM := &llm.MockStreamingLLM{Tokens: []string{"answer"}}
-	p := NewPipeline(store, streamingLLM, emb)
+	p, err := NewPipeline(store, streamingLLM, emb)
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{
 		ID: "c1", Content: "Go concurrency", ParentID: "doc-1",
@@ -247,9 +304,12 @@ func TestSearch_Stream_ParentIDs(t *testing.T) {
 }
 
 func TestSearch_Cite_FilterNotSupported(t *testing.T) {
-	p := NewPipeline(noFilterStore{}, testLLM{}, testEmbedder{})
+	p, err := NewPipeline(noFilterStore{}, testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	filter := MetadataFilter{Fields: map[string]string{"key": "value"}}
-	_, _, err := p.Search("q").TopK(5).Filter(filter).Cite(context.Background())
+	_, _, err = p.Search("q").TopK(5).Filter(filter).Cite(context.Background())
 	if !errors.Is(err, ErrFiltersNotSupported) {
 		t.Fatalf("expected ErrFiltersNotSupported, got %v", err)
 	}
@@ -257,7 +317,10 @@ func TestSearch_Cite_FilterNotSupported(t *testing.T) {
 
 func TestSearch_Cite_ParentIDs(t *testing.T) {
 	store := vectorstore.NewInMemoryStore()
-	p := NewPipeline(store, testLLM{}, testEmbedder{})
+	p, err := NewPipeline(store, testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{
 		ID: "c1", Content: "Go concurrency", ParentID: "doc-1",
@@ -277,7 +340,10 @@ func TestSearch_Cite_ParentIDs(t *testing.T) {
 
 func TestSearch_InlineCite_ParentIDs(t *testing.T) {
 	store := vectorstore.NewInMemoryStore()
-	p := NewPipeline(store, testLLM{}, testEmbedder{})
+	p, err := NewPipeline(store, testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{
 		ID: "c1", Content: "Go concurrency", ParentID: "doc-1",
@@ -304,63 +370,89 @@ func TestMapAppError_Passthrough(t *testing.T) {
 	}
 }
 
-func TestPipelineOptions_PanicsOnNegativeTopK(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic on negative DefaultTopK")
-		}
-	}()
-	_ = NewPipelineWithOptions(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{}, PipelineOptions{
+// @sk-test arch-quality-pass#T4.1: DefaultTopK < 0 → error (AC-002)
+func TestNewPipelineWithOptions_DefaultTopK_Invalid(t *testing.T) {
+	_, err := NewPipelineWithOptions(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{}, PipelineOptions{
 		DefaultTopK: -1,
 	})
+	if err == nil {
+		t.Fatal("expected error on negative DefaultTopK")
+	}
 }
 
-func TestPipelineOptions_PanicsOnNegativeMaxContextChars(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic on negative MaxContextChars")
-		}
-	}()
-	_ = NewPipelineWithOptions(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{}, PipelineOptions{
+// @sk-test arch-quality-pass#T4.1: MaxContextChars < 0 → error (AC-002)
+func TestNewPipelineWithOptions_MaxContextChars_Invalid(t *testing.T) {
+	_, err := NewPipelineWithOptions(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{}, PipelineOptions{
 		MaxContextChars: -1,
 	})
+	if err == nil {
+		t.Fatal("expected error on negative MaxContextChars")
+	}
 }
 
-func TestPipelineOptions_PanicsOnNegativeMaxContextChunks(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic on negative MaxContextChunks")
-		}
-	}()
-	_ = NewPipelineWithOptions(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{}, PipelineOptions{
+// @sk-test arch-quality-pass#T4.1: MaxContextChunks < 0 → error (AC-002)
+func TestNewPipelineWithOptions_MaxContextChunks_Invalid(t *testing.T) {
+	_, err := NewPipelineWithOptions(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{}, PipelineOptions{
 		MaxContextChunks: -1,
 	})
+	if err == nil {
+		t.Fatal("expected error on negative MaxContextChunks")
+	}
 }
 
-func TestPipelineOptions_PanicsOnInvalidMMR(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic on invalid MMRLambda")
-		}
-	}()
-	_ = NewPipelineWithOptions(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{}, PipelineOptions{
+// @sk-test arch-quality-pass#T4.1: MMRLambda < 0 и > 1 → error (AC-002)
+func TestNewPipelineWithOptions_MMRLambda_Invalid(t *testing.T) {
+	_, err := NewPipelineWithOptions(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{}, PipelineOptions{
 		MMRLambda: 1.5,
 	})
+	if err == nil {
+		t.Fatal("expected error on invalid MMRLambda")
+	}
+	_, err = NewPipelineWithOptions(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{}, PipelineOptions{
+		MMRLambda: -0.5,
+	})
+	if err == nil {
+		t.Fatal("expected error on negative MMRLambda")
+	}
 }
 
-func TestPipelineOptions_PanicsOnNegativeCandidates(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic on negative MMRCandidatePool")
-		}
-	}()
-	_ = NewPipelineWithOptions(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{}, PipelineOptions{
+// @sk-test arch-quality-pass#T4.1: MMRCandidatePool < 0 → error (AC-002)
+func TestNewPipelineWithOptions_MMRCandidatePool_Invalid(t *testing.T) {
+	_, err := NewPipelineWithOptions(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{}, PipelineOptions{
 		MMRCandidatePool: -1,
 	})
+	if err == nil {
+		t.Fatal("expected error on negative MMRCandidatePool")
+	}
+}
+
+// @sk-test arch-quality-pass#T4.1: StreamBufferSize < 0 → error (AC-002)
+func TestNewPipelineWithOptions_StreamBufferSize_Invalid(t *testing.T) {
+	_, err := NewPipelineWithOptions(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{}, PipelineOptions{
+		StreamBufferSize: -1,
+	})
+	if err == nil {
+		t.Fatal("expected error on negative StreamBufferSize")
+	}
+}
+
+// @sk-test arch-quality-pass#T4.1: все поля zero → (p, nil) с дефолтами (AC-003)
+func TestNewPipelineWithOptions_ValidZeroConfig(t *testing.T) {
+	store := vectorstore.NewInMemoryStore()
+	p, err := NewPipelineWithOptions(store, testLLM{}, testEmbedder{}, PipelineOptions{})
+	if err != nil {
+		t.Fatalf("expected no error for zero config, got %v", err)
+	}
+	if p == nil {
+		t.Fatal("expected non-nil Pipeline")
+	}
 }
 
 func TestPipeline_NilContext_Index(t *testing.T) {
-	p := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("expected panic")
@@ -370,7 +462,10 @@ func TestPipeline_NilContext_Index(t *testing.T) {
 }
 
 func TestPipeline_NilContext_Query(t *testing.T) {
-	p := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("expected panic")
@@ -380,7 +475,10 @@ func TestPipeline_NilContext_Query(t *testing.T) {
 }
 
 func TestSearch_NilContext_Cite(t *testing.T) {
-	p := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("expected panic on nil context")
@@ -390,7 +488,10 @@ func TestSearch_NilContext_Cite(t *testing.T) {
 }
 
 func TestSearch_NilContext_InlineCite(t *testing.T) {
-	p := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("expected panic on nil context")
@@ -400,7 +501,10 @@ func TestSearch_NilContext_InlineCite(t *testing.T) {
 }
 
 func TestSearch_NilContext_Stream(t *testing.T) {
-	p := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("expected panic on nil context")
@@ -410,7 +514,10 @@ func TestSearch_NilContext_Stream(t *testing.T) {
 }
 
 func TestSearch_NilContext_StreamSources(t *testing.T) {
-	p := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("expected panic on nil context")
@@ -420,7 +527,10 @@ func TestSearch_NilContext_StreamSources(t *testing.T) {
 }
 
 func TestSearch_NilContext_StreamCite(t *testing.T) {
-	p := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("expected panic on nil context")
@@ -431,7 +541,10 @@ func TestSearch_NilContext_StreamCite(t *testing.T) {
 
 func TestSearch_Answer_WithResults(t *testing.T) {
 	store := vectorstore.NewInMemoryStore()
-	p := NewPipeline(store, testLLM{}, testEmbedder{})
+	p, err := NewPipeline(store, testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{
 		ID: "c1", Content: "Go concurrency", ParentID: "doc-1",
@@ -449,7 +562,10 @@ func TestSearch_Answer_WithResults(t *testing.T) {
 
 func TestSearch_Answer_ParentIDs(t *testing.T) {
 	store := vectorstore.NewInMemoryStore()
-	p := NewPipeline(store, testLLM{}, testEmbedder{})
+	p, err := NewPipeline(store, testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{
 		ID: "c1", Content: "Go concurrency", ParentID: "doc-1",
@@ -466,7 +582,10 @@ func TestSearch_Answer_ParentIDs(t *testing.T) {
 
 func TestSearch_Answer_MultiQuery(t *testing.T) {
 	store := vectorstore.NewInMemoryStore()
-	p := NewPipeline(store, testLLM{}, testEmbedder{})
+	p, err := NewPipeline(store, testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{
 		ID: "c1", Content: "Go concurrency", ParentID: "doc-1",
@@ -483,7 +602,10 @@ func TestSearch_Answer_MultiQuery(t *testing.T) {
 
 func TestSearch_Answer_HyDE(t *testing.T) {
 	store := vectorstore.NewInMemoryStore()
-	p := NewPipeline(store, testLLM{}, testEmbedder{})
+	p, err := NewPipeline(store, testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{
 		ID: "c1", Content: "Go concurrency", ParentID: "doc-1",
@@ -500,7 +622,10 @@ func TestSearch_Answer_HyDE(t *testing.T) {
 
 func TestSearch_Cite_WithResults(t *testing.T) {
 	store := vectorstore.NewInMemoryStore()
-	p := NewPipeline(store, testLLM{}, testEmbedder{})
+	p, err := NewPipeline(store, testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
 	_ = store.Upsert(ctx, domain.Chunk{
 		ID: "c1", Content: "Go concurrency", ParentID: "doc-1",
@@ -520,7 +645,10 @@ func TestSearch_Cite_WithResults(t *testing.T) {
 }
 
 func TestPipeline_NilContext_Answer(t *testing.T) {
-	p := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("expected panic")
@@ -532,7 +660,10 @@ func TestPipeline_NilContext_Answer(t *testing.T) {
 // @sk-test hardening-2026q2#AC-007: IndexBatch happy path
 func TestIndexBatch_Success(t *testing.T) {
 	store := vectorstore.NewInMemoryStore()
-	p := NewPipeline(store, testLLM{}, testEmbedder{})
+	p, err := NewPipeline(store, testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
 
 	result, err := p.IndexBatch(ctx, []domain.Document{

@@ -3,6 +3,7 @@ package draftrag
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/bzdvdn/draftrag/internal/application"
@@ -88,6 +89,11 @@ type StreamingLLMProvider = domain.StreamingLLMProvider
 // Reranker — опциональный интерфейс для переранжирования результатов retrieval.
 type Reranker = domain.Reranker
 
+// PipelineConfig — удалён. Используйте PipelineOptions.
+//
+// @sk-task arch-quality-pass#T1.1: re-export alias PipelineConfig → PipelineOptions (AC-004)
+// @sk-task arch-quality-pass#T3.2: удалён (AC-004)
+
 // DocumentStore — опциональная capability VectorStore для удаления по ParentID.
 type DocumentStore = domain.DocumentStore
 
@@ -130,9 +136,9 @@ type PipelineOptions struct {
 	// 0 означает “без лимита”.
 	MaxContextChunks int
 
-	// DedupSourcesByParentID включает дедупликацию retrieval sources по ParentID.
+	// DedupByParentID включает дедупликацию retrieval sources по ParentID.
 	// По умолчанию выключено (backward compatibility).
-	DedupSourcesByParentID bool
+	DedupByParentID bool
 
 	// MMREnabled включает MMR rerank/selection для retrieval sources (диверсификация контекста).
 	// По умолчанию выключено (backward compatibility).
@@ -174,59 +180,60 @@ type PipelineOptions struct {
 }
 
 // NewPipeline создаёт pipeline из зависимостей: VectorStore, LLMProvider и Embedder.
-func NewPipeline(store VectorStore, llm LLMProvider, embedder Embedder) *Pipeline {
+//
+// @sk-task arch-quality-pass#T2.2: error return вместо panic (AC-002)
+func NewPipeline(store VectorStore, llm LLMProvider, embedder Embedder) (*Pipeline, error) {
 	return NewPipelineWithOptions(store, llm, embedder, PipelineOptions{})
 }
 
 // NewPipelineWithChunker создаёт pipeline из зависимостей: VectorStore, LLMProvider, Embedder и Chunker.
 //
 // При наличии Chunker метод Index будет индексировать чанки (Chunker.Chunk → Embed → Upsert).
-func NewPipelineWithChunker(store VectorStore, llm LLMProvider, embedder Embedder, chunker Chunker) *Pipeline {
-	return &Pipeline{
-		core:       application.NewPipelineWithChunker(store, llm, embedder, chunker),
-		defaultTop: 5,
+//
+// @sk-task arch-quality-pass#T2.2: error return вместо panic (AC-002)
+func NewPipelineWithChunker(store VectorStore, llm LLMProvider, embedder Embedder, chunker Chunker) (*Pipeline, error) {
+	core, err := application.NewPipelineWithChunker(store, llm, embedder, chunker)
+	if err != nil {
+		return nil, err
 	}
+	return &Pipeline{
+		core:       core,
+		defaultTop: 5,
+	}, nil
 }
 
 // NewPipelineWithOptions создаёт pipeline из зависимостей: VectorStore, LLMProvider и Embedder,
 // применяя конфигурацию из PipelineOptions.
 //
-// DefaultTopK:
-// - 0: используется значение по умолчанию (5)
-// - <0: panic (ошибка конфигурации)
-//
-// Chunker:
-// - nil: используется legacy индексирование (1 документ = 1 чанк)
-// - not nil: используется чанкинг (Chunk→Embed→Upsert)
-func NewPipelineWithOptions(store VectorStore, llm LLMProvider, embedder Embedder, opts PipelineOptions) *Pipeline {
+// @sk-task arch-quality-pass#T2.2: error return вместо panic (AC-002)
+func NewPipelineWithOptions(store VectorStore, llm LLMProvider, embedder Embedder, opts PipelineOptions) (*Pipeline, error) {
 	defaultTop := 5
 	if opts.DefaultTopK < 0 {
-		panic("DefaultTopK must be >= 0")
+		return nil, fmt.Errorf("DefaultTopK must be >= 0, got %d", opts.DefaultTopK)
 	}
 	if opts.DefaultTopK > 0 {
 		defaultTop = opts.DefaultTopK
 	}
 	if opts.MaxContextChars < 0 {
-		panic("MaxContextChars must be >= 0")
+		return nil, fmt.Errorf("MaxContextChars must be >= 0, got %d", opts.MaxContextChars)
 	}
 	if opts.MaxContextChunks < 0 {
-		panic("MaxContextChunks must be >= 0")
+		return nil, fmt.Errorf("MaxContextChunks must be >= 0, got %d", opts.MaxContextChunks)
 	}
 	if opts.MMRCandidatePool < 0 {
-		panic("MMRCandidatePool must be >= 0")
+		return nil, fmt.Errorf("MMRCandidatePool must be >= 0, got %d", opts.MMRCandidatePool)
 	}
 	if opts.MMRLambda < 0 || opts.MMRLambda > 1 {
-		panic("MMRLambda must be in [0..1]")
+		return nil, fmt.Errorf("MMRLambda must be in [0..1], got %f", opts.MMRLambda)
 	}
 
-	return &Pipeline{
-		core: application.NewPipelineWithConfig(store, llm, embedder, application.PipelineConfig{
-			SystemPrompt:        opts.SystemPrompt,
+	core, err := application.NewPipelineWithConfig(store, llm, embedder, application.PipelineOptions{
+		SystemPrompt:        opts.SystemPrompt,
 			Chunker:             opts.Chunker,
 			Hooks:               opts.Hooks,
 			MaxContextChars:     opts.MaxContextChars,
 			MaxContextChunks:    opts.MaxContextChunks,
-			DedupByParentID:     opts.DedupSourcesByParentID,
+			DedupByParentID:     opts.DedupByParentID,
 			MMREnabled:          opts.MMREnabled,
 			MMRLambda:           opts.MMRLambda,
 			MMRCandidatePool:    opts.MMRCandidatePool,
@@ -235,9 +242,14 @@ func NewPipelineWithOptions(store VectorStore, llm LLMProvider, embedder Embedde
 			IndexBatchRateLimitPerWorker: opts.IndexBatchRateLimitPerWorker,
 			StreamBufferSize:    opts.StreamBufferSize,
 			Reranker:            opts.Reranker,
-		}),
-		defaultTop: defaultTop,
+		})
+	if err != nil {
+		return nil, err
 	}
+	return &Pipeline{
+		core:       core,
+		defaultTop: defaultTop,
+	}, nil
 }
 
 // Index индексирует документы.
