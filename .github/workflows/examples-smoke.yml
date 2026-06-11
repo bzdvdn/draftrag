@@ -59,12 +59,12 @@ jobs:
         env:
           LLM_PROVIDER: mock
           EMBEDDING_DIM: "1536"
-          PGVECTOR_DSN: postgres://draftrag:draftrag@localhost:5432/draftrag?sslmode=disable
+          PGVECTOR_DSN: postgres://draftrag:draftrag@localhost:5433/draftrag?sslmode=disable
           QDRANT_URL: http://localhost:6333
           CHROMADB_URL: http://localhost:8000
           WEAVIATE_URL: http://localhost:8080
-          MILVUS_ADDR: localhost:19121
-        run: go run . 2>&1 | tee output.txt
+          MILVUS_ADDR: localhost:19530
+        run: echo "Что такое goroutine?" | go run . 2>&1 | tee output.txt
       - name: Verify mock output
         run: grep -q "\[mock\]" output.txt
       - name: Stop service containers
