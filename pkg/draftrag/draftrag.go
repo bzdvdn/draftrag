@@ -86,6 +86,38 @@ type IndexBatchError = domain.IndexBatchError
 // StreamingLLMProvider — опциональная capability интерфейса LLMProvider, поддерживающая streaming.
 type StreamingLLMProvider = domain.StreamingLLMProvider
 
+// TokenUsage содержит количество токенов, использованных в одном LLM-вызове.
+//
+// @sk-task cost-tracking: re-export TokenUsage (AC-001, RQ-001)
+type TokenUsage = domain.TokenUsage
+
+// ModelPricing задаёт цены за 1K токенов для модели.
+//
+// @sk-task cost-tracking: re-export ModelPricing (AC-002, RQ-002)
+type ModelPricing = domain.ModelPricing
+
+// CostSnapshot — атомарный срез накопленной статистики cost tracker'а.
+//
+// @sk-task cost-tracking: re-export CostSnapshot (AC-003, RQ-003)
+type CostSnapshot = domain.CostSnapshot
+
+// UsageAwareLLMProvider — опциональная capability для LLMProvider,
+// возвращающих token usage в API-ответе.
+//
+// @sk-task cost-tracking: re-export UsageAwareLLMProvider (AC-001, RQ-001)
+type UsageAwareLLMProvider = domain.UsageAwareLLMProvider
+
+// UsageAwareStreamingLLMProvider — опциональная capability для StreamingLLMProvider,
+// возвращающих token usage из финального chunk SSE-потока.
+//
+// @sk-task cost-tracking: re-export UsageAwareStreamingLLMProvider (AC-005, RQ-006, T3.4)
+type UsageAwareStreamingLLMProvider = domain.UsageAwareStreamingLLMProvider
+
+// Diff возвращает разницу между двумя снапшотами CostSnapshot.
+//
+// @sk-task cost-tracking: re-export Diff (AC-007, RQ-007)
+var Diff = domain.Diff
+
 // Reranker — опциональный интерфейс для переранжирования результатов retrieval.
 type Reranker = domain.Reranker
 

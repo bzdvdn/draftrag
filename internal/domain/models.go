@@ -148,6 +148,72 @@ type Embedding struct {
 	Model     string
 }
 
+// @sk-task cost-tracking: TokenUsage для cost tracking (AC-001, RQ-001)
+// TokenUsage содержит количество токенов, использованных в одном LLM-вызове.
+type TokenUsage struct {
+	// PromptTokens — количество токенов во входном сообщении (system + user).
+	PromptTokens int64
+	// CompletionTokens — количество токенов в сгенерированном ответе.
+	CompletionTokens int64
+	// TotalTokens — общее количество токенов (может не совпадать с суммой,
+	// если API возвращает только суммарное значение).
+	TotalTokens int64
+}
+
+// @sk-task cost-tracking: ModelPricing для расчёта стоимости (AC-002, RQ-002)
+// ModelPricing задаёт цены за 1K токенов для модели.
+type ModelPricing struct {
+	// InputCostPer1K — стоимость за 1K input (prompt) токенов в USD.
+	InputCostPer1K float64
+	// OutputCostPer1K — стоимость за 1K output (completion) токенов в USD.
+	OutputCostPer1K float64
+}
+
+// @sk-task cost-tracking: CostSnapshot для снапшота статистики (AC-003, RQ-003, RQ-007)
+// CostSnapshot — атомарный срез накопленной статистики cost tracker'а.
+type CostSnapshot struct {
+	// PromptTokens — общее количество prompt токенов.
+	PromptTokens int64
+	// CompletionTokens — общее количество completion токенов.
+	CompletionTokens int64
+	// TotalTokens — общее количество токенов (prompt + completion).
+	TotalTokens int64
+	// TotalCost — общая стоимость всех вызовов в USD.
+	TotalCost float64
+	// CallsCount — количество успешных LLM-вызовов.
+	CallsCount int64
+}
+
+// @sk-task cost-tracking: Diff — дельта между двумя CostSnapshot (AC-007, RQ-007)
+// Diff возвращает разницу между двумя снапшотами (curr - prev).
+// Если curr.TotalTokens < prev.TotalTokens, результат обнуляется
+// (что может произойти при Reset между checkpoint'ами).
+func Diff(prev, curr CostSnapshot) CostSnapshot {
+	diff := CostSnapshot{
+		PromptTokens:     curr.PromptTokens - prev.PromptTokens,
+		CompletionTokens: curr.CompletionTokens - prev.CompletionTokens,
+		TotalTokens:      curr.TotalTokens - prev.TotalTokens,
+		TotalCost:        curr.TotalCost - prev.TotalCost,
+		CallsCount:       curr.CallsCount - prev.CallsCount,
+	}
+	if diff.PromptTokens < 0 {
+		diff.PromptTokens = 0
+	}
+	if diff.CompletionTokens < 0 {
+		diff.CompletionTokens = 0
+	}
+	if diff.TotalTokens < 0 {
+		diff.TotalTokens = 0
+	}
+	if diff.TotalCost < 0 {
+		diff.TotalCost = 0
+	}
+	if diff.CallsCount < 0 {
+		diff.CallsCount = 0
+	}
+	return diff
+}
+
 // HybridConfig задаёт параметры гибридного поиска (BM25 + semantic).
 type HybridConfig struct {
 	// SemanticWeight вес семантического скора (0.0 - 1.0).

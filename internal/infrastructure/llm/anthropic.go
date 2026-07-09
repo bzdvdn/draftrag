@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 
 	"github.com/bzdvdn/draftrag/internal/domain"
 )
@@ -36,9 +37,15 @@ type messageContent struct {
 	Content string `json:"content"`
 }
 
+type anthropicUsage struct {
+	InputTokens  int64 `json:"input_tokens"`
+	OutputTokens int64 `json:"output_tokens"`
+}
+
 type messagesResponse struct {
 	Content []contentBlock `json:"content"`
 	Role    string         `json:"role"`
+	Usage   *anthropicUsage `json:"usage,omitempty"`
 }
 
 type contentBlock struct {
@@ -56,12 +63,18 @@ type messagesStreamRequest struct {
 	Stream      bool             `json:"stream"`
 }
 
+type anthropicStreamUsage struct {
+	InputTokens  int64 `json:"input_tokens"`
+	OutputTokens int64 `json:"output_tokens"`
+}
+
 type anthropicStreamEvent struct {
 	Type  string `json:"type"`
 	Delta struct {
 		Type string `json:"type"`
 		Text string `json:"text"`
 	} `json:"delta"`
+	Usage *anthropicStreamUsage `json:"usage,omitempty"`
 }
 
 // ClaudeLLM реализует нативный клиент для Anthropic Messages API.
@@ -74,6 +87,9 @@ type ClaudeLLM struct {
 	anthropicVersion string
 	temperature      *float64
 	maxTokens        *int
+
+	streamUsageMu sync.Mutex
+	streamUsage   domain.TokenUsage
 }
 
 // NewClaudeLLM создаёт клиент для Anthropic Messages API.
@@ -109,24 +125,23 @@ func NewClaudeLLM(
 	}
 }
 
-// Generate генерирует текстовый ответ на основе system и user сообщений.
-// @ds-task T1.3: Generate реализация (AC-001, AC-002, AC-003)
+// @sk-task cost-tracking: shared generate helper с возвратом usage (AC-001, RQ-001, T3.1)
 //
 //nolint:gocyclo // Валидация, HTTP, редакция и парсинг ответа в одном методе для читабельности.
-func (c *ClaudeLLM) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
+func (c *ClaudeLLM) generateWithUsage(ctx context.Context, systemPrompt, userMessage string) (string, domain.TokenUsage, error) {
 	if ctx == nil {
 		panic("nil context")
 	}
 	if err := ctx.Err(); err != nil {
-		return "", err
+		return "", domain.TokenUsage{}, err
 	}
 	if strings.TrimSpace(userMessage) == "" {
-		return "", errors.New("userMessage is empty")
+		return "", domain.TokenUsage{}, errors.New("userMessage is empty")
 	}
 
 	endpoint, err := buildAnthropicURL(c.baseURL)
 	if err != nil {
-		return "", err
+		return "", domain.TokenUsage{}, err
 	}
 
 	maxTokens := defaultMaxTokens
@@ -144,12 +159,12 @@ func (c *ClaudeLLM) Generate(ctx context.Context, systemPrompt, userMessage stri
 		Temperature: c.temperature,
 	})
 	if err != nil {
-		return "", err
+		return "", domain.TokenUsage{}, err
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(reqBody))
 	if err != nil {
-		return "", err
+		return "", domain.TokenUsage{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-API-Key", c.apiKey)
@@ -158,30 +173,58 @@ func (c *ClaudeLLM) Generate(ctx context.Context, systemPrompt, userMessage stri
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
-			return "", ctxErr
+			return "", domain.TokenUsage{}, ctxErr
 		}
-		return "", err
+		return "", domain.TokenUsage{}, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		snippet, _ := readBodySnippet(resp.Body, maxErrorBodyBytes)
 		snippet = domain.RedactSecrets(snippet, c.apiKey, "Bearer "+c.apiKey)
-		return "", fmt.Errorf("anthropic request failed: status=%d body=%q", resp.StatusCode, snippet)
+		return "", domain.TokenUsage{}, fmt.Errorf("anthropic request failed: status=%d body=%q", resp.StatusCode, snippet)
 	}
 
 	var decoded messagesResponse
 	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
-		return "", err
+		return "", domain.TokenUsage{}, err
 	}
 
+	var text string
 	for _, block := range decoded.Content {
 		if block.Type == "text" && strings.TrimSpace(block.Text) != "" {
-			return block.Text, nil
+			text = block.Text
+			break
 		}
 	}
+	if text == "" {
+		return "", domain.TokenUsage{}, errors.New("invalid anthropic response: missing content text")
+	}
 
-	return "", errors.New("invalid anthropic response: missing content text")
+	usage := domain.TokenUsage{}
+	if decoded.Usage != nil {
+		usage.PromptTokens = decoded.Usage.InputTokens
+		usage.CompletionTokens = decoded.Usage.OutputTokens
+		usage.TotalTokens = decoded.Usage.InputTokens + decoded.Usage.OutputTokens
+	}
+
+	return text, usage, nil
+}
+
+// Generate генерирует текстовый ответ на основе system и user сообщений.
+func (c *ClaudeLLM) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
+	text, _, err := c.generateWithUsage(ctx, systemPrompt, userMessage)
+	return text, err
+}
+
+// @sk-task cost-tracking: GenerateWithUsage — возвращает token usage (AC-001, RQ-001, T3.1)
+func (c *ClaudeLLM) GenerateWithUsage(ctx context.Context, systemPrompt, userMessage string) (string, domain.TokenUsage, error) {
+	return c.generateWithUsage(ctx, systemPrompt, userMessage)
+}
+
+// @sk-task cost-tracking: ModelName — имя модели (AC-002, RQ-002, T3.1)
+func (c *ClaudeLLM) ModelName() string {
+	return c.model
 }
 
 // GenerateStream генерирует ответ токен за токеном через SSE streaming.
@@ -193,6 +236,9 @@ func (c *ClaudeLLM) GenerateStream(ctx context.Context, systemPrompt, userMessag
 	if ctx == nil {
 		panic("nil context")
 	}
+	c.streamUsageMu.Lock()
+	c.streamUsage = domain.TokenUsage{}
+	c.streamUsageMu.Unlock()
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -286,6 +332,18 @@ func (c *ClaudeLLM) GenerateStream(ctx context.Context, systemPrompt, userMessag
 				continue
 			}
 
+			if event.Usage != nil {
+				c.streamUsageMu.Lock()
+				if event.Usage.InputTokens > 0 {
+					c.streamUsage.PromptTokens = event.Usage.InputTokens
+				}
+				if event.Usage.OutputTokens > 0 {
+					c.streamUsage.CompletionTokens = event.Usage.OutputTokens
+				}
+				c.streamUsage.TotalTokens = c.streamUsage.PromptTokens + c.streamUsage.CompletionTokens
+				c.streamUsageMu.Unlock()
+			}
+
 			if event.Delta.Text != "" {
 				select {
 				case tokenChan <- event.Delta.Text:
@@ -297,6 +355,18 @@ func (c *ClaudeLLM) GenerateStream(ctx context.Context, systemPrompt, userMessag
 	}()
 
 	return tokenChan, nil
+}
+
+// @sk-task cost-tracking: StreamUsage — возвращает usage из streaming (AC-005, RQ-006, T3.4)
+// StreamUsage возвращает token usage последнего streaming-вызова.
+// Должен вызываться после полного чтения канала GenerateStream.
+func (c *ClaudeLLM) StreamUsage() (domain.TokenUsage, bool) {
+	c.streamUsageMu.Lock()
+	defer c.streamUsageMu.Unlock()
+	if c.streamUsage.TotalTokens == 0 && c.streamUsage.PromptTokens == 0 && c.streamUsage.CompletionTokens == 0 {
+		return domain.TokenUsage{}, false
+	}
+	return c.streamUsage, true
 }
 
 // @sk-task health-check-interface#T3.3: Health на ClaudeLLM (RQ-006)

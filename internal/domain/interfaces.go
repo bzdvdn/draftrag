@@ -46,6 +46,23 @@ type VectorStoreWithFilters interface {
 	SearchWithMetadataFilter(ctx context.Context, embedding []float64, topK int, filter MetadataFilter) (RetrievalResult, error)
 }
 
+// @sk-task cost-tracking: UsageAwareLLMProvider — optional capability для LLMProvider (AC-001, RQ-001)
+// UsageAwareLLMProvider — опциональная capability интерфейса LLMProvider.
+//
+// Реализации, которые могут возвращать token usage из API-ответа, должны
+// реализовать этот интерфейс дополнительно (без ломки существующего контракта LLMProvider).
+//
+// @sk-task cost-tracking: GenerateWithUsage возвращает token usage (AC-001, RQ-001)
+type UsageAwareLLMProvider interface {
+	LLMProvider
+
+	// GenerateWithUsage генерирует ответ и возвращает token usage.
+	GenerateWithUsage(ctx context.Context, systemPrompt, userMessage string) (string, TokenUsage, error)
+
+	// ModelName возвращает имя модели (например, "gpt-4o", "claude-3-haiku-20240307").
+	ModelName() string
+}
+
 // @sk-task health-check-interface#T1.1: Добавлен Health(ctx) в LLMProvider (AC-003, RQ-001)
 // LLMProvider определяет интерфейс для генерации текста через LLM.
 type LLMProvider interface {
@@ -55,6 +72,24 @@ type LLMProvider interface {
 	// Health проверяет доступность LLM провайдера.
 	// Возвращает nil если компонент работает, error с описанием проблемы если нет.
 	Health(ctx context.Context) error
+}
+
+// @sk-task cost-tracking: UsageAwareStreamingLLMProvider — optional capability для streaming (AC-005, RQ-006, T3.4)
+// UsageAwareStreamingLLMProvider — опциональная capability интерфейса StreamingLLMProvider.
+//
+// Реализации, которые поддерживают streaming и могут возвращать token usage
+// из финального chunk SSE-потока, должны реализовать этот интерфейс дополнительно
+// (без ломки существующего контракта StreamingLLMProvider).
+//
+// StreamUsage ДОЛЖЕН вызываться только после полного потребления канала из GenerateStream.
+// Возвращает TokenUsage и true, если usage доступен.
+type UsageAwareStreamingLLMProvider interface {
+	StreamingLLMProvider
+
+	// StreamUsage возвращает token usage последнего streaming-вызова.
+	// Должен вызываться после полного чтения канала GenerateStream.
+	// Возвращает (TokenUsage{}, false) если usage недоступен.
+	StreamUsage() (TokenUsage, bool)
 }
 
 // StreamingLLMProvider — опциональная capability интерфейса LLMProvider.

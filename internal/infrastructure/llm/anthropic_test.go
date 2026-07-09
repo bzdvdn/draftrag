@@ -458,3 +458,71 @@ func TestBuildAnthropicURL(t *testing.T) {
 		})
 	}
 }
+
+// @sk-task cost-tracking: T4.1 — тест парсинга usage из Anthropic API (AC-001, RQ-001)
+func TestClaudeLLM_GenerateWithUsage_Success(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		resp := messagesResponse{
+			Content: []contentBlock{
+				{Type: "text", Text: "Hello from Claude!"},
+			},
+			Role: "assistant",
+			Usage: &anthropicUsage{
+				InputTokens:  200,
+				OutputTokens: 100,
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	client := NewClaudeLLM(nil, server.URL, "test-api-key", "claude-3-haiku-20240307", "", nil, nil)
+
+	text, usage, err := client.GenerateWithUsage(context.Background(), "sys", "user")
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+	if text != "Hello from Claude!" {
+		t.Fatalf("expected %q, got %q", "Hello from Claude!", text)
+	}
+	if usage.PromptTokens != 200 {
+		t.Errorf("PromptTokens = %d, want 200", usage.PromptTokens)
+	}
+	if usage.CompletionTokens != 100 {
+		t.Errorf("CompletionTokens = %d, want 100", usage.CompletionTokens)
+	}
+	if usage.TotalTokens != 300 {
+		t.Errorf("TotalTokens = %d, want 300", usage.TotalTokens)
+	}
+	if client.ModelName() != "claude-3-haiku-20240307" {
+		t.Errorf("ModelName = %q, want %q", client.ModelName(), "claude-3-haiku-20240307")
+	}
+}
+
+// @sk-task cost-tracking: T4.1 — graceful degradation без usage (AC-006)
+func TestClaudeLLM_GenerateWithUsage_NoUsage(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		resp := messagesResponse{
+			Content: []contentBlock{
+				{Type: "text", Text: "no usage response"},
+			},
+			Role: "assistant",
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	client := NewClaudeLLM(nil, server.URL, "test-api-key", "claude-3-haiku-20240307", "", nil, nil)
+
+	_, usage, err := client.GenerateWithUsage(context.Background(), "sys", "user")
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+	if usage.TotalTokens != 0 {
+		t.Errorf("TotalTokens = %d, want 0 (no usage)", usage.TotalTokens)
+	}
+}

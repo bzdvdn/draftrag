@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bzdvdn/draftrag/internal/domain"
 	"github.com/bzdvdn/draftrag/internal/infrastructure/llm"
 )
 
@@ -74,6 +75,23 @@ func (p *deepseekLLM) Generate(ctx context.Context, systemPrompt, userMessage st
 	)
 }
 
+// @sk-task cost-tracking: GenerateWithUsage — возвращает token usage (AC-001, RQ-001, T3.3)
+func (p *deepseekLLM) GenerateWithUsage(ctx context.Context, systemPrompt, userMessage string) (string, domain.TokenUsage, error) {
+	return generateWithUsageValidation(
+		ctx,
+		systemPrompt,
+		userMessage,
+		p.opts.Timeout,
+		func() error { return validateDeepSeekLLMOptions(p.opts) },
+		p.impl.GenerateWithUsage,
+	)
+}
+
+// @sk-task cost-tracking: ModelName — имя модели (AC-002, RQ-002, T3.3)
+func (p *deepseekLLM) ModelName() string {
+	return p.impl.ModelName()
+}
+
 // @sk-task llm-providers-mistral-deepseek#T2.2: GenerateStream (AC-002, AC-004)
 // @sk-task arch-generics#T4.1: nil context guard вместо panic (AC-002)
 func (p *deepseekLLM) GenerateStream(ctx context.Context, systemPrompt, userMessage string) (<-chan string, error) {
@@ -90,6 +108,11 @@ func (p *deepseekLLM) GenerateStream(ctx context.Context, systemPrompt, userMess
 		return nil, err
 	}
 	return p.impl.GenerateStream(ctx, systemPrompt, userMessage)
+}
+
+// @sk-task cost-tracking: StreamUsage — делегирует impl (AC-005, RQ-006, T3.4)
+func (p *deepseekLLM) StreamUsage() (domain.TokenUsage, bool) {
+	return p.impl.StreamUsage()
 }
 
 // @sk-task health-check-interface#T3.5: Health на deepseekLLM (RQ-006)

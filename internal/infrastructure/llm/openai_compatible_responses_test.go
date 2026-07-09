@@ -346,3 +346,61 @@ func TestGenerateStream_Non200(t *testing.T) {
 		t.Fatalf("expected error with 401, got %v", err)
 	}
 }
+
+// @sk-task cost-tracking: T4.1 — тест парсинга usage из API-ответа
+func TestOpenAICompatibleResponsesLLM_GenerateWithUsage(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"output_text": "answer with usage",
+			"usage": map[string]any{
+				"input_tokens":  100,
+				"output_tokens": 50,
+				"total_tokens":  150,
+			},
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	llm := NewOpenAICompatibleResponsesLLM(srv.Client(), srv.URL, "test-key", "gpt-4o", nil, nil)
+
+	text, usage, err := llm.GenerateWithUsage(context.Background(), "sys", "user")
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+	if text != "answer with usage" {
+		t.Fatalf("expected %q, got %q", "answer with usage", text)
+	}
+	if usage.PromptTokens != 100 {
+		t.Errorf("PromptTokens = %d, want 100", usage.PromptTokens)
+	}
+	if usage.CompletionTokens != 50 {
+		t.Errorf("CompletionTokens = %d, want 50", usage.CompletionTokens)
+	}
+	if usage.TotalTokens != 150 {
+		t.Errorf("TotalTokens = %d, want 150", usage.TotalTokens)
+	}
+	if llm.ModelName() != "gpt-4o" {
+		t.Errorf("ModelName = %q, want %q", llm.ModelName(), "gpt-4o")
+	}
+}
+
+func TestOpenAICompatibleResponsesLLM_GenerateWithUsage_NoUsage(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"output_text": "answer without usage",
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	llm := NewOpenAICompatibleResponsesLLM(srv.Client(), srv.URL, "test-key", "gpt-4o", nil, nil)
+
+	_, usage, err := llm.GenerateWithUsage(context.Background(), "sys", "user")
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+	if usage.TotalTokens != 0 {
+		t.Errorf("TotalTokens = %d, want 0 (no usage field)", usage.TotalTokens)
+	}
+}

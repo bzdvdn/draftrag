@@ -31,16 +31,17 @@ Compact code-only navigation index for the draftRAG Go library.
 - `internal/infrastructure/chunker/` — chunker implementation (`BasicChunker`)
 - `internal/infrastructure/embedder/` — concrete embedder HTTP clients (Ollama, OpenAI-compatible) + `cache/` subpackage (LRU + Redis + stats)
 - `internal/infrastructure/llm/` — concrete LLM HTTP clients (Anthropic, Ollama, OpenAI-compatible, OpenAI Chat Completions, mock streaming)
+- `internal/infrastructure/costtracker/` — `CostTracker` wrapper: LLMProvider-обёртка с подсчётом токенов и стоимости
 - `internal/infrastructure/resilience/` — `circuitbreaker`, `retry`, `embedder`/`llm` wrappers, `hooks`, `errors`
 - `internal/infrastructure/vectorstore/` — concrete VectorStore implementations (pgvector with transactions, memory, qdrant, chromadb, weaviate, milvus, hybrid search) + extensive `*_test.go` per backend
 - `pkg/draftrag/` — public Go API surface: re-exports + facade + embedders/vectorstores/chunker/resilience/otel/eval/migrations
-- `examples/` — 8 runnable per-backend examples (memory, pgvector, qdrant, chromadb, weaviate, milvus, mistral, deepseek) + shared mock/print helpers + legacy (chat, index-dir) — NOT part of library API, demo only
+- `examples/` — 9 runnable per-backend examples (memory, pgvector, qdrant, chromadb, weaviate, milvus, mistral, deepseek, cost-tracking) + shared mock/print helpers + legacy (chat, index-dir) — NOT part of library API, demo only
 - `pkg/draftrag/mistral_embedder.go` — `NewMistralEmbedder` factory wrapping `OpenAICompatibleEmbedder` with Mistral defaults
 
 ## Key Paths
 
-- `internal/domain/interfaces.go` — `VectorStore`, `TransactionalDocumentStore` (BeginTx/DeleteByParentIDTx/UpsertTx/Commit/Rollback), `DocumentStore`, `Embedder`, `LLMProvider`, `Chunker`, `Hooks`, `Logger`
-- `internal/domain/models.go` — `Document`, `RetrievalResult`, `HybridConfig`, sentinels (`ErrEmptyQuery`, `ErrInvalidQueryTopK`, `ErrUpdateNotAtomic`, `ErrEmbeddingDimensionMismatch`, etc.)
+- `internal/domain/interfaces.go` — `VectorStore`, `TransactionalDocumentStore` (BeginTx/DeleteByParentIDTx/UpsertTx/Commit/Rollback), `DocumentStore`, `Embedder`, `LLMProvider`, `Chunker`, `Hooks`, `Logger`, `UsageAwareLLMProvider`, `UsageAwareStreamingLLMProvider`
+- `internal/domain/models.go` — `Document`, `RetrievalResult`, `HybridConfig`, sentinels (`ErrEmptyQuery`, `ErrInvalidQueryTopK`, `ErrUpdateNotAtomic`, `ErrEmbeddingDimensionMismatch`, etc.); cost-tracking: `TokenUsage`, `ModelPricing`, `CostSnapshot`, `Diff`
 - `internal/domain/hooks.go` — `Hooks` callback contract (OnStart/OnEnd/OnError) for instrumentation
 - `internal/domain/redaction.go` — `RedactSecret` / `RedactSecrets` helpers for PII/token redaction
 - `internal/application/pipeline.go` — `(*Pipeline).Index`, `(*Pipeline).Query`, `(*Pipeline).Retrieve`, `(*Pipeline).Answer`, `(*Pipeline).UpdateDocument`; `PipelineConfig` + `Pipeline` field plumbing
@@ -51,7 +52,8 @@ Compact code-only navigation index for the draftRAG Go library.
 - `internal/application/{query,answer,retrieval,mmr,rrf}.go` — retrieval/answer/rerank logic
 - `internal/infrastructure/vectorstore/pgvector.go` — `pgVectorTx` transactional path; `BeginTx`; SQL operations
 - `internal/infrastructure/vectorstore/hybrid.go` — `HybridConfig` + `HybridSearch` plumbing
-- `pkg/draftrag/draftrag.go` — `Pipeline`, `PipelineOptions` (IndexConcurrency, StreamBufferSize, IndexBatchRateLimitPerWorker, HybridConfig, etc.), `NewPipeline*` constructors, `mapAppError`
+- `pkg/draftrag/draftrag.go` — `Pipeline`, `PipelineOptions` (IndexConcurrency, StreamBufferSize, IndexBatchRateLimitPerWorker, HybridConfig, etc.), `NewPipeline*` constructors, `mapAppError`; re-export `TokenUsage`, `ModelPricing`, `CostSnapshot`, `UsageAwareLLMProvider`, `UsageAwareStreamingLLMProvider`, `Diff`
+- `pkg/draftrag/costtracker.go` — `CostTracker`, `NewCostTracker` (публичная обёртка LLMProvider с подсчётом токенов/стоимости)
 - `pkg/draftrag/search.go` + `search_routing.go` — public `SearchBuilder` (Retrieve/Answer/Cite/InlineCite/Stream/StreamSources/StreamCite) with `selectRetrieval`/`selectGeneration`
 - `pkg/draftrag/errors.go` — re-exported public sentinels
 - `pkg/draftrag/migrations/pgvector/` — embedded SQL migrations (`0000_…` / `0001_…` / `0002_…`)

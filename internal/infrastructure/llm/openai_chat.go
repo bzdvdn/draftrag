@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 
 	"github.com/bzdvdn/draftrag/internal/domain"
 )
@@ -40,8 +41,15 @@ type chatMessage struct {
 	Content string `json:"content"`
 }
 
+type chatUsage struct {
+	PromptTokens     int64 `json:"prompt_tokens"`
+	CompletionTokens int64 `json:"completion_tokens"`
+	TotalTokens      int64 `json:"total_tokens"`
+}
+
 type chatResponse struct {
 	Choices []chatChoice `json:"choices"`
+	Usage   *chatUsage   `json:"usage,omitempty"`
 }
 
 type chatChoice struct {
@@ -51,6 +59,7 @@ type chatChoice struct {
 // @sk-task llm-providers-mistral-deepseek#T1.1: Структура SSE-события для streaming (AC-004)
 type chatStreamEvent struct {
 	Choices []chatStreamChoice `json:"choices"`
+	Usage   *chatUsage         `json:"usage,omitempty"`
 }
 
 type chatStreamChoice struct {
@@ -69,6 +78,9 @@ type OpenAIChatLLM struct {
 	model       string
 	temperature *float64
 	maxTokens   *int
+
+	streamUsageMu sync.Mutex
+	streamUsage   domain.TokenUsage
 }
 
 // NewOpenAIChatLLM создаёт клиент для OpenAI-совместимого Chat Completions API.
@@ -94,25 +106,23 @@ func NewOpenAIChatLLM(
 	}
 }
 
-// Generate sends a chat completion request and returns the generated text.
-//
-// @sk-task llm-providers-mistral-deepseek#T1.1: Generate реализация (AC-003)
+// @sk-task cost-tracking: shared generate helper с возвратом usage (AC-001, RQ-001, T3.2)
 //
 //nolint:gocyclo
-func (c *OpenAIChatLLM) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
+func (c *OpenAIChatLLM) generateWithUsage(ctx context.Context, systemPrompt, userMessage string) (string, domain.TokenUsage, error) {
 	if ctx == nil {
 		panic("nil context")
 	}
 	if err := ctx.Err(); err != nil {
-		return "", err
+		return "", domain.TokenUsage{}, err
 	}
 	if strings.TrimSpace(userMessage) == "" {
-		return "", errors.New("userMessage is empty")
+		return "", domain.TokenUsage{}, errors.New("userMessage is empty")
 	}
 
 	endpoint, err := buildChatURL(c.baseURL)
 	if err != nil {
-		return "", err
+		return "", domain.TokenUsage{}, err
 	}
 
 	messages := buildMessages(systemPrompt, userMessage)
@@ -124,12 +134,12 @@ func (c *OpenAIChatLLM) Generate(ctx context.Context, systemPrompt, userMessage 
 		MaxTokens:   c.maxTokens,
 	})
 	if err != nil {
-		return "", err
+		return "", domain.TokenUsage{}, err
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(reqBody))
 	if err != nil {
-		return "", err
+		return "", domain.TokenUsage{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+c.apiKey)
@@ -137,30 +147,55 @@ func (c *OpenAIChatLLM) Generate(ctx context.Context, systemPrompt, userMessage 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
-			return "", ctxErr
+			return "", domain.TokenUsage{}, ctxErr
 		}
-		return "", err
+		return "", domain.TokenUsage{}, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		snippet, _ := readBodySnippet(resp.Body, maxErrorBodyBytes)
 		snippet = domain.RedactSecrets(snippet, c.apiKey, "Bearer "+c.apiKey)
-		return "", fmt.Errorf("chat request failed: status=%d body=%q", resp.StatusCode, snippet)
+		return "", domain.TokenUsage{}, fmt.Errorf("chat request failed: status=%d body=%q", resp.StatusCode, snippet)
 	}
 
 	var decoded chatResponse
 	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
-		return "", err
+		return "", domain.TokenUsage{}, err
 	}
 
-	if len(decoded.Choices) > 0 {
-		if text := strings.TrimSpace(decoded.Choices[0].Message.Content); text != "" {
-			return text, nil
-		}
+	if len(decoded.Choices) == 0 {
+		return "", domain.TokenUsage{}, errors.New("invalid chat response: missing choices[0].message.content")
+	}
+	text := strings.TrimSpace(decoded.Choices[0].Message.Content)
+	if text == "" {
+		return "", domain.TokenUsage{}, errors.New("invalid chat response: missing choices[0].message.content")
 	}
 
-	return "", errors.New("invalid chat response: missing choices[0].message.content")
+	usage := domain.TokenUsage{}
+	if decoded.Usage != nil {
+		usage.PromptTokens = decoded.Usage.PromptTokens
+		usage.CompletionTokens = decoded.Usage.CompletionTokens
+		usage.TotalTokens = decoded.Usage.TotalTokens
+	}
+
+	return text, usage, nil
+}
+
+// Generate sends a chat completion request and returns the generated text.
+func (c *OpenAIChatLLM) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
+	text, _, err := c.generateWithUsage(ctx, systemPrompt, userMessage)
+	return text, err
+}
+
+// @sk-task cost-tracking: GenerateWithUsage — возвращает token usage (AC-001, RQ-001, T3.2)
+func (c *OpenAIChatLLM) GenerateWithUsage(ctx context.Context, systemPrompt, userMessage string) (string, domain.TokenUsage, error) {
+	return c.generateWithUsage(ctx, systemPrompt, userMessage)
+}
+
+// @sk-task cost-tracking: ModelName — имя модели (AC-002, RQ-002, T3.2)
+func (c *OpenAIChatLLM) ModelName() string {
+	return c.model
 }
 
 // GenerateStream sends a streaming chat completion request and returns a channel of text tokens.
@@ -172,6 +207,9 @@ func (c *OpenAIChatLLM) GenerateStream(ctx context.Context, systemPrompt, userMe
 	if ctx == nil {
 		panic("nil context")
 	}
+	c.streamUsageMu.Lock()
+	c.streamUsage = domain.TokenUsage{}
+	c.streamUsageMu.Unlock()
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -258,6 +296,16 @@ func (c *OpenAIChatLLM) GenerateStream(ctx context.Context, systemPrompt, userMe
 				continue
 			}
 
+			if event.Usage != nil {
+				c.streamUsageMu.Lock()
+				c.streamUsage = domain.TokenUsage{
+					PromptTokens:     event.Usage.PromptTokens,
+					CompletionTokens: event.Usage.CompletionTokens,
+					TotalTokens:      event.Usage.TotalTokens,
+				}
+				c.streamUsageMu.Unlock()
+			}
+
 			if len(event.Choices) > 0 {
 				if text := event.Choices[0].Delta.Content; text != "" {
 					select {
@@ -271,6 +319,18 @@ func (c *OpenAIChatLLM) GenerateStream(ctx context.Context, systemPrompt, userMe
 	}()
 
 	return tokenChan, nil
+}
+
+// @sk-task cost-tracking: StreamUsage — возвращает usage из streaming (AC-005, RQ-006, T3.4)
+// StreamUsage возвращает token usage последнего streaming-вызова.
+// Должен вызываться после полного чтения канала GenerateStream.
+func (c *OpenAIChatLLM) StreamUsage() (domain.TokenUsage, bool) {
+	c.streamUsageMu.Lock()
+	defer c.streamUsageMu.Unlock()
+	if c.streamUsage.TotalTokens == 0 && c.streamUsage.PromptTokens == 0 && c.streamUsage.CompletionTokens == 0 {
+		return domain.TokenUsage{}, false
+	}
+	return c.streamUsage, true
 }
 
 func buildMessages(systemPrompt, userMessage string) []chatMessage {

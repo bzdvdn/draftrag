@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 
 	"github.com/bzdvdn/draftrag/internal/domain"
 )
@@ -38,6 +39,12 @@ type responsesInputContent struct {
 	Text string `json:"text"`
 }
 
+type responsesUsage struct {
+	InputTokens  int64 `json:"input_tokens"`
+	OutputTokens int64 `json:"output_tokens"`
+	TotalTokens  int64 `json:"total_tokens"`
+}
+
 type responsesResponse struct {
 	OutputText string `json:"output_text"`
 	Output     []struct {
@@ -47,6 +54,7 @@ type responsesResponse struct {
 			Text string `json:"text"`
 		} `json:"content"`
 	} `json:"output"`
+	Usage *responsesUsage `json:"usage,omitempty"`
 }
 
 // responsesStreamRequest — запрос с включенным streaming.
@@ -60,7 +68,7 @@ type responsesStreamRequest struct {
 
 // streamEvent — структура SSE события от OpenAI streaming API.
 type streamEvent struct {
-	Type   string `json:"type"`
+	Type   string           `json:"type"`
 	Output []struct {
 		Type    string `json:"type"`
 		Content []struct {
@@ -72,6 +80,7 @@ type streamEvent struct {
 		Type string `json:"type"`
 		Text string `json:"text"`
 	} `json:"delta"`
+	Usage *responsesUsage `json:"usage,omitempty"`
 }
 
 // OpenAICompatibleResponsesLLM реализует минимальный OpenAI-compatible Responses API клиент.
@@ -82,6 +91,9 @@ type OpenAICompatibleResponsesLLM struct {
 	model           string
 	temperature     *float64
 	maxOutputTokens *int
+
+	streamUsageMu sync.Mutex
+	streamUsage   domain.TokenUsage
 }
 
 // NewOpenAICompatibleResponsesLLM создаёт LLM-клиент для `POST /v1/responses`.
@@ -106,23 +118,23 @@ func NewOpenAICompatibleResponsesLLM(
 	}
 }
 
-// Generate генерирует текстовый ответ на основе system и user сообщений.
+// @sk-task cost-tracking: shared generate helper с возвратом usage (AC-001, RQ-001, T2.1)
 //
 //nolint:gocyclo // В одном методе: валидация, HTTP, редакция и парсинг ответа.
-func (l *OpenAICompatibleResponsesLLM) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
+func (l *OpenAICompatibleResponsesLLM) generateWithUsage(ctx context.Context, systemPrompt, userMessage string) (string, domain.TokenUsage, error) {
 	if ctx == nil {
 		panic("nil context")
 	}
 	if err := ctx.Err(); err != nil {
-		return "", err
+		return "", domain.TokenUsage{}, err
 	}
 	if strings.TrimSpace(userMessage) == "" {
-		return "", errors.New("userMessage is empty")
+		return "", domain.TokenUsage{}, errors.New("userMessage is empty")
 	}
 
 	endpoint, err := buildResponsesURL(l.baseURL)
 	if err != nil {
-		return "", err
+		return "", domain.TokenUsage{}, err
 	}
 
 	reqBody, err := json.Marshal(responsesRequest{
@@ -145,12 +157,12 @@ func (l *OpenAICompatibleResponsesLLM) Generate(ctx context.Context, systemPromp
 		MaxOutputTokens: l.maxOutputTokens,
 	})
 	if err != nil {
-		return "", err
+		return "", domain.TokenUsage{}, err
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(reqBody))
 	if err != nil {
-		return "", err
+		return "", domain.TokenUsage{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+l.apiKey)
@@ -158,39 +170,70 @@ func (l *OpenAICompatibleResponsesLLM) Generate(ctx context.Context, systemPromp
 	resp, err := l.httpClient.Do(req)
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
-			return "", ctxErr
+			return "", domain.TokenUsage{}, ctxErr
 		}
-		return "", err
+		return "", domain.TokenUsage{}, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		snippet, _ := readBodySnippet(resp.Body, maxErrorBodyBytes)
 		snippet = domain.RedactSecrets(snippet, l.apiKey, "Bearer "+l.apiKey)
-		return "", fmt.Errorf("responses request failed: status=%d body=%q", resp.StatusCode, snippet)
+		return "", domain.TokenUsage{}, fmt.Errorf("responses request failed: status=%d body=%q", resp.StatusCode, snippet)
 	}
 
 	var decoded responsesResponse
 	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
-		return "", err
+		return "", domain.TokenUsage{}, err
 	}
 
-	if text := strings.TrimSpace(decoded.OutputText); text != "" {
-		return text, nil
-	}
-
-	for _, out := range decoded.Output {
-		if out.Type != "message" {
-			continue
-		}
-		for _, c := range out.Content {
-			if c.Type == "output_text" && strings.TrimSpace(c.Text) != "" {
-				return c.Text, nil
+	var text string
+	if t := strings.TrimSpace(decoded.OutputText); t != "" {
+		text = t
+	} else {
+		for _, out := range decoded.Output {
+			if out.Type != "message" {
+				continue
+			}
+			for _, c := range out.Content {
+				if c.Type == "output_text" && strings.TrimSpace(c.Text) != "" {
+					text = c.Text
+					break
+				}
+			}
+			if text != "" {
+				break
 			}
 		}
 	}
+	if text == "" {
+		return "", domain.TokenUsage{}, errors.New("invalid responses response: missing output text")
+	}
 
-	return "", errors.New("invalid responses response: missing output text")
+	usage := domain.TokenUsage{}
+	if decoded.Usage != nil {
+		usage.PromptTokens = decoded.Usage.InputTokens
+		usage.CompletionTokens = decoded.Usage.OutputTokens
+		usage.TotalTokens = decoded.Usage.TotalTokens
+	}
+
+	return text, usage, nil
+}
+
+// Generate генерирует текстовый ответ на основе system и user сообщений.
+func (l *OpenAICompatibleResponsesLLM) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
+	text, _, err := l.generateWithUsage(ctx, systemPrompt, userMessage)
+	return text, err
+}
+
+// @sk-task cost-tracking: GenerateWithUsage — возвращает token usage (AC-001, RQ-001, T2.1)
+func (l *OpenAICompatibleResponsesLLM) GenerateWithUsage(ctx context.Context, systemPrompt, userMessage string) (string, domain.TokenUsage, error) {
+	return l.generateWithUsage(ctx, systemPrompt, userMessage)
+}
+
+// @sk-task cost-tracking: ModelName — имя модели (AC-002, RQ-002, T2.1)
+func (l *OpenAICompatibleResponsesLLM) ModelName() string {
+	return l.model
 }
 
 // @sk-task health-check-interface#T3.3: Health на OpenAICompatibleResponsesLLM (RQ-006)
@@ -245,6 +288,10 @@ func (l *OpenAICompatibleResponsesLLM) GenerateStream(ctx context.Context, syste
 	if ctx == nil {
 		panic("nil context")
 	}
+	l.streamUsageMu.Lock()
+	l.streamUsage = domain.TokenUsage{}
+	l.streamUsageMu.Unlock()
+
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -349,6 +396,16 @@ func (l *OpenAICompatibleResponsesLLM) GenerateStream(ctx context.Context, syste
 				continue
 			}
 
+			if event.Usage != nil {
+				l.streamUsageMu.Lock()
+				l.streamUsage = domain.TokenUsage{
+					PromptTokens:     event.Usage.InputTokens,
+					CompletionTokens: event.Usage.OutputTokens,
+					TotalTokens:      event.Usage.TotalTokens,
+				}
+				l.streamUsageMu.Unlock()
+			}
+
 			// Извлекаем текст из события
 			var text string
 			if event.Delta.Text != "" {
@@ -376,4 +433,16 @@ func (l *OpenAICompatibleResponsesLLM) GenerateStream(ctx context.Context, syste
 	}()
 
 	return tokenChan, nil
+}
+
+// @sk-task cost-tracking: StreamUsage — возвращает usage из streaming (AC-005, RQ-006, T3.4)
+// StreamUsage возвращает token usage последнего streaming-вызова.
+// Должен вызываться после полного чтения канала GenerateStream.
+func (l *OpenAICompatibleResponsesLLM) StreamUsage() (domain.TokenUsage, bool) {
+	l.streamUsageMu.Lock()
+	defer l.streamUsageMu.Unlock()
+	if l.streamUsage.TotalTokens == 0 && l.streamUsage.PromptTokens == 0 && l.streamUsage.CompletionTokens == 0 {
+		return domain.TokenUsage{}, false
+	}
+	return l.streamUsage, true
 }

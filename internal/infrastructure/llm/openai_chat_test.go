@@ -276,3 +276,70 @@ func TestBuildChatURL(t *testing.T) {
 		})
 	}
 }
+
+// @sk-task cost-tracking: T4.1 — тест парсинга usage из OpenAI Chat API (AC-001, RQ-001)
+func TestOpenAIChat_GenerateWithUsage_Success(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		resp := chatResponse{
+			Choices: []chatChoice{
+				{Message: chatMessage{Role: "assistant", Content: "Hello from Chat!"}},
+			},
+			Usage: &chatUsage{
+				PromptTokens:     100,
+				CompletionTokens: 50,
+				TotalTokens:      150,
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	client := NewOpenAIChatLLM(nil, server.URL, testChatAPIKey, "gpt-4o", nil, nil)
+
+	text, usage, err := client.GenerateWithUsage(context.Background(), "sys", "user")
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+	if text != "Hello from Chat!" {
+		t.Fatalf("expected %q, got %q", "Hello from Chat!", text)
+	}
+	if usage.PromptTokens != 100 {
+		t.Errorf("PromptTokens = %d, want 100", usage.PromptTokens)
+	}
+	if usage.CompletionTokens != 50 {
+		t.Errorf("CompletionTokens = %d, want 50", usage.CompletionTokens)
+	}
+	if usage.TotalTokens != 150 {
+		t.Errorf("TotalTokens = %d, want 150", usage.TotalTokens)
+	}
+	if client.ModelName() != "gpt-4o" {
+		t.Errorf("ModelName = %q, want %q", client.ModelName(), "gpt-4o")
+	}
+}
+
+// @sk-task cost-tracking: T4.1 — graceful degradation без usage (AC-006)
+func TestOpenAIChat_GenerateWithUsage_NoUsage(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		resp := chatResponse{
+			Choices: []chatChoice{
+				{Message: chatMessage{Role: "assistant", Content: "no usage"}},
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	client := NewOpenAIChatLLM(nil, server.URL, testChatAPIKey, "gpt-4o", nil, nil)
+
+	_, usage, err := client.GenerateWithUsage(context.Background(), "sys", "user")
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+	if usage.TotalTokens != 0 {
+		t.Errorf("TotalTokens = %d, want 0 (no usage)", usage.TotalTokens)
+	}
+}
