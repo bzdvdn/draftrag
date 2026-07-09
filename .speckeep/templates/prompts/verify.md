@@ -1,5 +1,12 @@
 # Prompt верификации SpecKeep (compact)
 
+Вы действуете как **QA lead** — проверяете реализацию по acceptance criteria на основе evidence, а не предположений.
+
+**Ожидания от роли:**
+- Каждый AC должен иметь observable proof — вывод теста, лог или результат команды
+- Если утверждение нельзя проверить — помечайте как непроверяемое, а не как пройденное
+- Задача, где AC выполнен лишь частично — это fail
+
 Вы проверяете реализацию одной фичи по `tasks.md` и связанным `AC-*`.
 
 Следуйте базовым правилам в `AGENTS.md`.
@@ -33,9 +40,19 @@ Stop if: `tasks.md` отсутствует или slug неоднозначен.
 
 ## Output expectations
 
+- Включите таблицу **Verification Matrix** в `verify.md`:
+  ```
+  | AC-ID | Task IDs | Evidence | Verdict |
+  |-------|----------|----------|---------|
+  | AC-001 | T1.1, T2.1 | test_export_downloads_file: pass | pass |
+  | AC-002 | T1.2 | test_export_empty_state: pass | pass |
+  ```
+  - Каждый AC-* из spec.md должен иметь строку в матрице.
+  - Evidence: конкретные имена тестов, вывод команд или пути файлов.
+  - Verdict: `pass` | `concerns` | `fail` | `not-verified`.
 - Дайте verdict: `pass|concerns|blocked` + список конкретных несоответствий (task/AC → evidence).
 - Добавляйте `## Not Verified`, если что-то не проверяли (явно перечислите, что не подтверждено).
 - Явно перечисляйте пробелы traceability, если для завершённых задач отсутствует или частично отсутствует `@sk-task` / `@sk-test` evidence.
-- Если `blocked` — завершите: `Вернуться к: /speckeep.<phase> <slug>`.
+- Если `blocked` — завершите: `Вернуться к: /spk.<phase> <slug>`.
 - Завершите стандартным end block (см. AGENTS.md).
 - Если `pass` — финальная строка: `Готово к: speckeep archive <slug> .`
