@@ -110,10 +110,15 @@ func (p *Pipeline) QueryMulti(ctx context.Context, question string, n, topK int)
 	merged := rrfMergeMultiple(allResults, topK)
 	merged = p.maybeDedup(merged)
 	merged.QueryText = question
-	merged, err = p.maybeRerank(ctx, question, merged)
-	if err != nil {
-		return domain.RetrievalResult{}, err
+
+	// @sk-task reranker-cross-encoder#T3.2: QueryMulti integration — BatchReranker type-assert + fallback (AC-009)
+	if p.reranker != nil {
+		merged, err = p.maybeRerankBatch(ctx, queries, merged)
+		if err != nil {
+			return domain.RetrievalResult{}, err
+		}
 	}
+
 	return merged, nil
 }
 

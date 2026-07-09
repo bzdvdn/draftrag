@@ -61,7 +61,7 @@ speckeep archive     → docs/specs-archive/<slug>/<date>/
 | HyDE, Multi-query | `retrieval-strategies` | ✅ |
 | MMR reranking | `retrieval-reranker-mmr` | ✅ |
 | Deduplication by ParentID | `retrieval-deduplication` | ✅ |
-| Reranker interface | — (interface defined, **zero implementations**) | 🚧 |
+| Reranker (Cohere Rerank API + batch) | `reranker-cross-encoder` | ✅ |
 
 ## Resilience
 

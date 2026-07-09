@@ -87,6 +87,19 @@ type Reranker interface {
 	Rerank(ctx context.Context, query string, chunks []RetrievedChunk) ([]RetrievedChunk, error)
 }
 
+// BatchReranker — опциональное расширение Reranker для batch-режима.
+//
+// @sk-task reranker-cross-encoder#T1.1: BatchReranker interface (AC-008)
+// Позволяет переранжировать один набор чанков по нескольким query одновременно.
+// Pipeline проверяет реализацию через type assertion в multi-query режиме.
+type BatchReranker interface {
+	Reranker
+	// RerankBatch принимает несколько query и один набор чанков.
+	// Возвращает список результатов той же длины, что и queries.
+	// Каждый результат — переранжированная версия chunks для соответствующего query.
+	RerankBatch(ctx context.Context, queries []string, chunks []RetrievedChunk) ([][]RetrievedChunk, error)
+}
+
 // DocumentStore — опциональная capability VectorStore для удаления документа целиком по ParentID.
 type DocumentStore interface {
 	VectorStore

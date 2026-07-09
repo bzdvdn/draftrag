@@ -89,6 +89,11 @@ type StreamingLLMProvider = domain.StreamingLLMProvider
 // Reranker — опциональный интерфейс для переранжирования результатов retrieval.
 type Reranker = domain.Reranker
 
+// BatchReranker — опциональное расширение Reranker для batch-режима.
+//
+// @sk-task reranker-cross-encoder#T1.1: re-export BatchReranker (AC-008)
+type BatchReranker = domain.BatchReranker
+
 // PipelineConfig — удалён. Используйте PipelineOptions.
 //
 // @sk-task arch-quality-pass#T1.1: re-export alias PipelineConfig → PipelineOptions (AC-004)

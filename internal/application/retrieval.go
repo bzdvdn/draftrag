@@ -21,6 +21,66 @@ func (p *Pipeline) maybeRerank(ctx context.Context, query string, result domain.
 	return result, nil
 }
 
+// @sk-task reranker-cross-encoder#T3.2: maybeRerankBatch with type-assert fallback (AC-009)
+func (p *Pipeline) maybeRerankBatch(ctx context.Context, queries []string, result domain.RetrievalResult) (domain.RetrievalResult, error) {
+	batch, ok := p.reranker.(domain.BatchReranker)
+	if !ok {
+		second, err := p.maybeRerank(ctx, queries[0], result)
+		if err != nil {
+			return result, err
+		}
+		return second, nil
+	}
+	chunks := result.Chunks
+	allResults, err := batch.RerankBatch(ctx, queries, chunks)
+	if err != nil {
+		return result, fmt.Errorf("reranker batch: %w", err)
+	}
+	result.Chunks = mergeBatchResults(allResults, chunks)
+	return result, nil
+}
+
+func mergeBatchResults(allResults [][]domain.RetrievedChunk, original []domain.RetrievedChunk) []domain.RetrievedChunk {
+	if len(allResults) == 0 {
+		return original
+	}
+	scoreSum := make([]float64, len(original))
+	count := make([]int, len(original))
+	for _, res := range allResults {
+		for _, ch := range res {
+			id := ch.Chunk.ID
+			for i, orig := range original {
+				if orig.Chunk.ID == id {
+					scoreSum[i] += ch.Score
+					count[i]++
+					break
+				}
+			}
+		}
+	}
+	type scoredItem struct {
+		chunk domain.RetrievedChunk
+		score float64
+	}
+	items := make([]scoredItem, len(original))
+	for i, ch := range original {
+		avg := 0.0
+		if count[i] > 0 {
+			avg = scoreSum[i] / float64(count[i])
+		}
+		ch.Score = avg
+		items[i] = scoredItem{chunk: ch, score: avg}
+	}
+	sort.SliceStable(items, func(i, j int) bool {
+		return items[i].score > items[j].score
+	})
+	out := make([]domain.RetrievedChunk, len(items))
+	for i, s := range items {
+		out[i] = s.chunk
+	}
+	return out
+}
+
 func (p *Pipeline) maybeDedup(result domain.RetrievalResult) domain.RetrievalResult {
 	if !p.dedupByParentID {
 		return result
