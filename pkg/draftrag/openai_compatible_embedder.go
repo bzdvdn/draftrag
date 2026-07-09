@@ -52,6 +52,11 @@ func (e *openAICompatibleEmbedder) Embed(ctx context.Context, text string) ([]fl
 	)
 }
 
+// @sk-task health-check-interface#T3.5: Health на openAICompatibleEmbedder (RQ-005)
+func (e *openAICompatibleEmbedder) Health(ctx context.Context) error {
+	return e.impl.Health(ctx)
+}
+
 func validateOpenAICompatibleEmbedderOptions(opts OpenAICompatibleEmbedderOptions) error {
 	return validateEmbedderOptions(opts.BaseURL, opts.APIKey, opts.Model, opts.Timeout)
 }

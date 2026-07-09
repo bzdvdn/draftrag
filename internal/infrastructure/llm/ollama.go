@@ -143,6 +143,26 @@ func (o *OllamaLLM) Generate(ctx context.Context, systemPrompt, userMessage stri
 	return content, nil
 }
 
+// @sk-task health-check-interface#T3.3: Health на OllamaLLM (RQ-006)
+func (o *OllamaLLM) Health(ctx context.Context) error {
+	if ctx == nil {
+		return fmt.Errorf("nil context")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, o.baseURL+"/api/tags", nil)
+	if err != nil {
+		return fmt.Errorf("ollama llm health: create request: %w", err)
+	}
+	resp, err := o.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("ollama llm health: %w", err)
+	}
+	resp.Body.Close()
+	return nil
+}
+
 func buildOllamaChatURL(base string) (string, error) {
 	parsed, err := url.Parse(base)
 	if err != nil {

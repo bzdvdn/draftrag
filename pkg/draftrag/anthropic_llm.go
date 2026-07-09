@@ -92,6 +92,11 @@ func (p *anthropicLLM) GenerateStream(ctx context.Context, systemPrompt, userMes
 	return p.impl.GenerateStream(ctx, systemPrompt, userMessage)
 }
 
+// @sk-task health-check-interface#T3.5: Health на anthropicLLM (RQ-006)
+func (p *anthropicLLM) Health(ctx context.Context) error {
+	return p.impl.Health(ctx)
+}
+
 func validateAnthropicLLMOptions(opts AnthropicLLMOptions) error {
 	if strings.TrimSpace(opts.BaseURL) == "" {
 		return fmt.Errorf("%w: BaseURL is empty", ErrInvalidLLMConfig)

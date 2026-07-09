@@ -17,6 +17,7 @@ type MockEmbedder struct {
 	Err       error
 }
 
+func (m *MockEmbedder) Health(_ context.Context) error { return nil }
 func (m *MockEmbedder) Embed(_ context.Context, _ string) ([]float64, error) {
 	if m.Err != nil {
 		return nil, m.Err

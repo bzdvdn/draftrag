@@ -11,6 +11,7 @@ import (
 
 type testEmbedder struct{}
 
+func (testEmbedder) Health(_ context.Context) error { return nil }
 func (testEmbedder) Embed(ctx context.Context, _ string) ([]float64, error) {
 	if ctx == nil {
 		panic("nil context")
@@ -20,6 +21,7 @@ func (testEmbedder) Embed(ctx context.Context, _ string) ([]float64, error) {
 
 type testLLM struct{}
 
+func (testLLM) Health(_ context.Context) error { return nil }
 func (testLLM) Generate(ctx context.Context, _, _ string) (string, error) {
 	if ctx == nil {
 		panic("nil context")

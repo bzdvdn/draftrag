@@ -13,6 +13,7 @@ import (
 
 type pgvectorTestEmbedder struct{}
 
+func (pgvectorTestEmbedder) Health(_ context.Context) error { return nil }
 func (pgvectorTestEmbedder) Embed(ctx context.Context, text string) ([]float64, error) {
 	if ctx == nil {
 		panic("nil context")
@@ -29,6 +30,7 @@ func (pgvectorTestEmbedder) Embed(ctx context.Context, text string) ([]float64, 
 
 type pgvectorTestLLM struct{}
 
+func (pgvectorTestLLM) Health(_ context.Context) error { return nil }
 func (pgvectorTestLLM) Generate(ctx context.Context, _, _ string) (string, error) {
 	if ctx == nil {
 		panic("nil context")

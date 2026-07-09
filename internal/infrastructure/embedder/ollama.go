@@ -112,6 +112,26 @@ func buildOllamaEmbeddingsURL(base string) (string, error) {
 	return endpoint.String(), nil
 }
 
+// @sk-task health-check-interface#T3.2: Health на OllamaEmbedder (RQ-005)
+func (o *OllamaEmbedder) Health(ctx context.Context) error {
+	if ctx == nil {
+		return fmt.Errorf("nil context")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, o.baseURL+"/api/tags", nil)
+	if err != nil {
+		return fmt.Errorf("ollama embedder health: create request: %w", err)
+	}
+	resp, err := o.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("ollama embedder health: %w", err)
+	}
+	resp.Body.Close()
+	return nil
+}
+
 func parseOllamaEmbeddingResponse(resp *http.Response) ([]float64, error) {
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		snippet, _ := readBodySnippet(resp.Body, maxErrorBodyBytes)

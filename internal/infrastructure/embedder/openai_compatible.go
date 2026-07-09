@@ -104,6 +104,27 @@ func (e *OpenAICompatibleEmbedder) Embed(ctx context.Context, text string) ([]fl
 	return e.parseEmbeddingResponse(resp)
 }
 
+// @sk-task health-check-interface#T3.2: Health на OpenAICompatibleEmbedder (RQ-005)
+func (e *OpenAICompatibleEmbedder) Health(ctx context.Context) error {
+	if ctx == nil {
+		return fmt.Errorf("nil context")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, e.baseURL, nil)
+	if err != nil {
+		return fmt.Errorf("openai-compatible embedder health: create request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+e.apiKey)
+	resp, err := e.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("openai-compatible embedder health: %w", err)
+	}
+	resp.Body.Close()
+	return nil
+}
+
 func buildEmbeddingsURL(base string) (string, error) {
 	parsed, err := url.Parse(base)
 	if err != nil {

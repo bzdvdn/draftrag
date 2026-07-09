@@ -1113,6 +1113,14 @@ func float64FromPGVector(vec pgvector.Vector) []float64 {
 	return out
 }
 
+// @sk-task health-check-interface#T3.1: Health на PGVectorStore (RQ-004)
+func (s *PGVectorStore) Health(ctx context.Context) error {
+	if ctx == nil {
+		return errors.New("nil context")
+	}
+	return s.db.PingContext(ctx)
+}
+
 func validateSQLIdentifier(name string) error {
 	if name == "" {
 		return errors.New("table name is empty")

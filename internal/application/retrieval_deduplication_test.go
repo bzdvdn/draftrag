@@ -11,6 +11,7 @@ type fixedSearchStoreDedup struct {
 	result domain.RetrievalResult
 }
 
+func (fixedSearchStoreDedup) Health(_ context.Context) error { return nil }
 func (fixedSearchStoreDedup) Upsert(_ context.Context, _ domain.Chunk) error { return nil }
 func (fixedSearchStoreDedup) Delete(_ context.Context, _ string) error       { return nil }
 func (s fixedSearchStoreDedup) Search(_ context.Context, _ []float64, _ int) (domain.RetrievalResult, error) {
@@ -19,12 +20,14 @@ func (s fixedSearchStoreDedup) Search(_ context.Context, _ []float64, _ int) (do
 
 type fixedEmbedderDedup struct{}
 
+func (fixedEmbedderDedup) Health(_ context.Context) error { return nil }
 func (fixedEmbedderDedup) Embed(_ context.Context, _ string) ([]float64, error) {
 	return []float64{1}, nil
 }
 
 type panicLLMDedup struct{}
 
+func (panicLLMDedup) Health(_ context.Context) error { return nil }
 func (panicLLMDedup) Generate(_ context.Context, _, _ string) (string, error) {
 	panic("should not be called")
 }

@@ -11,6 +11,7 @@ type countEmbedder struct {
 	vec   []float64
 }
 
+func (c *countEmbedder) Health(_ context.Context) error { return nil }
 func (c *countEmbedder) Embed(_ context.Context, _ string) ([]float64, error) {
 	c.calls++
 	return c.vec, nil
@@ -85,6 +86,7 @@ func TestCachedEmbedder_PropagatesError(t *testing.T) {
 
 type errorEmbedder struct{ err error }
 
+func (e *errorEmbedder) Health(_ context.Context) error { return nil }
 func (e *errorEmbedder) Embed(_ context.Context, _ string) ([]float64, error) {
 	return nil, e.err
 }

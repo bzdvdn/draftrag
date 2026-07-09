@@ -299,6 +299,28 @@ func (c *ClaudeLLM) GenerateStream(ctx context.Context, systemPrompt, userMessag
 	return tokenChan, nil
 }
 
+// @sk-task health-check-interface#T3.3: Health на ClaudeLLM (RQ-006)
+func (c *ClaudeLLM) Health(ctx context.Context) error {
+	if ctx == nil {
+		return fmt.Errorf("nil context")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, c.baseURL, nil)
+	if err != nil {
+		return fmt.Errorf("claude health: create request: %w", err)
+	}
+	req.Header.Set("x-api-key", c.apiKey)
+	req.Header.Set("anthropic-version", c.anthropicVersion)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("claude health: %w", err)
+	}
+	resp.Body.Close()
+	return nil
+}
+
 func buildAnthropicURL(base string) (string, error) {
 	parsed, err := url.Parse(base)
 	if err != nil {

@@ -17,6 +17,8 @@ type mockEmbedder struct {
 	embedFunc func(text string) ([]float64, error)
 }
 
+func (m *mockEmbedder) Health(_ context.Context) error { return nil }
+
 func (m *mockEmbedder) Embed(_ context.Context, text string) ([]float64, error) {
 	m.callCount++
 	if m.embedFunc != nil {

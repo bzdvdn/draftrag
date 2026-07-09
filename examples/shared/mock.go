@@ -21,6 +21,9 @@ type mockLLM struct {
 
 var _ domain.LLMProvider = (*mockLLM)(nil)
 
+// @sk-task health-check-interface#T3.5: Health на mockLLM
+func (m *mockLLM) Health(_ context.Context) error { return nil }
+
 // @sk-task docs-and-examples#T1.2: Generate возвращает echo-ответ с префиксом "[mock] " (DEC-007, AC-008).
 // Длинные вопросы обрезаются до 200 символов для читаемости в CI-логах.
 func (m *mockLLM) Generate(_ context.Context, _, userMessage string) (string, error) {
@@ -42,6 +45,9 @@ type mockEmbedder struct {
 }
 
 var _ domain.Embedder = (*mockEmbedder)(nil)
+
+// @sk-task health-check-interface#T3.5: Health на mockEmbedder
+func (m *mockEmbedder) Health(_ context.Context) error { return nil }
 
 // @sk-task docs-and-examples#T1.2: Embed возвращает детерминированный dim-мерный вектор в [-1, 1] (DEC-007, AC-008).
 // Алгоритм: SHA-256 от текста, разбивается на 4-байтные uint32, нормализуется в [-1, 1].

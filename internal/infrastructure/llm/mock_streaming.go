@@ -23,6 +23,8 @@ type MockStreamingLLM struct {
 	GenerateResult string
 }
 
+func (m *MockStreamingLLM) Health(_ context.Context) error { return nil }
+
 // Generate возвращает мок-результат или ошибку.
 func (m *MockStreamingLLM) Generate(_ context.Context, _, _ string) (string, error) {
 	if m.GenerateErr != nil {
@@ -75,6 +77,8 @@ type MockStreamingLLMWithCancel struct {
 	Delay  time.Duration
 }
 
+func (m *MockStreamingLLMWithCancel) Health(_ context.Context) error { return nil }
+
 // Generate возвращает пустую строку.
 func (m *MockStreamingLLMWithCancel) Generate(_ context.Context, _, _ string) (string, error) {
 	return "", nil
@@ -116,6 +120,8 @@ type NonStreamingLLM struct {
 	Result string
 	Err    error
 }
+
+func (m *NonStreamingLLM) Health(_ context.Context) error { return nil }
 
 // Generate возвращает мок-результат.
 func (m *NonStreamingLLM) Generate(_ context.Context, _, _ string) (string, error) {

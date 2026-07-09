@@ -581,3 +581,23 @@ func (s *ChromaStore) CollectionExists(ctx context.Context) (bool, error) {
 		return false, fmt.Errorf("chromadb: status=%d body=%s", resp.StatusCode, string(b))
 	}
 }
+
+// @sk-task health-check-interface#T3.1: Health на ChromaStore (RQ-004)
+func (s *ChromaStore) Health(ctx context.Context) error {
+	if ctx == nil {
+		return fmt.Errorf("nil context")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s.baseURL+"/api/v1/heartbeat", nil)
+	if err != nil {
+		return fmt.Errorf("chromadb health: create request: %w", err)
+	}
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("chromadb health: %w", err)
+	}
+	resp.Body.Close()
+	return nil
+}

@@ -13,12 +13,14 @@ import (
 // @sk-task pipeline-e2e-benchmarks#T1.1: bench helpers — benchEmbedder, benchLLM, genDocs, setupBenchPipeline
 type benchEmbedder struct{}
 
+func (benchEmbedder) Health(_ context.Context) error { return nil }
 func (benchEmbedder) Embed(_ context.Context, _ string) ([]float64, error) {
 	return []float64{1, 0, 0}, nil
 }
 
 type benchLLM struct{}
 
+func (benchLLM) Health(_ context.Context) error { return nil }
 func (benchLLM) Generate(_ context.Context, _, _ string) (string, error) {
 	return "answer", nil
 }

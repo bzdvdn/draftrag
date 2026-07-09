@@ -29,6 +29,7 @@ type countingEmbedder struct {
 	calls int
 }
 
+func (e *countingEmbedder) Health(_ context.Context) error { return nil }
 func (e *countingEmbedder) Embed(_ context.Context, _ string) ([]float64, error) {
 	e.calls++
 	return []float64{1, float64(e.calls)}, nil

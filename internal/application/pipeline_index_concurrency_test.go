@@ -21,6 +21,7 @@ type slowEmbedder struct {
 	failOn string
 }
 
+func (e *slowEmbedder) Health(_ context.Context) error { return nil }
 func (e *slowEmbedder) Embed(ctx context.Context, text string) ([]float64, error) {
 	e.calls.Add(1)
 	if e.failOn != "" && text == e.failOn {

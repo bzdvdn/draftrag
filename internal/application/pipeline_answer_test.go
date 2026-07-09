@@ -13,6 +13,7 @@ type recordingEmbedder struct {
 	calls *[]string
 }
 
+func (e recordingEmbedder) Health(_ context.Context) error { return nil }
 func (e recordingEmbedder) Embed(_ context.Context, text string) ([]float64, error) {
 	*e.calls = append(*e.calls, "embed:"+text)
 	return []float64{1, 2, 3}, nil
@@ -23,6 +24,7 @@ type recordingStore struct {
 	result domain.RetrievalResult
 }
 
+func (s recordingStore) Health(_ context.Context) error { return nil }
 func (s recordingStore) Upsert(_ context.Context, _ domain.Chunk) error {
 	*s.calls = append(*s.calls, "upsert")
 	return nil
@@ -44,6 +46,7 @@ type recordingLLM struct {
 	userMessage  string
 }
 
+func (l *recordingLLM) Health(_ context.Context) error { return nil }
 func (l *recordingLLM) Generate(_ context.Context, systemPrompt, userMessage string) (string, error) {
 	*l.calls = append(*l.calls, "generate")
 	l.systemPrompt = systemPrompt

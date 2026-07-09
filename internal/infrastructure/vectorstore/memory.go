@@ -266,6 +266,14 @@ func matchesMetadataFilter(metadata, fields map[string]string) bool {
 	return true
 }
 
+// @sk-task health-check-interface#T1.2: Health на InMemoryStore (AC-004, RQ-004)
+func (s *InMemoryStore) Health(ctx context.Context) error {
+	if ctx == nil {
+		return errors.New("nil context")
+	}
+	return ctx.Err()
+}
+
 // cosineSimilarity вычисляет cosine similarity между двумя векторами.
 func cosineSimilarity(a, b []float64) float64 {
 	if len(a) != len(b) {

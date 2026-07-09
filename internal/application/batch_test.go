@@ -16,6 +16,7 @@ type mockBatchStore struct {
 	mu     sync.Mutex
 }
 
+func (m *mockBatchStore) Health(_ context.Context) error { return nil }
 func (m *mockBatchStore) Upsert(_ context.Context, chunk domain.Chunk) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -32,6 +33,7 @@ type fixedBatchEmbedder struct {
 	delay time.Duration
 }
 
+func (f fixedBatchEmbedder) Health(_ context.Context) error { return nil }
 func (f fixedBatchEmbedder) Embed(_ context.Context, _ string) ([]float64, error) {
 	if f.delay > 0 {
 		time.Sleep(f.delay)
@@ -72,6 +74,7 @@ func (m mockChunker) Chunk(_ context.Context, doc domain.Document) ([]domain.Chu
 
 type okBatchLLM struct{}
 
+func (okBatchLLM) Health(_ context.Context) error { return nil }
 func (okBatchLLM) Generate(_ context.Context, _, _ string) (string, error) {
 	return "ok", nil
 }

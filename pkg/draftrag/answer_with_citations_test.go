@@ -8,13 +8,9 @@ import (
 	"github.com/bzdvdn/draftrag/internal/domain"
 )
 
-// Компиляционные проверки наличия методов.
-var (
-	_ = (*SearchBuilder).Cite
-)
-
 type panicStore2 struct{}
 
+func (panicStore2) Health(_ context.Context) error { return nil }
 func (panicStore2) Upsert(_ context.Context, _ domain.Chunk) error {
 	panic("should not be called")
 }
@@ -25,12 +21,14 @@ func (panicStore2) Search(_ context.Context, _ []float64, _ int) (domain.Retriev
 
 type panicEmbedder2 struct{}
 
+func (panicEmbedder2) Health(_ context.Context) error { return nil }
 func (panicEmbedder2) Embed(_ context.Context, _ string) ([]float64, error) {
 	panic("should not be called")
 }
 
 type panicLLM2 struct{}
 
+func (panicLLM2) Health(_ context.Context) error { return nil }
 func (panicLLM2) Generate(_ context.Context, _, _ string) (string, error) {
 	panic("should not be called")
 }

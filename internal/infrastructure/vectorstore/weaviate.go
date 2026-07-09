@@ -620,6 +620,29 @@ func (s *WeaviateStore) parseGraphQLResponse(body []byte) (domain.RetrievalResul
 	}, nil
 }
 
+// @sk-task health-check-interface#T3.1: Health на WeaviateStore (RQ-004)
+func (s *WeaviateStore) Health(ctx context.Context) error {
+	if ctx == nil {
+		return fmt.Errorf("nil context")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s.baseURL+"/v1/.well-known/ready", nil)
+	if err != nil {
+		return fmt.Errorf("weaviate health: create request: %w", err)
+	}
+	if s.apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+s.apiKey)
+	}
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("weaviate health: %w", err)
+	}
+	resp.Body.Close()
+	return nil
+}
+
 // whereParentIDs форматирует WHERE-клаузу GraphQL для фильтра по parentId.
 // При одном ID использует Equal, при нескольких — Or с набором Equal.
 //

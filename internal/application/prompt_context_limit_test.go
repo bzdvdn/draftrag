@@ -11,6 +11,7 @@ type fixedSearchStore struct {
 	result domain.RetrievalResult
 }
 
+func (fixedSearchStore) Health(_ context.Context) error { return nil }
 func (fixedSearchStore) Upsert(_ context.Context, _ domain.Chunk) error { return nil }
 func (fixedSearchStore) Delete(_ context.Context, _ string) error       { return nil }
 func (s fixedSearchStore) Search(_ context.Context, _ []float64, _ int) (domain.RetrievalResult, error) {
@@ -19,6 +20,7 @@ func (s fixedSearchStore) Search(_ context.Context, _ []float64, _ int) (domain.
 
 type fixedEmbedder struct{}
 
+func (fixedEmbedder) Health(_ context.Context) error { return nil }
 func (fixedEmbedder) Embed(_ context.Context, _ string) ([]float64, error) {
 	return []float64{1, 2, 3}, nil
 }
@@ -27,6 +29,7 @@ type captureUserMessageLLM struct {
 	userMessage string
 }
 
+func (l *captureUserMessageLLM) Health(_ context.Context) error { return nil }
 func (l *captureUserMessageLLM) Generate(_ context.Context, _, userMessage string) (string, error) {
 	l.userMessage = userMessage
 	return "ok", nil

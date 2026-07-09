@@ -67,6 +67,11 @@ func (p *ollamaLLM) Generate(ctx context.Context, systemPrompt, userMessage stri
 	)
 }
 
+// @sk-task health-check-interface#T3.5: Health на ollamaLLM (RQ-006)
+func (p *ollamaLLM) Health(ctx context.Context) error {
+	return p.impl.Health(ctx)
+}
+
 func validateOllamaLLMOptions(opts OllamaLLMOptions) error {
 	if strings.TrimSpace(opts.Model) == "" {
 		return fmt.Errorf("%w: Model is empty", ErrInvalidLLMConfig)

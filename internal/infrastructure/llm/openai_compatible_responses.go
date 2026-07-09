@@ -193,6 +193,26 @@ func (l *OpenAICompatibleResponsesLLM) Generate(ctx context.Context, systemPromp
 	return "", errors.New("invalid responses response: missing output text")
 }
 
+// @sk-task health-check-interface#T3.3: Health на OpenAICompatibleResponsesLLM (RQ-006)
+func (l *OpenAICompatibleResponsesLLM) Health(ctx context.Context) error {
+	if ctx == nil {
+		return fmt.Errorf("nil context")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, l.baseURL, nil)
+	if err != nil {
+		return fmt.Errorf("openai-compatible responses health: create request: %w", err)
+	}
+	resp, err := l.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("openai-compatible responses health: %w", err)
+	}
+	resp.Body.Close()
+	return nil
+}
+
 func buildResponsesURL(base string) (string, error) {
 	parsed, err := url.Parse(base)
 	if err != nil {

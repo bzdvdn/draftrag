@@ -11,6 +11,7 @@ import (
 
 type mockVectorStore struct{}
 
+func (m *mockVectorStore) Health(_ context.Context) error { return nil }
 func (m *mockVectorStore) Upsert(_ context.Context, _ domain.Chunk) error {
 	return nil
 }
@@ -25,12 +26,14 @@ func (m *mockVectorStore) Search(_ context.Context, _ []float64, _ int) (domain.
 
 type mockLLMProvider struct{}
 
+func (m *mockLLMProvider) Health(_ context.Context) error { return nil }
 func (m *mockLLMProvider) Generate(_ context.Context, _, _ string) (string, error) {
 	return "response", nil
 }
 
 type mockEmbedder struct{}
 
+func (m *mockEmbedder) Health(_ context.Context) error { return nil }
 func (m *mockEmbedder) Embed(_ context.Context, _ string) ([]float64, error) {
 	return []float64{0.1, 0.2}, nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 )
 
+// @sk-task health-check-interface#T1.1: Добавлен Health(ctx) в VectorStore (AC-001, RQ-001)
 // VectorStore определяет интерфейс для работы с векторным хранилищем.
 // Реализации должны поддерживать операции upsert, delete и поиска по embedding-вектору.
 type VectorStore interface {
@@ -16,6 +17,10 @@ type VectorStore interface {
 	// Search выполняет поиск похожих чанков по embedding-вектору.
 	// Возвращает результат с релевантными чанками, отсортированными по score (по убыванию).
 	Search(ctx context.Context, embedding []float64, topK int) (RetrievalResult, error)
+
+	// Health проверяет доступность хранилища.
+	// Возвращает nil если компонент работает, error с описанием проблемы если нет.
+	Health(ctx context.Context) error
 }
 
 // ParentIDFilter задаёт фильтрацию retrieval по ParentID (например, в пределах одного документа).
@@ -41,10 +46,15 @@ type VectorStoreWithFilters interface {
 	SearchWithMetadataFilter(ctx context.Context, embedding []float64, topK int, filter MetadataFilter) (RetrievalResult, error)
 }
 
+// @sk-task health-check-interface#T1.1: Добавлен Health(ctx) в LLMProvider (AC-003, RQ-001)
 // LLMProvider определяет интерфейс для генерации текста через LLM.
 type LLMProvider interface {
 	// Generate генерирует ответ на основе system и user сообщений.
 	Generate(ctx context.Context, systemPrompt, userMessage string) (string, error)
+
+	// Health проверяет доступность LLM провайдера.
+	// Возвращает nil если компонент работает, error с описанием проблемы если нет.
+	Health(ctx context.Context) error
 }
 
 // StreamingLLMProvider — опциональная capability интерфейса LLMProvider.
@@ -61,10 +71,15 @@ type StreamingLLMProvider interface {
 	GenerateStream(ctx context.Context, systemPrompt, userMessage string) (<-chan string, error)
 }
 
+// @sk-task health-check-interface#T1.1: Добавлен Health(ctx) в Embedder (AC-002, RQ-001)
 // Embedder определяет интерфейс для преобразования текста в векторное представление.
 type Embedder interface {
 	// Embed преобразует текст в embedding-вектор фиксированной размерности.
 	Embed(ctx context.Context, text string) ([]float64, error)
+
+	// Health проверяет доступность embedder'а.
+	// Возвращает nil если компонент работает, error с описанием проблемы если нет.
+	Health(ctx context.Context) error
 }
 
 // Chunker определяет интерфейс для разбиения документа на чанки.

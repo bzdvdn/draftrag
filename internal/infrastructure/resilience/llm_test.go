@@ -19,6 +19,11 @@ type MockLLMProvider struct {
 	mock.Mock
 }
 
+func (m *MockLLMProvider) Health(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
+}
+
 func (m *MockLLMProvider) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
 	args := m.Called(ctx, systemPrompt, userMessage)
 	return args.String(0), args.Error(1)
@@ -209,6 +214,31 @@ func TestRetryLLMProvider_CircuitBreakerState(t *testing.T) {
 	stats := retryLLM.CircuitBreakerStats()
 	assert.Equal(t, CircuitClosed, stats.State)
 	assert.Equal(t, 0, stats.FailureCount)
+}
+
+// @sk-test health-check-interface#T4.1: RetryLLMProvider.Health delegates (AC-008)
+func TestRetryLLMProvider_Health_Delegates(t *testing.T) {
+	mockLLM := new(MockLLMProvider)
+	mockLLM.On("Health", mock.Anything).Return(nil).Once()
+
+	retryLLM := NewRetryLLMProvider(mockLLM, nil, nil, nil, nil)
+
+	err := retryLLM.Health(context.Background())
+	assert.NoError(t, err)
+	mockLLM.AssertExpectations(t)
+}
+
+// @sk-test health-check-interface#T4.1: RetryLLMProvider.Health CB open → error (AC-009)
+func TestRetryLLMProvider_Health_CBOpen(t *testing.T) {
+	mockLLM := new(MockLLMProvider)
+	cbConfig := &CircuitBreakerConfig{Threshold: 1, Timeout: time.Hour}
+	retryLLM := NewRetryLLMProvider(mockLLM, nil, cbConfig, nil, nil)
+
+	retryLLM.circuitBreaker.RecordFailure()
+
+	err := retryLLM.Health(context.Background())
+	assert.ErrorIs(t, err, ErrCircuitOpen)
+	mockLLM.AssertNotCalled(t, "Health")
 }
 
 func TestRetryLLMProvider_RetryThenSuccess(t *testing.T) {

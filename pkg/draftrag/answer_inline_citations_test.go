@@ -15,6 +15,7 @@ var (
 
 type panicStoreInline struct{}
 
+func (panicStoreInline) Health(_ context.Context) error { return nil }
 func (panicStoreInline) Upsert(_ context.Context, _ domain.Chunk) error {
 	panic("should not be called")
 }
@@ -25,12 +26,14 @@ func (panicStoreInline) Search(_ context.Context, _ []float64, _ int) (domain.Re
 
 type panicEmbedderInline struct{}
 
+func (panicEmbedderInline) Health(_ context.Context) error { return nil }
 func (panicEmbedderInline) Embed(_ context.Context, _ string) ([]float64, error) {
 	panic("should not be called")
 }
 
 type panicLLMInline struct{}
 
+func (panicLLMInline) Health(_ context.Context) error { return nil }
 func (panicLLMInline) Generate(_ context.Context, _, _ string) (string, error) {
 	panic("should not be called")
 }

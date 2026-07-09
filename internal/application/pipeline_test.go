@@ -13,6 +13,7 @@ import (
 
 type testEmbedder struct{}
 
+func (testEmbedder) Health(_ context.Context) error { return nil }
 func (testEmbedder) Embed(ctx context.Context, text string) ([]float64, error) {
 	if ctx == nil {
 		panic("nil context")
@@ -30,6 +31,7 @@ func (testEmbedder) Embed(ctx context.Context, text string) ([]float64, error) {
 
 type testLLM struct{}
 
+func (testLLM) Health(_ context.Context) error { return nil }
 func (testLLM) Generate(ctx context.Context, _, _ string) (string, error) {
 	if ctx == nil {
 		panic("nil context")
@@ -219,6 +221,7 @@ func TestPipeline_AnswerWithMetadataFilter_FiltersNotSupported(t *testing.T) {
 // noFilterStore — минимальный VectorStore без VectorStoreWithFilters capability.
 type noFilterStore struct{}
 
+func (noFilterStore) Health(_ context.Context) error { return nil }
 func (noFilterStore) Upsert(_ context.Context, _ domain.Chunk) error { return nil }
 func (noFilterStore) Delete(_ context.Context, _ string) error       { return nil }
 func (noFilterStore) Search(_ context.Context, _ []float64, _ int) (domain.RetrievalResult, error) {
@@ -231,6 +234,7 @@ type failOnEmbedder struct {
 	failOn string
 }
 
+func (e *failOnEmbedder) Health(_ context.Context) error { return nil }
 func (e *failOnEmbedder) Embed(ctx context.Context, text string) ([]float64, error) {
 	if ctx == nil {
 		panic("nil context")

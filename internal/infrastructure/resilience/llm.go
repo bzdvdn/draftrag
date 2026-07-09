@@ -144,6 +144,17 @@ func (r *RetryLLMProvider) recordEvent(ctx context.Context, operation string, at
 	recordHookEvent(ctx, r.hooks, domain.HookStageGenerate, operation, attempt, err, rejected)
 }
 
+// @sk-task health-check-interface#T3.4: Health на RetryLLMProvider (RQ-007, RQ-008)
+func (r *RetryLLMProvider) Health(ctx context.Context) error {
+	if ctx == nil {
+		return fmt.Errorf("nil context")
+	}
+	if err := r.circuitBreaker.CanExecute(); err != nil {
+		return err
+	}
+	return r.llm.Health(ctx)
+}
+
 // CircuitBreakerState возвращает текущее состояние circuit breaker.
 func (r *RetryLLMProvider) CircuitBreakerState() CircuitState {
 	return r.circuitBreaker.State()

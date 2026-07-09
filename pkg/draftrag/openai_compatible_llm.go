@@ -90,6 +90,11 @@ func (p *openAICompatibleLLM) GenerateStream(ctx context.Context, systemPrompt, 
 	return p.impl.GenerateStream(ctx, systemPrompt, userMessage)
 }
 
+// @sk-task health-check-interface#T3.5: Health на openAICompatibleLLM (RQ-006)
+func (p *openAICompatibleLLM) Health(ctx context.Context) error {
+	return p.impl.Health(ctx)
+}
+
 func validateOpenAICompatibleLLMOptions(opts OpenAICompatibleLLMOptions) error {
 	if err := validateLLMOptions(opts.BaseURL, opts.APIKey, opts.Model, opts.Timeout); err != nil {
 		return err

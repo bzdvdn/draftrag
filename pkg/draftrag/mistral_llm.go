@@ -92,6 +92,11 @@ func (p *mistralLLM) GenerateStream(ctx context.Context, systemPrompt, userMessa
 	return p.impl.GenerateStream(ctx, systemPrompt, userMessage)
 }
 
+// @sk-task health-check-interface#T3.5: Health на mistralLLM (RQ-006)
+func (p *mistralLLM) Health(ctx context.Context) error {
+	return p.impl.Health(ctx)
+}
+
 // @sk-task llm-providers-mistral-deepseek#T2.1: validateMistralLLMOptions (AC-005)
 func validateMistralLLMOptions(opts MistralLLMOptions) error {
 	if err := validateLLMOptions(opts.BaseURL, opts.APIKey, opts.Model, opts.Timeout); err != nil {

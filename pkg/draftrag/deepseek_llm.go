@@ -92,6 +92,11 @@ func (p *deepseekLLM) GenerateStream(ctx context.Context, systemPrompt, userMess
 	return p.impl.GenerateStream(ctx, systemPrompt, userMessage)
 }
 
+// @sk-task health-check-interface#T3.5: Health на deepseekLLM (RQ-006)
+func (p *deepseekLLM) Health(ctx context.Context) error {
+	return p.impl.Health(ctx)
+}
+
 // @sk-task llm-providers-mistral-deepseek#T2.2: validateDeepSeekLLMOptions (AC-005)
 func validateDeepSeekLLMOptions(opts DeepSeekLLMOptions) error {
 	if err := validateLLMOptions(opts.BaseURL, opts.APIKey, opts.Model, opts.Timeout); err != nil {

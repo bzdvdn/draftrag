@@ -282,6 +282,26 @@ func buildMessages(systemPrompt, userMessage string) []chatMessage {
 	return msgs
 }
 
+// @sk-task health-check-interface#T3.3: Health на OpenAIChatLLM (RQ-006)
+func (c *OpenAIChatLLM) Health(ctx context.Context) error {
+	if ctx == nil {
+		return fmt.Errorf("nil context")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, c.baseURL, nil)
+	if err != nil {
+		return fmt.Errorf("openai chat health: create request: %w", err)
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("openai chat health: %w", err)
+	}
+	resp.Body.Close()
+	return nil
+}
+
 func buildChatURL(base string) (string, error) {
 	parsed, err := url.Parse(base)
 	if err != nil {

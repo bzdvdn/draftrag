@@ -128,6 +128,11 @@ func (c *EmbedderCache) hashKey(text string) string {
 	return hex.EncodeToString(hash[:])
 }
 
+// @sk-task health-check-interface#T3.5: Health на EmbedderCache (RQ-005)
+func (c *EmbedderCache) Health(ctx context.Context) error {
+	return c.embedder.Health(ctx)
+}
+
 // Stats возвращает текущие метрики кэша.
 // @ds-task T2.5: Метод получения статистики (AC-007)
 func (c *EmbedderCache) Stats() Stats {

@@ -20,6 +20,11 @@ type MockEmbedder struct {
 	mock.Mock
 }
 
+func (m *MockEmbedder) Health(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
+}
+
 func (m *MockEmbedder) Embed(ctx context.Context, text string) ([]float64, error) {
 	args := m.Called(ctx, text)
 	if args.Get(0) == nil {
@@ -252,6 +257,32 @@ func TestRetryEmbedder_HooksCalledOnRejection(t *testing.T) {
 	// Должен быть вызов hooks для rejected запроса
 	mockHooks.AssertNumberOfCalls(t, "StageStart", 1)
 	mockHooks.AssertNumberOfCalls(t, "StageEnd", 1)
+}
+
+// @sk-test health-check-interface#T4.1: RetryEmbedder.Health delegates (AC-008)
+func TestRetryEmbedder_Health_Delegates(t *testing.T) {
+	mockEmb := new(MockEmbedder)
+	mockEmb.On("Health", mock.Anything).Return(nil).Once()
+
+	retryEmb := NewRetryEmbedder(mockEmb, nil, nil, nil, nil)
+
+	err := retryEmb.Health(context.Background())
+	assert.NoError(t, err)
+	mockEmb.AssertExpectations(t)
+}
+
+// @sk-test health-check-interface#T4.1: RetryEmbedder.Health CB open → error (AC-009)
+func TestRetryEmbedder_Health_CBOpen(t *testing.T) {
+	mockEmb := new(MockEmbedder)
+	cbConfig := &CircuitBreakerConfig{Threshold: 1, Timeout: time.Hour}
+	retryEmb := NewRetryEmbedder(mockEmb, nil, cbConfig, nil, nil)
+
+	retryEmb.circuitBreaker.RecordFailure()
+
+	err := retryEmb.Health(context.Background())
+	assert.ErrorIs(t, err, ErrCircuitOpen)
+	// inner embedder не вызывается при CB open
+	mockEmb.AssertNotCalled(t, "Health")
 }
 
 func TestRetryEmbedder_CircuitBreakerState(t *testing.T) {

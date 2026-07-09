@@ -12,6 +12,7 @@ type fixedSearchStore2 struct {
 	result domain.RetrievalResult
 }
 
+func (fixedSearchStore2) Health(_ context.Context) error { return nil }
 func (fixedSearchStore2) Upsert(_ context.Context, _ domain.Chunk) error { return nil }
 func (fixedSearchStore2) Delete(_ context.Context, _ string) error       { return nil }
 func (s fixedSearchStore2) Search(_ context.Context, _ []float64, _ int) (domain.RetrievalResult, error) {
@@ -20,12 +21,14 @@ func (s fixedSearchStore2) Search(_ context.Context, _ []float64, _ int) (domain
 
 type fixedEmbedder2 struct{}
 
+func (fixedEmbedder2) Health(_ context.Context) error { return nil }
 func (fixedEmbedder2) Embed(_ context.Context, _ string) ([]float64, error) {
 	return []float64{1}, nil
 }
 
 type okLLM2 struct{}
 
+func (okLLM2) Health(_ context.Context) error { return nil }
 func (okLLM2) Generate(_ context.Context, _, _ string) (string, error) {
 	return "ok", nil
 }
@@ -34,6 +37,7 @@ type errLLM struct {
 	err error
 }
 
+func (l errLLM) Health(_ context.Context) error { return nil }
 func (l errLLM) Generate(_ context.Context, _, _ string) (string, error) {
 	return "", l.err
 }

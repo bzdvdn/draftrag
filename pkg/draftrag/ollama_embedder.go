@@ -54,6 +54,11 @@ func (e *ollamaEmbedder) Embed(ctx context.Context, text string) ([]float64, err
 	)
 }
 
+// @sk-task health-check-interface#T3.5: Health на ollamaEmbedder (RQ-005)
+func (e *ollamaEmbedder) Health(ctx context.Context) error {
+	return e.impl.Health(ctx)
+}
+
 func validateOllamaEmbedderOptions(opts OllamaEmbedderOptions) error {
 	if strings.TrimSpace(opts.Model) == "" {
 		return fmt.Errorf("%w: Model is empty", ErrInvalidEmbedderConfig)

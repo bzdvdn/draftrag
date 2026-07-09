@@ -99,6 +99,11 @@ func (c *CachedEmbedder) Embed(ctx context.Context, text string) ([]float64, err
 	return c.impl.Embed(ctx, text)
 }
 
+// @sk-task health-check-interface#T3.5: Health на CachedEmbedder (RQ-005)
+func (c *CachedEmbedder) Health(ctx context.Context) error {
+	return c.impl.Health(ctx)
+}
+
 // Stats возвращает текущую статистику кэша (попадания, промахи, вытеснения).
 func (c *CachedEmbedder) Stats() EmbedCacheStats {
 	return c.impl.Stats()

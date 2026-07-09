@@ -16,6 +16,7 @@ var _ Embedder = NewOpenAICompatibleEmbedder(OpenAICompatibleEmbedderOptions{})
 
 type testLLMProvider struct{}
 
+func (testLLMProvider) Health(_ context.Context) error { return nil }
 func (testLLMProvider) Generate(ctx context.Context, _, _ string) (string, error) {
 	if ctx == nil {
 		panic("nil context")

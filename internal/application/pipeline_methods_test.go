@@ -12,6 +12,7 @@ import (
 
 type errorVectorStore struct{}
 
+func (m *errorVectorStore) Health(_ context.Context) error { return nil }
 func (m *errorVectorStore) Upsert(_ context.Context, _ domain.Chunk) error {
 	return errors.New("upsert failed")
 }
@@ -26,12 +27,14 @@ func (m *errorVectorStore) Search(_ context.Context, _ []float64, _ int) (domain
 
 type errorLLMProvider struct{}
 
+func (m *errorLLMProvider) Health(_ context.Context) error { return nil }
 func (m *errorLLMProvider) Generate(_ context.Context, _, _ string) (string, error) {
 	return "", errors.New("generate failed")
 }
 
 type errorEmbedder struct{}
 
+func (m *errorEmbedder) Health(_ context.Context) error { return nil }
 func (m *errorEmbedder) Embed(_ context.Context, _ string) ([]float64, error) {
 	return nil, errors.New("embed failed")
 }

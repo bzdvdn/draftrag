@@ -563,3 +563,26 @@ func (s *MilvusStore) SearchHybridWithMetadataFilter(ctx context.Context, query 
 
 	return parseMilvusHybridSearchData(data)
 }
+
+// @sk-task health-check-interface#T3.1: Health на MilvusStore (RQ-004)
+func (s *MilvusStore) Health(ctx context.Context) error {
+	if ctx == nil {
+		return fmt.Errorf("nil context")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s.baseURL+"/v1/health", nil)
+	if err != nil {
+		return fmt.Errorf("milvus health: create request: %w", err)
+	}
+	if s.token != "" {
+		req.Header.Set("Authorization", "Bearer "+s.token)
+	}
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("milvus health: %w", err)
+	}
+	resp.Body.Close()
+	return nil
+}

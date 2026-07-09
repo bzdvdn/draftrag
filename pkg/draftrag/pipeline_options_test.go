@@ -14,6 +14,7 @@ type topKStore struct {
 	gotTopK int
 }
 
+func (s *topKStore) Health(_ context.Context) error { return nil }
 func (s *topKStore) Upsert(_ context.Context, _ domain.Chunk) error { return nil }
 func (s *topKStore) Delete(_ context.Context, _ string) error       { return nil }
 func (s *topKStore) Search(_ context.Context, _ []float64, topK int) (domain.RetrievalResult, error) {
@@ -23,12 +24,14 @@ func (s *topKStore) Search(_ context.Context, _ []float64, topK int) (domain.Ret
 
 type okEmbedder struct{}
 
+func (okEmbedder) Health(_ context.Context) error { return nil }
 func (okEmbedder) Embed(_ context.Context, _ string) ([]float64, error) {
 	return []float64{1, 2}, nil
 }
 
 type okLLM struct{}
 
+func (okLLM) Health(_ context.Context) error { return nil }
 func (okLLM) Generate(_ context.Context, _, _ string) (string, error) {
 	return "ok", nil
 }

@@ -12,6 +12,7 @@ type captureLLM struct {
 	systemPrompt string
 }
 
+func (l *captureLLM) Health(_ context.Context) error { return nil }
 func (l *captureLLM) Generate(_ context.Context, systemPrompt, _ string) (string, error) {
 	l.systemPrompt = systemPrompt
 	return "ok", nil

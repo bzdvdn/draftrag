@@ -144,6 +144,17 @@ func (r *RetryEmbedder) recordEvent(ctx context.Context, operation string, attem
 	recordHookEvent(ctx, r.hooks, domain.HookStageEmbed, operation, attempt, err, rejected)
 }
 
+// @sk-task health-check-interface#T3.4: Health на RetryEmbedder (AC-008, AC-009, RQ-007, RQ-008)
+func (r *RetryEmbedder) Health(ctx context.Context) error {
+	if ctx == nil {
+		return fmt.Errorf("nil context")
+	}
+	if err := r.circuitBreaker.CanExecute(); err != nil {
+		return err
+	}
+	return r.embedder.Health(ctx)
+}
+
 // CircuitBreakerState возвращает текущее состояние circuit breaker.
 func (r *RetryEmbedder) CircuitBreakerState() CircuitState {
 	return r.circuitBreaker.State()

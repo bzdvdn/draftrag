@@ -15,6 +15,8 @@ type assertLLMInline struct {
 	answer       string
 }
 
+func (l assertLLMInline) Health(_ context.Context) error { return nil }
+
 func (l assertLLMInline) Generate(_ context.Context, _, userMessage string) (string, error) {
 	l.t.Helper()
 
