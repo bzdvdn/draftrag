@@ -1,140 +1,143 @@
 # ROADMAP — draftRAG
 
-Дата последнего обновления: 2026-04-09
+Spec-driven roadmap. Каждая фича = spec slug в `docs/specs-archive/<slug>/` (✅) или будущий spec (📋).
+
+## Workflow
+
+```
+/spk.spec <slug>     → spec.md
+/spk.plan            → plan.md + tasks.md
+/spk.implement       → implementation
+/spk.verify          → verify report
+speckeep archive     → docs/specs-archive/<slug>/<date>/
+```
 
 ---
 
-## Реализовано ✅
+## Core Pipeline
 
-<!-- @sk-task docs-and-examples#T3.7: entry in Реализовано ✅ таблица (AC-013) -->
-<!-- @sk-task api-consistency-pass#T3.5: docs sync — Weaviate/Milvus moved to Реализовано ✅ (DEC-008, RQ-008, AC-015) -->
-
-| Фича | Статус | Примечание |
+| Фича | Spec-ы | Статус |
 |---|---|---|
-| Core interfaces (VectorStore, LLMProvider, Embedder, Chunker) | ✅ | Clean Architecture |
-| In-memory vector store | ✅ | Для тестов и прототипов |
-| pgvector (PostgreSQL) vector store | ✅ | Полная поддержка: фильтры, миграции, гибридный поиск |
-| Qdrant vector store | ✅ | REST API, payload-фильтры, управление коллекциями |
-| ChromaDB vector store | ✅ | Базовая поддержка (без гибридного поиска) |
-| OpenAI-compatible embedder | ✅ | Все модели embeddings |
-| Ollama embedder | ✅ | Локальные embedding-модели |
-| Cached embedder (LRU) | ✅ | Кэширование по хэшу текста |
-| OpenAI-compatible LLM | ✅ | Responses API, streaming |
-| Anthropic Claude LLM | ✅ | Нативный Messages API, streaming |
-| Ollama LLM | ✅ | Локальные LLM |
-| Basic rune chunker | ✅ | С настраиваемым overlap |
-| Pipeline: index, query, answer | ✅ | IndexBatch с обработкой ошибок |
-| Answer с citations и inline citations `[1]` | ✅ | Полная поддержка |
-| Streaming ответов | ✅ | `AnswerStream`, `AnswerStreamWithInlineCitations` |
-| Metadata filtering | ✅ | `MetadataFilter` во всех хранилищах |
-| Hybrid search (BM25 + semantic) | ✅ | Только pgvector (через `tsvector`) |
-| HyDE (Hypothetical Document Embeddings) | ✅ | `Search().HyDE().Answer()` |
-| Multi-query retrieval | ✅ | Несколько перефраз с объединением |
-| Deduplication по ParentID | ✅ | Автоматическая |
-| MMR reranking | ✅ | Диверсификация контекста |
-| Retry + Circuit Breaker | ✅ | `RetryEmbedder`, `RetryLLMProvider` |
-| Observability hooks | ✅ | Метрики всех стадий |
-| Eval harness (Hit@K, MRR) | ✅ | Базовые метрики retrieval |
-| pgvector migrations | ✅ | Версионированные миграции |
-| Weaviate vector store | ✅ | Basic retrieval, фильтры, управление коллекциями; ⚠️ hybrid search не поддерживается (status: experimental) |
-| Milvus vector store | ✅ | High-performance distributed; basic retrieval, фильтры; ⚠️ hybrid search не поддерживается (public API в разработке) |
-| Обширные examples + tutorials (docs-and-examples) | ✅ | 6 backend'ов × Docker Compose, 10 tutorials в `docs/tutorials/ru/`, CI smoke matrix |
+| Pipeline config & constructors | `pipeline-config`, `public-api-options-unification` | ✅ |
+| Index (single + batch + chunker) | `pipeline-index-with-chunker`, `batch-indexing` | ✅ |
+| Query, Answer, Citations, Streaming | `pipeline-answer`, `answer-with-citations`, `answer-inline-citations`, `streaming-responses`, `fix-inline` | ✅ |
+| Fluent SearchBuilder API | `fluent-search-api`, `search-builder-routing-fix`, `search-builder-stream-sources` | ✅ |
+| Document lifecycle (update, delete, atomic) | `document-lifecycle` | ✅ |
 
----
+## Vector Stores
 
-## Приоритет 1 — Следующий этап
-
-### ChromaDB: управление коллекциями ✅
-ChromaDB теперь поддерживает полный набор функций управления коллекциями:
-- ✅ Миграции: `CreateCollection`, `DeleteCollection`, `CollectionExists`
-- ✅ Консистентный API с другими хранилищами (переименование функций)
-
-**Ограничение:** Гибридный поиск (BM25) **не поддерживается** — ChromaDB не имеет нативной реализации BM25. Используйте pgvector или Qdrant для гибридного поиска.
-
----
-
-### Eval harness: расширенные метрики
-Текущий eval harness измеряет только retrieval (Hit@K, MRR). Для production нужны метрики качества генерации.
-
-**Что нужно:**
-- Faithfulness: соответствует ли ответ источникам
-- Context relevance: насколько извлечённый контекст релевантен вопросу
-- Answer relevance: насколько ответ релевантен вопросу (RAGAS-style)
-- A/B сравнение конфигураций pipeline
-
----
-
-### Документация и примеры ✅
-Структурированная документация и рабочие примеры реализованы.
-
-**Выполнено:**
-- `docs/` с полным покрытием: getting-started, concepts, pipeline-api, stores, embedders, llm, chunking, advanced, production, compatibility
-- `examples/` с рабочим кодом: chat-cli, index-directory, pgvector-docker, qdrant-quickstart
-
----
-
-## Приоритет 2 — Среднесрочно
-
-### Query rewriting
-Переформулировка вопроса через LLM перед поиском. HyDE уже реализован, но нет явного query rewriting.
-
-**Что нужно:**
-- `Search().Rewrite(prompt).Answer()` — явное переформулирование
-- Интеграция с Multi-query: переписанный запрос → несколько вариантов
-
----
-
-### Additional vector stores
-
-**Pinecone** — managed vector DB (требует API key, ограничения бесплатного tier)
-
----
-
-### Embedder cache: Redis backend
-Текущий `CachedEmbedder` использует только in-memory LRU. Для горизонтального масштабирования нужен Redis.
-
-**Что нужно:**
-- Интерфейс `CacheBackend` (in-memory / Redis)
-- Redis implementation с TTL
-- Сериализация векторов (msgpack)
-
----
-
-## Приоритет 3 — Долгосрочно / Исследования
-
-### Advanced RAG techniques
-
-| Техника | Описание | Статус |
+| Фича | Spec-ы | Статус |
 |---|---|---|
-| Re-ranking (cross-encoder) | Переранжирование через Cohere Rerank или локальный cross-encoder | Интерфейс есть, реализаций нет |
-| Contextual chunking | Чанкинг с учётом контекста документа (не просто по размеру) | Исследовать |
-| Hierarchical indices | Два уровня: parent document + chunks | Исследовать |
-| Sub-query decomposition | Разбиение сложных вопросов на под-вопросы | Исследовать |
+| In-memory | `core-components` | ✅ |
+| pgvector (full: filters, migrations, hybrid, production) | `vectorstore-pgvector`, `vectorstore-pgvector-migrations`, `vectorstore-pgvector-dimension-guard`, `vectorstore-pgvector-production` | ✅ |
+| Qdrant (+ hybrid search) | `qdrant-vector-store`, `qdrant-hybrid-search` | ✅ |
+| ChromaDB (collections, миграции, parity) | `chromadb-vector-store`, `chromadb-collection-management`, `chromadb-migrations`, `chromadb-parity` | ✅ |
+| Weaviate (basic + docs) | `vectorstore-weaviate`, `weaviate-docs`, `weaviate-full-support`, `weaviate-hybrid-search` | ✅ experimental |
+| Milvus (basic + hybrid research) | `milvus-vectorstore`, `milvus-hybrid-search` | ✅ experimental |
+
+## LLM Providers
+
+| Фича | Spec-ы | Статус |
+|---|---|---|
+| OpenAI-compatible (Responses API) | `llm-openai-compatible` | ✅ |
+| Anthropic Claude (native Messages API) | `anthropic-claude-llm` | ✅ |
+| Ollama (streaming + non-streaming) | `ollama-llm-embedder`, `ollama-llm-no-streaming` | ✅ |
+| Mistral, DeepSeek | `llm-providers-mistral-deepseek` | ✅ |
+
+## Embedders
+
+| Фича | Spec-ы | Статус |
+|---|---|---|
+| OpenAI-compatible | `embedder-openai-compatible` | ✅ |
+| Ollama | `ollama-llm-embedder` | ✅ |
+| Cached embedder (LRU + Redis L2) | `embedding-cache`, `cached-embedder-public`, `redis-cache-backend` | ✅ |
+
+## Retrieval Strategies
+
+| Фича | Spec-ы | Статус |
+|---|---|---|
+| Hybrid search (BM25 + semantic) | `hybrid-search-bm25-semantic` | ✅ pgvector only |
+| Metadata filtering | `metadata-filtering` | ✅ all stores |
+| HyDE, Multi-query | `retrieval-strategies` | ✅ |
+| MMR reranking | `retrieval-reranker-mmr` | ✅ |
+| Deduplication by ParentID | `retrieval-deduplication` | ✅ |
+| Reranker interface | — (interface defined, **zero implementations**) | 🚧 |
+
+## Resilience
+
+| Фича | Spec-ы | Статус |
+|---|---|---|
+| Retry + Circuit Breaker | `retry-circuit-breaker`, `resilience-public-api` | ✅ |
+
+## Observability
+
+| Фича | Spec-ы | Статус |
+|---|---|---|
+| OTel tracing + metrics | `otel-observability`, `observability-hooks` | ✅ |
+| Structured logger + slog adapter | `structured-logger-hooks`, `slog-otel-adapters` | ✅ |
+| **Health check интерфейс** | — | 📋 |
+
+## Eval / Testing
+
+| Фича | Spec-ы | Статус |
+|---|---|---|
+| Retrieval metrics (Hit@K, MRR, NDCG) | `eval-harness-basic`, `eval-harness-retrieval-only` | ✅ |
+| Contract tests for stores | `contract-tests-stores` | ✅ |
+| Fuzz + property tests | `fuzz-property-tests` | ✅ |
+| E2E benchmarks | `pipeline-e2e-benchmarks` | ✅ |
+
+## Cross-cutting / Quality
+
+| Фича | Spec-ы | Статус |
+|---|---|---|
+| Arch quality pass + generics refactor | `arch-quality-pass`, `arch-generics`, `searchbuilder-generics` | ✅ |
+| API consistency pass | `api-consistency-pass` | ✅ |
+| Security (redaction) | `security-redaction` | ✅ |
+| Hardening 2026Q2 | `hardening-2026q2`, `go-version-target`, `production-checklist-runbook`, `compatibility-support-policy`, `api-resilience-fixes` | ✅ |
+| Docs (bilingual: en + ru) | `docs-and-examples` | ✅ |
+| Public examples (6 backends) | `public-examples` | ✅ |
 
 ---
 
-### Production ops
+## Backlog — Specs к созданию
 
-- **Health checks**: endpoint для проверки состояния хранилищ и LLM
-- **Metrics export**: Prometheus/OpenTelemetry интеграция
-- **Graceful degradation**: fallback на меньшие модели при недоступности основных
-- **Cost tracking**: подсчёт токенов/запросов для LLM API
+Приоритет: P0 → P1 → P2. Каждый item — будущий `/spk.spec <slug>`.
+
+### P0 — Production blockers
+
+| Spec slug | Зачем |
+|---|---|
+| `reranker-cross-encoder` | Cohere Rerank или локальный cross-encoder. Интерфейс есть, impl нет — biggest quality gap |
+| `health-check-interface` | `Health() error` на store/LLM/embedder. K8s probes |
+| `cost-tracking` | Счётчик токенов + $ на LLM-вызовах. Без этого — финансовый риск |
+| `graceful-degradation` | Chain fallback: `Primary → Secondary → Local`. При outage LLM — не полный отказ |
+| `rate-limiting-llm` | Клиентский rate limiter для LLM API (token bucket). Предотвратить 429 |
+
+### P1 — Quality & maturity
+
+| Spec slug | Зачем |
+|---|---|
+| `query-rewriting` | `Search().Rewrite(prompt).Answer()` — LLM-переформулировка перед поиском |
+| `reranker-llm-based` | LLM-as-judge reranker (zero-shot, без fine-tune) |
+| `eval-faithfulness` | Faithfulness / answer relevance / context relevance (RAGAS-style) |
+| `config-management` | Единый config struct + YAML/env binding |
+| `chunker-semantic` | Sentence + semantic chunking (не только rune-based) |
+| `pii-guardrails` | PII detection + redaction на входе/выходе pipeline |
+
+### P2 — Ecosystem & advanced RAG
+
+| Spec slug | Зачем |
+|---|---|
+| `pinecone-vectorstore` | Managed Pinecone для enterprise |
+| `sub-query-decomposition` | Разбиение сложного вопроса → под-вопросы → merge |
+| `hierarchical-indices` | Parent document → chunks, two-level search |
+| `contextual-chunking` | Чанкинг с учётом контекста документа |
+| `middleware-chain` | Плагинная система между стадиями pipeline (PII filter, guardrails, logging) |
+| `cjk-tokenization` | Поддержка CJK в чанкере |
 
 ---
 
-### Многоязычность
-
-- Токенизация для non-Unicode языков
-- Поддержка CJK в чанкере
-- Локализация prompt'ов
-
----
-
----
-
-## Легенда
-
-- ✅ Реализовано и протестировано
-- 🚧 В разработке / частично
-- 📋 Запланировано
-- ❌ Не планируется (или требует обсуждения)
+**Legend**:
+- ✅ — spec archived, feature complete
+- 🚧 — spec created, in progress
+- 📋 — backlog, `/spk.spec <slug>` to start
