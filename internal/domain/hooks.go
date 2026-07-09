@@ -17,6 +17,9 @@ const (
 	HookStageSearch HookStage = "search"
 	// HookStageGenerate — генерация ответа LLM.
 	HookStageGenerate HookStage = "generate"
+	// HookStageRateLimit — ожидание rate limiter'а (token bucket).
+	// @sk-task rate-limiting-llm#T0.1: HookStageRateLimit (AC-001, RQ-007)
+	HookStageRateLimit HookStage = "rate_limit"
 )
 
 // StageStartEvent — событие начала стадии pipeline.
