@@ -69,10 +69,10 @@ func (p *openAICompatibleLLM) Generate(ctx context.Context, systemPrompt, userMe
 	)
 }
 
-// GenerateStream генерирует ответ токен за токеном через streaming (OpenAI Responses API).
+// @sk-task arch-generics#T4.1: nil context guard вместо panic (AC-002)
 func (p *openAICompatibleLLM) GenerateStream(ctx context.Context, systemPrompt, userMessage string) (<-chan string, error) {
-	if ctx == nil {
-		panic("nil context")
+	if err := checkCtx(ctx); err != nil {
+		return nil, err
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err

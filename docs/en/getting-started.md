@@ -1,20 +1,20 @@
-# Начало работы
+# Getting Started
 
-## Установка
+## Installation
 
 ```bash
 go get github.com/bzdvdn/draftrag
 ```
 
-Для pgvector:
+For pgvector:
 
 ```bash
 go get github.com/jackc/pgx/v5
 ```
 
-Минимальная версия Go: **1.23**.
+Minimum Go version: **1.23**.
 
-## Минимальный пример
+## Minimal Example
 
 ```go
 import "github.com/bzdvdn/draftrag/pkg/draftrag"
@@ -30,32 +30,38 @@ llm := draftrag.NewOpenAICompatibleLLM(draftrag.OpenAICompatibleLLMOptions{
     Model:   "gpt-4o-mini",
 })
 
-pipeline := draftrag.NewPipeline(draftrag.NewInMemoryStore(), llm, embedder)
+pipeline, err := draftrag.NewPipeline(draftrag.NewInMemoryStore(), llm, embedder)
+if err != nil {
+    log.Fatal(err)
+}
 
 pipeline.Index(ctx, []draftrag.Document{
     {ID: "doc1", Content: "..."},
 })
 
-answer, err := pipeline.Answer(ctx, "Вопрос?")
+answer, err := pipeline.Answer(ctx, "Question?")
 ```
 
-## Типичные конфигурации
+## Typical Configurations
 
-### С чанкингом
+### With Chunking
 
-По умолчанию `Index` индексирует каждый документ как один чанк. Для автоматического разбиения — передайте `Chunker` в опциях:
+By default `Index` indexes each document as a single chunk. For automatic splitting — pass a `Chunker` in options:
 
 ```go
-pipeline := draftrag.NewPipelineWithOptions(store, llm, embedder, draftrag.PipelineOptions{
+pipeline, err := draftrag.NewPipelineWithOptions(store, llm, embedder, draftrag.PipelineOptions{
     DefaultTopK: 5,
     Chunker: draftrag.NewBasicChunker(draftrag.BasicChunkerOptions{
-        ChunkSize: 500,  // рун
+        ChunkSize: 500,  // runes
         Overlap:   60,
     }),
 })
+if err != nil {
+    log.Fatal(err)
+}
 ```
 
-### С pgvector
+### With pgvector
 
 ```go
 import (
@@ -65,7 +71,7 @@ import (
 
 db, _ := sql.Open("pgx", "postgres://user:pass@localhost/mydb?sslmode=disable")
 
-// Создать схему (идемпотентно)
+// Create schema (idempotent)
 draftrag.MigratePGVector(ctx, db, draftrag.PGVectorMigrateOptions{
     PGVectorOptions: draftrag.PGVectorOptions{
         TableName:          "rag_chunks",
@@ -80,7 +86,7 @@ store := draftrag.NewPGVectorStore(db, draftrag.PGVectorOptions{
 })
 ```
 
-### С Qdrant
+### With Qdrant
 
 ```go
 store, _ := draftrag.NewQdrantStore(draftrag.QdrantOptions{
@@ -88,11 +94,11 @@ store, _ := draftrag.NewQdrantStore(draftrag.QdrantOptions{
     Collection: "my_collection",
     Dimension:  1536,
 })
-// Создать коллекцию заранее:
+// Create collection in advance:
 draftrag.CreateCollection(ctx, draftrag.QdrantOptions{...})
 ```
 
-### С Ollama (локально, без API-ключей)
+### With Ollama (local, no API keys)
 
 ```go
 embedder := draftrag.NewOllamaEmbedder(draftrag.OllamaEmbedderOptions{
@@ -101,10 +107,10 @@ embedder := draftrag.NewOllamaEmbedder(draftrag.OllamaEmbedderOptions{
 llm := draftrag.NewOllamaLLM(draftrag.OllamaLLMOptions{
     Model: "llama3.2",  // ollama pull llama3.2
 })
-// BaseURL по умолчанию: http://localhost:11434
+// Default BaseURL: http://localhost:11434
 ```
 
-### С Anthropic Claude
+### With Anthropic Claude
 
 ```go
 llm := draftrag.NewAnthropicLLM(draftrag.AnthropicLLMOptions{
@@ -114,8 +120,8 @@ llm := draftrag.NewAnthropicLLM(draftrag.AnthropicLLMOptions{
 })
 ```
 
-## Следующие шаги
+## Next Steps
 
-- [Концепции](concepts.md) — понять ключевые абстракции
-- [Pipeline API](pipeline.md) — полный справочник методов
-- [Продвинутые возможности](advanced.md) — streaming, цитаты, hybrid search
+- [Concepts](../en/concepts.md) — understand the key abstractions
+- [Pipeline API](../en/pipeline.md) — full method reference
+- [Advanced Features](../en/advanced.md) — streaming, citations, hybrid search

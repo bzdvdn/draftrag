@@ -134,7 +134,10 @@ func (m *MyLLM) Generate(ctx context.Context, systemPrompt, userMessage string) 
     // ваша реализация
 }
 
-pipeline := draftrag.NewPipeline(store, &MyLLM{}, embedder)
+pipeline, err := draftrag.NewPipeline(store, &MyLLM{}, embedder)
+if err != nil {
+    log.Fatal(err)
+}
 ```
 
 Для streaming дополнительно реализуйте `GenerateStream(ctx, systemPrompt, userMessage) (<-chan string, error)`.

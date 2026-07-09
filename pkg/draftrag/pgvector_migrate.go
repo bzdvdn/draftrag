@@ -30,12 +30,13 @@ type PGVectorMigrateOptions struct {
 //
 // Источник истины DDL — SQL-миграции, встроенные в бинарь через `go:embed`
 // (см. `pkg/draftrag/migrations/pgvector/` и `pkg/draftrag/pgvector_migrations.md`).
+// @sk-task arch-generics#T4.1: nil context guard вместо panic (AC-002)
 func MigratePGVector(ctx context.Context, db *sql.DB, opts PGVectorMigrateOptions) error {
-	if ctx == nil {
-		panic("nil context")
+	if err := checkCtx(ctx); err != nil {
+		return err
 	}
 	if db == nil {
-		panic("nil db")
+		return fmt.Errorf("pgvector: nil db")
 	}
 	if err := ctx.Err(); err != nil {
 		return err

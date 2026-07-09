@@ -88,12 +88,15 @@ ollama pull all-minilm           # 46M, быстрый
 **1. IndexBatch с параллелизмом:**
 
 ```go
-pipeline := draftrag.NewPipelineWithOptions(store, llm, embedder, draftrag.PipelineOptions{
+pipeline, err := draftrag.NewPipelineWithOptions(store, llm, embedder, draftrag.PipelineOptions{
     IndexConcurrency:    8,   // 8 параллельных embed-запросов
     IndexBatchRateLimit: 100, // не более 100 запросов/сек
 })
+if err != nil {
+    log.Fatal(err)
+}
 
-result, err := pipeline.IndexBatch(ctx, docs, 8)
+result, batchErr := pipeline.IndexBatch(ctx, docs, 8)
 ```
 
 **2. Таймауты:**
@@ -117,7 +120,10 @@ embedder := draftrag.NewCachedEmbedder(
     draftrag.CacheOptions{MaxSize: 5000}, // 0 → 1000
 )
 
-pipeline := draftrag.NewPipeline(store, llm, embedder)
+pipeline, err := draftrag.NewPipeline(store, llm, embedder)
+if err != nil {
+    log.Fatal(err)
+}
 ```
 
 ### Структурированное логирование (опционально)

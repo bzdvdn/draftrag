@@ -54,13 +54,16 @@ func TestPGVector_DimensionMismatch_ErrorIs(t *testing.T) {
 	}
 	defer func() { _ = db.Close() }()
 
-	store := NewPGVectorStore(db, PGVectorOptions{
+	store, err := NewPGVectorStore(db, PGVectorOptions{
 		TableName:          "draftrag_chunks",
 		EmbeddingDimension: 3,
 		CreateExtension:    false,
 		IndexMethod:        "ivfflat",
 		Lists:              100,
 	})
+	if err != nil {
+		t.Fatalf("create store: %v", err)
+	}
 
 	ctx := context.Background()
 

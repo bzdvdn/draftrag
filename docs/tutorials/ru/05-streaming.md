@@ -26,7 +26,10 @@ prerequisites:
 ## 2. Базовый streaming
 
 ```go
-pipeline := draftrag.NewPipelineWithChunker(store, llm, embedder, chunker)
+pipeline, err := draftrag.NewPipelineWithChunker(store, llm, embedder, chunker)
+if err != nil {
+    log.Fatal(err)
+}
 
 ch, err := pipeline.Search("Что такое горутина?").
     TopK(3).

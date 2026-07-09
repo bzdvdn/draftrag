@@ -66,7 +66,10 @@ func main() {
 		Timeout: 20 * time.Second,
 	})
 
-	pipeline := draftrag.NewPipeline(store, llm, embedder)
+	pipeline, err := draftrag.NewPipeline(store, llm, embedder)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	indexCtx, cancel := context.WithTimeout(baseCtx, 2*time.Minute)
 	defer cancel()
@@ -337,6 +340,6 @@ curl http://localhost:8080/v1/schema
 
 ## Ссылки
 
-- Политика совместимости и поддержки: `docs/compatibility.md`
-- Обзор хранилищ: `docs/vector-stores.md`
+- Политика совместимости и поддержки: `compatibility.md`
+- Обзор хранилищ: `vector-stores.md`
 

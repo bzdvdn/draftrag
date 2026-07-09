@@ -61,7 +61,10 @@ store := draftrag.NewPGVectorStore(db, draftrag.PGVectorOptions{
 ## 3. Индексируйте начальные документы
 
 ```go
-pipeline := draftrag.NewPipelineWithChunker(store, llm, embedder, chunker)
+pipeline, err := draftrag.NewPipelineWithChunker(store, llm, embedder, chunker)
+if err != nil {
+    log.Fatal(err)
+}
 
 pipeline.Index(ctx, []draftrag.Document{
     {ID: "ug1", Content: "pgvector — это расширение PostgreSQL для векторного поиска."},

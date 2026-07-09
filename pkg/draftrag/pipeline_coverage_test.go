@@ -103,18 +103,17 @@ func TestRetrieve_InvalidTopK(t *testing.T) {
 	}
 }
 
+// @sk-test arch-generics#T4.1: nil context guard вместо panic (AC-002)
 func TestRetrieve_NilContext(t *testing.T) {
 	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic on nil context")
-		}
-	}()
-	//nolint:staticcheck // intentional: testing nil context panic
-	_, _ = p.Retrieve(nil, "q", 5)
+	//nolint:staticcheck // intentional: testing nil context
+	_, err = p.Retrieve(nil, "q", 5)
+	if !errors.Is(err, ErrNilContext) {
+		t.Fatalf("expected ErrNilContext, got %v", err)
+	}
 }
 
 func TestUpdateDocument_Updates(t *testing.T) {
@@ -148,18 +147,17 @@ func TestUpdateDocument_EmptyContent(t *testing.T) {
 	}
 }
 
+// @sk-test arch-generics#T4.1: nil context guard вместо panic (AC-002)
 func TestUpdateDocument_NilContext(t *testing.T) {
 	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic on nil context")
-		}
-	}()
-	//nolint:staticcheck // intentional: testing nil context panic
-	_ = p.UpdateDocument(nil, domain.Document{ID: "d", Content: "x"})
+	//nolint:staticcheck // intentional: testing nil context
+	err = p.UpdateDocument(nil, domain.Document{ID: "d", Content: "x"})
+	if !errors.Is(err, ErrNilContext) {
+		t.Fatalf("expected ErrNilContext, got %v", err)
+	}
 }
 
 func TestDeleteDocument_Deletes(t *testing.T) {
@@ -193,18 +191,17 @@ func TestDeleteDocument_EmptyID(t *testing.T) {
 	}
 }
 
+// @sk-test arch-generics#T4.1: nil context guard вместо panic (AC-002)
 func TestDeleteDocument_NilContext(t *testing.T) {
 	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic on nil context")
-		}
-	}()
-	//nolint:staticcheck // intentional: testing nil context panic
-	_ = p.DeleteDocument(nil, "doc-1")
+	//nolint:staticcheck // intentional: testing nil context
+	err = p.DeleteDocument(nil, "doc-1")
+	if !errors.Is(err, ErrNilContext) {
+		t.Fatalf("expected ErrNilContext, got %v", err)
+	}
 }
 
 func TestDeleteDocument_StoreWithoutCapability(t *testing.T) {
@@ -231,18 +228,17 @@ func TestIndexBatch_EmptyDocument(t *testing.T) {
 	}
 }
 
+// @sk-test arch-generics#T4.1: nil context guard вместо panic (AC-002)
 func TestIndexBatch_NilContext(t *testing.T) {
 	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic on nil context")
-		}
-	}()
-	//nolint:staticcheck // intentional: testing nil context panic
-	_, _ = p.IndexBatch(nil, []domain.Document{{ID: "d", Content: "x"}}, 2)
+	//nolint:staticcheck // intentional: testing nil context
+	_, err = p.IndexBatch(nil, []domain.Document{{ID: "d", Content: "x"}}, 2)
+	if !errors.Is(err, ErrNilContext) {
+		t.Fatalf("expected ErrNilContext, got %v", err)
+	}
 }
 
 func TestSearch_Stream_FilterNotSupported(t *testing.T) {
@@ -452,102 +448,95 @@ func TestNewPipelineWithOptions_ValidZeroConfig(t *testing.T) {
 	}
 }
 
+// @sk-test arch-generics#T4.1: nil context guard вместо panic (AC-002)
 func TestPipeline_NilContext_Index(t *testing.T) {
 	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic")
-		}
-	}()
-	//nolint:staticcheck // intentional: testing nil context panic
-	_ = p.Index(nil, []domain.Document{{ID: "d", Content: "x"}})
+	//nolint:staticcheck // intentional: testing nil context
+	err = p.Index(nil, []domain.Document{{ID: "d", Content: "x"}})
+	if !errors.Is(err, ErrNilContext) {
+		t.Fatalf("expected ErrNilContext, got %v", err)
+	}
 }
 
+// @sk-test arch-generics#T4.1: nil context guard вместо panic (AC-002)
 func TestPipeline_NilContext_Query(t *testing.T) {
 	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic")
-		}
-	}()
-	//nolint:staticcheck // intentional: testing nil context panic
-	_, _ = p.Query(nil, "q")
+	//nolint:staticcheck // intentional: testing nil context
+	_, err = p.Query(nil, "q")
+	if !errors.Is(err, ErrNilContext) {
+		t.Fatalf("expected ErrNilContext, got %v", err)
+	}
 }
 
+// @sk-test arch-generics#T4.1: nil context guard вместо panic (AC-002)
 func TestSearch_NilContext_Cite(t *testing.T) {
 	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic on nil context")
-		}
-	}()
-	//nolint:staticcheck // intentional: testing nil context panic
-	_, _, _ = p.Search("q").TopK(5).Cite(nil)
+	//nolint:staticcheck // intentional: testing nil context
+	_, _, err = p.Search("q").TopK(5).Cite(nil)
+	if !errors.Is(err, ErrNilContext) {
+		t.Fatalf("expected ErrNilContext, got %v", err)
+	}
 }
 
+// @sk-test arch-generics#T4.1: nil context guard вместо panic (AC-002)
 func TestSearch_NilContext_InlineCite(t *testing.T) {
 	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic on nil context")
-		}
-	}()
-	//nolint:staticcheck // intentional: testing nil context panic
-	_, _, _, _ = p.Search("q").TopK(5).InlineCite(nil)
+	//nolint:staticcheck // intentional: testing nil context
+	_, _, _, err = p.Search("q").TopK(5).InlineCite(nil)
+	if !errors.Is(err, ErrNilContext) {
+		t.Fatalf("expected ErrNilContext, got %v", err)
+	}
 }
 
+// @sk-test arch-generics#T4.1: nil context guard вместо panic (AC-002)
 func TestSearch_NilContext_Stream(t *testing.T) {
 	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic on nil context")
-		}
-	}()
-	//nolint:staticcheck // intentional: testing nil context panic
-	_, _ = p.Search("q").TopK(5).Stream(nil)
+	//nolint:staticcheck // intentional: testing nil context
+	_, err = p.Search("q").TopK(5).Stream(nil)
+	if !errors.Is(err, ErrNilContext) {
+		t.Fatalf("expected ErrNilContext, got %v", err)
+	}
 }
 
+// @sk-test arch-generics#T4.1: nil context guard вместо panic (AC-002)
 func TestSearch_NilContext_StreamSources(t *testing.T) {
 	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic on nil context")
-		}
-	}()
-	//nolint:staticcheck // intentional: testing nil context panic
-	_, _, _ = p.Search("q").TopK(5).StreamSources(nil)
+	//nolint:staticcheck // intentional: testing nil context
+	_, _, err = p.Search("q").TopK(5).StreamSources(nil)
+	if !errors.Is(err, ErrNilContext) {
+		t.Fatalf("expected ErrNilContext, got %v", err)
+	}
 }
 
+// @sk-test arch-generics#T4.1: nil context guard вместо panic (AC-002)
 func TestSearch_NilContext_StreamCite(t *testing.T) {
 	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic on nil context")
-		}
-	}()
-	//nolint:staticcheck // intentional: testing nil context panic
-	_, _, _, _ = p.Search("q").TopK(5).StreamCite(nil)
+	//nolint:staticcheck // intentional: testing nil context
+	_, _, _, err = p.Search("q").TopK(5).StreamCite(nil)
+	if !errors.Is(err, ErrNilContext) {
+		t.Fatalf("expected ErrNilContext, got %v", err)
+	}
 }
 
 func TestSearch_Answer_WithResults(t *testing.T) {
@@ -655,18 +644,17 @@ func TestSearch_Cite_WithResults(t *testing.T) {
 	}
 }
 
+// @sk-test arch-generics#T4.1: nil context guard вместо panic (AC-002)
 func TestPipeline_NilContext_Answer(t *testing.T) {
 	p, err := NewPipeline(vectorstore.NewInMemoryStore(), testLLM{}, testEmbedder{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic")
-		}
-	}()
-	//nolint:staticcheck // intentional: testing nil context panic
-	_, _ = p.Answer(nil, "q")
+	//nolint:staticcheck // intentional: testing nil context
+	_, err = p.Answer(nil, "q")
+	if !errors.Is(err, ErrNilContext) {
+		t.Fatalf("expected ErrNilContext, got %v", err)
+	}
 }
 
 // @sk-test hardening-2026q2#AC-007: IndexBatch happy path

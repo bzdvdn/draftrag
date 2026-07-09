@@ -43,7 +43,10 @@ cases := []eval.Case{
 ## 2. Запустите оценку
 
 ```go
-pipeline := draftrag.NewPipelineWithChunker(store, llm, embedder, chunker)
+pipeline, err := draftrag.NewPipelineWithChunker(store, llm, embedder, chunker)
+if err != nil {
+    log.Fatal(err)
+}
 pipeline.Index(ctx, docs)
 
 report, err := eval.Run(ctx, pipeline, cases, eval.Options{

@@ -1,6 +1,7 @@
 package draftrag
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -49,7 +50,20 @@ var (
 	// ErrInvalidVectorStoreConfig возвращается при невалидной конфигурации VectorStore.
 	// Ошибка предназначена для проверок через errors.Is.
 	ErrInvalidVectorStoreConfig = errors.New("invalid vector store config")
+
+	// ErrNilContext возвращается, если публичный метод вызван с nil context.
+	//
+	// @sk-task arch-generics#T1.1: sentinel для nil context guard (AC-002)
+	ErrNilContext = errors.New("nil context")
 )
+
+// @sk-task arch-generics#T1.1: nil context guard helper (AC-002)
+func checkCtx(ctx context.Context) error {
+	if ctx == nil {
+		return ErrNilContext
+	}
+	return nil
+}
 
 func validateOptions(baseURL, apiKey, model string, timeout time.Duration, configErr error) error {
 	if strings.TrimSpace(apiKey) == "" {

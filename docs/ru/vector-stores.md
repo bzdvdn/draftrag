@@ -151,7 +151,7 @@ docker run -d -p 6333:6333 qdrant/qdrant
 
 Weaviate-backed store через публичный API `pkg/draftrag`.
 
-Статус: **experimental** (см. `docs/compatibility.md`). Подробная инструкция и troubleshooting: `docs/weaviate.md`.
+Статус: **experimental** (см. `compatibility.md`). Подробная инструкция и troubleshooting: `weaviate.md`.
 
 ```go
 opts := draftrag.WeaviateOptions{
@@ -210,7 +210,7 @@ docker run -d -p 8000:8000 chromadb/chroma
 
 **Статус**: ⚠️ public API в разработке (`pkg/draftrag.NewMilvusStore` пока отсутствует, см. `internal/infrastructure/vectorstore/milvus.go`).
 
-Подробная инструкция и troubleshooting: `docs/milvus.md` (планируется).
+Подробная инструкция и troubleshooting: `milvus.md` (планируется).
 
 ```go
 // Внутренний API (не рекомендуется к прямому использованию):
@@ -267,6 +267,6 @@ docker run -d -p 19530:19530 -p 9091:9091 milvusdb/milvus:latest
 | pgvector | production-ready |
 | Qdrant | production-ready |
 | ChromaDB | production-ready |
-| Weaviate | ⚠️ experimental (см. `docs/compatibility.md` и `docs/weaviate.md`) |
+| Weaviate | ⚠️ experimental (см. `compatibility.md` и `weaviate.md`) |
 | Milvus | ⚠️ public API в разработке (см. `internal/infrastructure/vectorstore/milvus.go`) |
 

@@ -54,8 +54,11 @@ store, err := draftrag.NewQdrantStore(opts)
 llm := draftrag.NewOllamaLLM(draftrag.OllamaLLMOptions{Model: "llama3.2"})
 embedder := draftrag.NewOllamaEmbedder(draftrag.OllamaEmbedderOptions{Model: "nomic-embed-text"})
 
-pipeline := draftrag.NewPipelineWithChunker(store, llm, embedder,
+pipeline, err := draftrag.NewPipelineWithChunker(store, llm, embedder,
     draftrag.NewBasicChunker(draftrag.BasicChunkerOptions{ChunkSize: 1000, Overlap: 100}))
+if err != nil {
+    log.Fatal(err)
+}
 
 pipeline.Index(ctx, []draftrag.Document{
     {ID: "q1", Content: "Qdrant supports metadata filtering and pagination."},

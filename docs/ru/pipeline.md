@@ -5,7 +5,7 @@
 ### NewPipeline
 
 ```go
-func NewPipeline(store VectorStore, llm LLMProvider, embedder Embedder) *Pipeline
+func NewPipeline(store VectorStore, llm LLMProvider, embedder Embedder) (*Pipeline, error)
 ```
 
 Минимальная конфигурация: `DefaultTopK = 5`, без чанкинга (1 документ = 1 чанк).
@@ -13,20 +13,20 @@ func NewPipeline(store VectorStore, llm LLMProvider, embedder Embedder) *Pipelin
 ### NewPipelineWithChunker
 
 ```go
-func NewPipelineWithChunker(store VectorStore, llm LLMProvider, embedder Embedder, chunker Chunker) *Pipeline
+func NewPipelineWithChunker(store VectorStore, llm LLMProvider, embedder Embedder, chunker Chunker) (*Pipeline, error)
 ```
 
 ### NewPipelineWithOptions
 
 ```go
-func NewPipelineWithOptions(store VectorStore, llm LLMProvider, embedder Embedder, opts PipelineOptions) *Pipeline
+func NewPipelineWithOptions(store VectorStore, llm LLMProvider, embedder Embedder, opts PipelineOptions) (*Pipeline, error)
 ```
 
 ## PipelineOptions
 
 ```go
 type PipelineOptions struct {
-    // DefaultTopK — количество чанков для поиска по умолчанию. 0 → 5. <0 → panic.
+    // DefaultTopK — количество чанков для поиска по умолчанию. 0 → 5. <0 → error.
     DefaultTopK int
 
     // SystemPrompt — переопределение системного промпта для Answer*.
@@ -44,8 +44,8 @@ type PipelineOptions struct {
     // MaxContextChunks — лимит количества чанков в контексте. 0 → без лимита.
     MaxContextChunks int
 
-    // DedupSourcesByParentID — дедупликация чанков по ParentID в RetrievalResult.
-    DedupSourcesByParentID bool
+    // DedupByParentID — дедупликация чанков по ParentID в RetrievalResult.
+    DedupByParentID bool
 
     // MMREnabled — включить MMR reranking (диверсификация контекста).
     MMREnabled bool

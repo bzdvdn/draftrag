@@ -121,12 +121,15 @@ answer, err := pipeline.Search("вопрос").TopK(5).Hybrid(config).Answer(ctx
 Maximal Marginal Relevance — выбирает разнообразные источники, балансируя релевантность и новизну информации:
 
 ```go
-pipeline := draftrag.NewPipelineWithOptions(store, llm, embedder, draftrag.PipelineOptions{
+pipeline, err := draftrag.NewPipelineWithOptions(store, llm, embedder, draftrag.PipelineOptions{
     MMREnabled:       true,
     MMRLambda:        0.6,   // 0 = только разнообразие, 1 = только релевантность
     MMRCandidatePool: 20,    // запросить 20 кандидатов, выбрать topK через MMR
     DefaultTopK:      5,
 })
+if err != nil {
+    log.Fatal(err)
+}
 ```
 
 При `MMRCandidatePool > 0` pipeline запрашивает `MMRCandidatePool` чанков из store и затем отбирает `topK` через MMR.
@@ -138,10 +141,13 @@ pipeline := draftrag.NewPipelineWithOptions(store, llm, embedder, draftrag.Pipel
 Убирает несколько чанков из одного документа, оставляя самый релевантный:
 
 ```go
-pipeline := draftrag.NewPipelineWithOptions(store, llm, embedder, draftrag.PipelineOptions{
-    DedupSourcesByParentID: true,
-    DefaultTopK:            10, // запросить больше, часть уберётся дедупликацией
+pipeline, err := draftrag.NewPipelineWithOptions(store, llm, embedder, draftrag.PipelineOptions{
+    DedupByParentID: true,
+    DefaultTopK:     10, // запросить больше, часть уберётся дедупликацией
 })
+if err != nil {
+    log.Fatal(err)
+}
 ```
 
 Полезно когда один документ создаёт много чанков: без дедупликации ответ может ссылаться на 5 чанков из одного документа.
@@ -209,9 +215,12 @@ hooks := draftrag.Hooks{
     },
 }
 
-pipeline := draftrag.NewPipelineWithOptions(store, llm, embedder, draftrag.PipelineOptions{
+pipeline, err := draftrag.NewPipelineWithOptions(store, llm, embedder, draftrag.PipelineOptions{
     Hooks: hooks,
 })
+if err != nil {
+    log.Fatal(err)
+}
 ```
 
 ---
@@ -254,10 +263,13 @@ fmt.Printf("MRR:   %.3f\n", results.MRR)
 Ограничение размера контекста, передаваемого в LLM:
 
 ```go
-pipeline := draftrag.NewPipelineWithOptions(store, llm, embedder, draftrag.PipelineOptions{
+pipeline, err := draftrag.NewPipelineWithOptions(store, llm, embedder, draftrag.PipelineOptions{
     MaxContextChars:  4000,  // не более 4000 символов в секции контекста
     MaxContextChunks: 8,     // не более 8 чанков
 })
+if err != nil {
+    log.Fatal(err)
+}
 ```
 
 При превышении лимита чанки обрезаются по приоритету score (наиболее релевантные остаются).
@@ -323,9 +335,12 @@ type Reranker interface {
 Подключение:
 
 ```go
-pipeline := draftrag.NewPipelineWithOptions(store, llm, embedder, draftrag.PipelineOptions{
+pipeline, err := draftrag.NewPipelineWithOptions(store, llm, embedder, draftrag.PipelineOptions{
     Reranker: myReranker,
 })
+if err != nil {
+    log.Fatal(err)
+}
 ```
 
 Reranker вызывается автоматически во всех методах поиска (Retrieve, Answer, Cite, HyDE, MultiQuery и т.д.).
@@ -362,7 +377,10 @@ llm := draftrag.NewRetryLLMProvider(
     draftrag.RetryOptions{},
 )
 
-pipeline := draftrag.NewPipeline(store, llm, embedder)
+pipeline, err := draftrag.NewPipeline(store, llm, embedder)
+if err != nil {
+    log.Fatal(err)
+}
 ```
 
 ### RetryOptions

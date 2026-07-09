@@ -62,14 +62,17 @@ hooks, _ := otel.NewHooks(otel.HooksOptions{
     MeterProvider:  mp,
 })
 
-pipeline := draftrag.NewPipelineWithOptions(store, retryLLM, retryEmbedder,
+pipeline, err := draftrag.NewPipelineWithOptions(store, retryLLM, retryEmbedder,
     draftrag.PipelineOptions{
         Chunker:             chunker,
         Hooks:               hooks,
         MaxContextChars:     4000,
         MaxContextChunks:    10,
-        DedupSourcesByParentID: true,
+        DedupByParentID: true,
     })
+if err != nil {
+    log.Fatal(err)
+}
 ```
 
 ## 10.3 Кеширование эмбеддингов
@@ -94,7 +97,7 @@ fmt.Printf("Hit rate: %d/%d\n", stats.Hits, stats.Misses)
 Для массовой индексации настройте `PipelineOptions`:
 
 ```go
-pipeline := draftrag.NewPipelineWithOptions(store, retryLLM, retryEmbedder,
+pipeline, err := draftrag.NewPipelineWithOptions(store, retryLLM, retryEmbedder,
     draftrag.PipelineOptions{
         Chunker:                 chunker,
         IndexConcurrency:        4,
@@ -104,6 +107,9 @@ pipeline := draftrag.NewPipelineWithOptions(store, retryLLM, retryEmbedder,
         MMREnabled:              true,
         MMRLambda:               0.5,
     })
+if err != nil {
+    log.Fatal(err)
+}
 
 // Batch-индексация с частичным результатом
 result, err := pipeline.IndexBatch(ctx, allDocs, 10)
@@ -168,16 +174,19 @@ func main() {
     _ = hooks
 
     // 5. Пайплайн
-    pipeline := draftrag.NewPipelineWithOptions(store, retryLLM, cachedEmb,
+    pipeline, err := draftrag.NewPipelineWithOptions(store, retryLLM, cachedEmb,
         draftrag.PipelineOptions{
             Chunker: draftrag.NewBasicChunker(draftrag.BasicChunkerOptions{
                 ChunkSize: 1000, Overlap: 100,
             }),
             Hooks:               hooks,
             MaxContextChars:     4000,
-            DedupSourcesByParentID: true,
+            DedupByParentID: true,
             MMREnabled:          true,
         })
+    if err != nil {
+        log.Fatal(err)
+    }
 
     // 6. Индексация и запрос
     pipeline.Index(ctx, []draftrag.Document{

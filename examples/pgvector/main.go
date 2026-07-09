@@ -99,10 +99,14 @@ func main() {
 	}
 	shared.PrintInfo("схема готова")
 
-	store := draftrag.NewPGVectorStore(db, draftrag.PGVectorOptions{
+	store, err := draftrag.NewPGVectorStore(db, draftrag.PGVectorOptions{
 		TableName:          tableName,
 		EmbeddingDimension: dim,
 	})
+	if err != nil {
+		shared.PrintError("ошибка создания store: %v", err)
+		os.Exit(1)
+	}
 
 	pipeline, err := draftrag.NewPipelineWithChunker(store, llm, embedder, draftrag.NewBasicChunker(draftrag.BasicChunkerOptions{
 		ChunkSize: 1000,

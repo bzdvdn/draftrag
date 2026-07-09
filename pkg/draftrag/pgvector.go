@@ -64,18 +64,19 @@ type PGVectorRuntimeOptions struct {
 // (или SetupPGVector как backward-compatible alias).
 //
 // Если у ctx нет deadline, операции store используют дефолтные таймауты (см. PGVectorRuntimeOptions).
-func NewPGVectorStoreWithOptions(db *sql.DB, opts PGVectorStoreOptions) VectorStore {
+// @sk-task arch-generics#T4.1: замена panic на error return (nil db/options/runtime)
+func NewPGVectorStoreWithOptions(db *sql.DB, opts PGVectorStoreOptions) (VectorStore, error) {
 	if db == nil {
-		panic("nil db")
+		return nil, errors.New("pgvector: nil db")
 	}
 	normalized, err := normalizePGVectorOptions(opts.PGVectorOptions)
 	if err != nil {
-		panic(err.Error())
+		return nil, fmt.Errorf("pgvector: %w", err)
 	}
 
 	runtime := normalizePGVectorRuntimeOptions(opts.Runtime)
 	if runtime.MaxTopK < 0 || runtime.MaxParentIDs < 0 || runtime.MaxContentBytes < 0 {
-		panic("invalid PGVectorRuntimeOptions")
+		return nil, errors.New("pgvector: invalid PGVectorRuntimeOptions")
 	}
 	internalRuntime := vectorstore.RuntimeOptions{
 		SearchTimeout:   runtime.SearchTimeout,
@@ -90,7 +91,7 @@ func NewPGVectorStoreWithOptions(db *sql.DB, opts PGVectorStoreOptions) VectorSt
 		normalized.TableName,
 		normalized.EmbeddingDimension,
 		internalRuntime,
-	)
+	), nil
 }
 
 // NewPGVectorStore создаёт pgvector-backed реализацию VectorStore.
@@ -99,14 +100,16 @@ func NewPGVectorStoreWithOptions(db *sql.DB, opts PGVectorStoreOptions) VectorSt
 // (или SetupPGVector как backward-compatible alias).
 //
 // Если у ctx нет deadline, операции store используют дефолтные таймауты (см. PGVectorRuntimeOptions).
-func NewPGVectorStore(db *sql.DB, opts PGVectorOptions) VectorStore {
+// @sk-task arch-generics#T4.1: замена panic на error return
+func NewPGVectorStore(db *sql.DB, opts PGVectorOptions) (VectorStore, error) {
 	return NewPGVectorStoreWithOptions(db, PGVectorStoreOptions{PGVectorOptions: opts})
 }
 
 // NewPGVectorStoreWithRuntimeOptions создаёт pgvector-backed реализацию VectorStore с runtime ограничениями.
 //
 // Deprecated: используйте NewPGVectorStoreWithOptions (PGVectorStoreOptions.Runtime).
-func NewPGVectorStoreWithRuntimeOptions(db *sql.DB, opts PGVectorOptions, runtime PGVectorRuntimeOptions) VectorStore {
+// @sk-task arch-generics#T4.1: замена panic на error return
+func NewPGVectorStoreWithRuntimeOptions(db *sql.DB, opts PGVectorOptions, runtime PGVectorRuntimeOptions) (VectorStore, error) {
 	return NewPGVectorStoreWithOptions(db, PGVectorStoreOptions{
 		PGVectorOptions: opts,
 		Runtime:         runtime,

@@ -13,9 +13,12 @@ chunker := draftrag.NewBasicChunker(draftrag.BasicChunkerOptions{
     MaxChunks: 0,    // 0 = без ограничения
 })
 
-pipeline := draftrag.NewPipelineWithOptions(store, llm, embedder, draftrag.PipelineOptions{
+pipeline, err := draftrag.NewPipelineWithOptions(store, llm, embedder, draftrag.PipelineOptions{
     Chunker: chunker,
 })
+if err != nil {
+    log.Fatal(err)
+}
 ```
 
 ### BasicChunkerOptions

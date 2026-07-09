@@ -101,10 +101,10 @@ func (b *SearchBuilder) validate() (string, error) {
 // Retrieve выполняет поиск и возвращает RetrievalResult.
 // Routing (HyDE > MultiQuery > Hybrid > ParentIDs > Filter > basic) делегирован в runRetrieve.
 //
-// @sk-task searchbuilder-generics#T2.2: делегирование в router.execute (AC-001)
+// @sk-task arch-generics#T2.2: nil context guard + routing delegate через router.execute (AC-001, AC-002)
 func (b *SearchBuilder) Retrieve(ctx context.Context) (RetrievalResult, error) {
-	if ctx == nil {
-		panic("nil context")
+	if err := checkCtx(ctx); err != nil {
+		return RetrievalResult{}, err
 	}
 	if err := ctx.Err(); err != nil {
 		return RetrievalResult{}, err
@@ -120,10 +120,10 @@ func (b *SearchBuilder) Retrieve(ctx context.Context) (RetrievalResult, error) {
 // Answer выполняет RAG-ответ и возвращает строку.
 // Routing делегирован в runAnswer.
 //
-// @sk-task searchbuilder-generics#T2.2: делегирование в router.execute (AC-001)
+// @sk-task arch-generics#T2.2: nil context guard + routing delegate через router.execute (AC-001, AC-002)
 func (b *SearchBuilder) Answer(ctx context.Context) (string, error) {
-	if ctx == nil {
-		panic("nil context")
+	if err := checkCtx(ctx); err != nil {
+		return "", err
 	}
 	if err := ctx.Err(); err != nil {
 		return "", err
@@ -139,10 +139,10 @@ func (b *SearchBuilder) Answer(ctx context.Context) (string, error) {
 // Cite выполняет RAG-ответ и возвращает ответ + источники (чанки со score).
 // Routing делегирован в runCite.
 //
-// @sk-task searchbuilder-generics#T2.2: делегирование в router.execute (AC-001)
+// @sk-task arch-generics#T2.2: nil context guard + routing delegate через router.execute (AC-001, AC-002)
 func (b *SearchBuilder) Cite(ctx context.Context) (string, RetrievalResult, error) {
-	if ctx == nil {
-		panic("nil context")
+	if err := checkCtx(ctx); err != nil {
+		return "", RetrievalResult{}, err
 	}
 	if err := ctx.Err(); err != nil {
 		return "", RetrievalResult{}, err
@@ -159,10 +159,10 @@ func (b *SearchBuilder) Cite(ctx context.Context) (string, RetrievalResult, erro
 // LLM расставляет ссылки в тексте; citations содержит только использованные источники.
 // Routing делегирован в runInlineCite.
 //
-// @sk-task searchbuilder-generics#T2.2: делегирование в router.execute (AC-001)
+// @sk-task arch-generics#T2.2: nil context guard + routing delegate через router.execute (AC-001, AC-002)
 func (b *SearchBuilder) InlineCite(ctx context.Context) (string, RetrievalResult, []InlineCitation, error) {
-	if ctx == nil {
-		panic("nil context")
+	if err := checkCtx(ctx); err != nil {
+		return "", RetrievalResult{}, nil, err
 	}
 	if err := ctx.Err(); err != nil {
 		return "", RetrievalResult{}, nil, err
@@ -179,10 +179,10 @@ func (b *SearchBuilder) InlineCite(ctx context.Context) (string, RetrievalResult
 // Если LLM не поддерживает streaming — возвращает ErrStreamingNotSupported.
 // Routing делегирован в runStream.
 //
-// @sk-task searchbuilder-generics#T2.2: делегирование в router.execute (AC-001)
+// @sk-task arch-generics#T2.2: nil context guard + routing delegate через router.execute (AC-001, AC-002)
 func (b *SearchBuilder) Stream(ctx context.Context) (<-chan string, error) {
-	if ctx == nil {
-		panic("nil context")
+	if err := checkCtx(ctx); err != nil {
+		return nil, err
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -199,10 +199,10 @@ func (b *SearchBuilder) Stream(ctx context.Context) (<-chan string, error) {
 // sources готов сразу (поиск синхронный); токены — асинхронно через канал.
 // Routing делегирован в runStreamSources.
 //
-// @sk-task searchbuilder-generics#T2.2: делегирование в router.execute (AC-001)
+// @sk-task arch-generics#T2.2: nil context guard + routing delegate через router.execute (AC-001, AC-002)
 func (b *SearchBuilder) StreamSources(ctx context.Context) (<-chan string, RetrievalResult, error) {
-	if ctx == nil {
-		panic("nil context")
+	if err := checkCtx(ctx); err != nil {
+		return nil, RetrievalResult{}, err
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, RetrievalResult{}, err
@@ -219,10 +219,10 @@ func (b *SearchBuilder) StreamSources(ctx context.Context) (<-chan string, Retri
 // sources и citations готовы сразу (поиск синхронный); токены — асинхронно.
 // Routing делегирован в runStreamInline.
 //
-// @sk-task searchbuilder-generics#T2.2: делегирование в router.execute (AC-001)
+// @sk-task arch-generics#T2.2: nil context guard + routing delegate через router.execute (AC-001, AC-002)
 func (b *SearchBuilder) StreamCite(ctx context.Context) (<-chan string, RetrievalResult, []InlineCitation, error) {
-	if ctx == nil {
-		panic("nil context")
+	if err := checkCtx(ctx); err != nil {
+		return nil, RetrievalResult{}, nil, err
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, RetrievalResult{}, nil, err

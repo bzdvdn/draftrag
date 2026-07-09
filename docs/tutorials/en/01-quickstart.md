@@ -45,13 +45,16 @@ func main() {
         Model: "llama3.2",
     })
 
-    pipeline := draftrag.NewPipelineWithChunker(
+    pipeline, err := draftrag.NewPipelineWithChunker(
         store, llm, embedder,
         draftrag.NewBasicChunker(draftrag.BasicChunkerOptions{
             ChunkSize: 1000,
             Overlap:   100,
         }),
     )
+    if err != nil {
+        log.Fatal(err)
+    }
 
     docs := []draftrag.Document{
         {ID: "doc1", Content: "Go is a statically typed, compiled programming language."},

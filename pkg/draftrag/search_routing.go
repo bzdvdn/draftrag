@@ -2,11 +2,10 @@ package draftrag
 
 import (
 	"context"
+
+	"github.com/bzdvdn/draftrag/internal/application"
 )
 
-// route описывает выбранный маршрут retrieval в SearchBuilder.
-//
-// Приоритет: HyDE > MultiQuery > Hybrid > ParentIDs > Filter > basic.
 type route int
 
 const (
@@ -18,9 +17,6 @@ const (
 	routeFilter
 )
 
-// pickRoute валидирует SearchBuilder и возвращает выбранный маршрут.
-//
-// @sk-task api-consistency-pass#T2.3: routing decision shared across all public methods (AC-001, AC-002, RQ-001)
 func (b *SearchBuilder) pickRoute() (q string, r route, err error) {
 	q, err = b.validate()
 	if err != nil {
@@ -43,234 +39,142 @@ func (b *SearchBuilder) pickRoute() (q string, r route, err error) {
 	return
 }
 
-// retrieveHandlers maps routes to Retrieve handlers.
+// @sk-task arch-generics#T2.1: handler maps через generic factory (AC-001)
 //
-// @sk-task searchbuilder-generics#T2.1: handler maps для всех output-методов (AC-001)
-//
-//nolint:dupl
+//nolint:dupl // structurally similar by design (per-output-type maps)
 var retrieveHandlers = map[route]func(context.Context, string, int, *SearchBuilder) (rRetrieve, error){
-	routeBasic: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rRetrieve, error) {
-		res, err := b.pipeline.core.Query(ctx, q, topK)
-		return rRetrieve{Result: res}, err
-	},
-	routeHyDE: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rRetrieve, error) {
-		res, err := b.pipeline.core.QueryHyDE(ctx, q, topK)
-		return rRetrieve{Result: res}, err
-	},
-	routeMultiQuery: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rRetrieve, error) {
-		res, err := b.pipeline.core.QueryMulti(ctx, q, b.multiQuery, topK)
-		return rRetrieve{Result: res}, err
-	},
-	routeHybrid: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rRetrieve, error) {
-		res, err := b.pipeline.core.QueryHybrid(ctx, q, topK, *b.hybrid)
-		return rRetrieve{Result: res}, err
-	},
-	routeParentIDs: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rRetrieve, error) {
-		res, err := b.pipeline.core.QueryWithParentIDs(ctx, q, topK, b.parentIDs)
-		return rRetrieve{Result: res}, err
-	},
-	routeFilter: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rRetrieve, error) {
-		res, err := b.pipeline.core.QueryWithMetadataFilter(ctx, q, topK, b.filter)
-		return rRetrieve{Result: res}, err
-	},
+	routeBasic: mkRetrieve((*application.Pipeline).Query),
+	routeHyDE:  mkRetrieve((*application.Pipeline).QueryHyDE),
+	routeMultiQuery: wrapRetrieve(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (RetrievalResult, error) {
+		return p.QueryMulti(ctx, q, b.multiQuery, topK)
+	}),
+	routeHybrid: wrapRetrieve(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (RetrievalResult, error) {
+		return p.QueryHybrid(ctx, q, topK, *b.hybrid)
+	}),
+	routeParentIDs: wrapRetrieve(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (RetrievalResult, error) {
+		return p.QueryWithParentIDs(ctx, q, topK, b.parentIDs)
+	}),
+	routeFilter: wrapRetrieve(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (RetrievalResult, error) {
+		return p.QueryWithMetadataFilter(ctx, q, topK, b.filter)
+	}),
 }
 
-// answerHandlers maps routes to Answer handlers.
+// @sk-task arch-generics#T2.1: handler maps через generic factory (AC-001)
 //
-// @sk-task searchbuilder-generics#T2.1: handler maps для Answer (AC-001)
-//
-//nolint:dupl
+//nolint:dupl // structurally similar by design (per-output-type maps)
 var answerHandlers = map[route]func(context.Context, string, int, *SearchBuilder) (rAnswer, error){
-	routeBasic: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rAnswer, error) {
-		t, err := b.pipeline.core.Answer(ctx, q, topK)
-		return rAnswer{Text: t}, err
-	},
-	routeHyDE: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rAnswer, error) {
-		t, err := b.pipeline.core.AnswerHyDE(ctx, q, topK)
-		return rAnswer{Text: t}, err
-	},
-	routeMultiQuery: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rAnswer, error) {
-		t, err := b.pipeline.core.AnswerMulti(ctx, q, b.multiQuery, topK)
-		return rAnswer{Text: t}, err
-	},
-	routeHybrid: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rAnswer, error) {
-		t, err := b.pipeline.core.AnswerHybrid(ctx, q, topK, *b.hybrid)
-		return rAnswer{Text: t}, err
-	},
-	routeParentIDs: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rAnswer, error) {
-		t, err := b.pipeline.core.AnswerWithParentIDs(ctx, q, topK, b.parentIDs)
-		return rAnswer{Text: t}, err
-	},
-	routeFilter: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rAnswer, error) {
-		t, err := b.pipeline.core.AnswerWithMetadataFilter(ctx, q, topK, b.filter)
-		return rAnswer{Text: t}, err
-	},
+	routeBasic: mkAnswer((*application.Pipeline).Answer),
+	routeHyDE:  mkAnswer((*application.Pipeline).AnswerHyDE),
+	routeMultiQuery: wrapAnswer(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, error) {
+		return p.AnswerMulti(ctx, q, b.multiQuery, topK)
+	}),
+	routeHybrid: wrapAnswer(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, error) {
+		return p.AnswerHybrid(ctx, q, topK, *b.hybrid)
+	}),
+	routeParentIDs: wrapAnswer(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, error) {
+		return p.AnswerWithParentIDs(ctx, q, topK, b.parentIDs)
+	}),
+	routeFilter: wrapAnswer(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, error) {
+		return p.AnswerWithMetadataFilter(ctx, q, topK, b.filter)
+	}),
 }
 
-// citeHandlers maps routes to Cite handlers.
-//
-// @sk-task searchbuilder-generics#T2.1: handler maps для Cite (AC-001)
-//
-//nolint:dupl
+// @sk-task arch-generics#T2.1: handler maps через generic factory (AC-001)
 var citeHandlers = map[route]func(context.Context, string, int, *SearchBuilder) (rCite, error){
-	routeBasic: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rCite, error) {
-		t, s, err := b.pipeline.core.AnswerWithCitations(ctx, q, topK)
-		return rCite{Text: t, Sources: s}, err
-	},
-	routeHyDE: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rCite, error) {
-		t, s, err := b.pipeline.core.AnswerHyDEWithCitations(ctx, q, topK)
-		return rCite{Text: t, Sources: s}, err
-	},
-	routeMultiQuery: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rCite, error) {
-		t, s, err := b.pipeline.core.AnswerMultiWithCitations(ctx, q, b.multiQuery, topK)
-		return rCite{Text: t, Sources: s}, err
-	},
-	routeHybrid: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rCite, error) {
-		t, s, err := b.pipeline.core.AnswerHybridWithCitations(ctx, q, topK, *b.hybrid)
-		return rCite{Text: t, Sources: s}, err
-	},
-	routeParentIDs: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rCite, error) {
-		t, s, err := b.pipeline.core.AnswerWithCitationsWithParentIDs(ctx, q, topK, b.parentIDs)
-		return rCite{Text: t, Sources: s}, err
-	},
-	routeFilter: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rCite, error) {
-		t, s, err := b.pipeline.core.AnswerWithCitationsWithMetadataFilter(ctx, q, topK, b.filter)
-		return rCite{Text: t, Sources: s}, err
-	},
+	routeBasic: mkCite((*application.Pipeline).AnswerWithCitations),
+	routeHyDE:  mkCite((*application.Pipeline).AnswerHyDEWithCitations),
+	routeMultiQuery: wrapCite(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, RetrievalResult, error) {
+		return p.AnswerMultiWithCitations(ctx, q, b.multiQuery, topK)
+	}),
+	routeHybrid: wrapCite(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, RetrievalResult, error) {
+		return p.AnswerHybridWithCitations(ctx, q, topK, *b.hybrid)
+	}),
+	routeParentIDs: wrapCite(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, RetrievalResult, error) {
+		return p.AnswerWithCitationsWithParentIDs(ctx, q, topK, b.parentIDs)
+	}),
+	routeFilter: wrapCite(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, RetrievalResult, error) {
+		return p.AnswerWithCitationsWithMetadataFilter(ctx, q, topK, b.filter)
+	}),
 }
 
-// inlineCiteHandlers maps routes to InlineCite handlers.
-//
-// @sk-task searchbuilder-generics#T2.1: handler maps для InlineCite (AC-001)
-//
-//nolint:dupl
+// @sk-task arch-generics#T2.1: handler maps через generic factory (AC-001)
 var inlineCiteHandlers = map[route]func(context.Context, string, int, *SearchBuilder) (rInlineCite, error){
-	routeBasic: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rInlineCite, error) {
-		t, s, c, err := b.pipeline.core.AnswerWithInlineCitations(ctx, q, topK)
-		return rInlineCite{Text: t, Sources: s, Citations: c}, err
-	},
-	routeHyDE: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rInlineCite, error) {
-		t, s, c, err := b.pipeline.core.AnswerHyDEWithInlineCitations(ctx, q, topK)
-		return rInlineCite{Text: t, Sources: s, Citations: c}, err
-	},
-	routeMultiQuery: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rInlineCite, error) {
-		t, s, c, err := b.pipeline.core.AnswerMultiWithInlineCitations(ctx, q, b.multiQuery, topK)
-		return rInlineCite{Text: t, Sources: s, Citations: c}, err
-	},
-	routeHybrid: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rInlineCite, error) {
-		t, s, c, err := b.pipeline.core.AnswerHybridWithInlineCitations(ctx, q, topK, *b.hybrid)
-		return rInlineCite{Text: t, Sources: s, Citations: c}, err
-	},
-	routeParentIDs: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rInlineCite, error) {
-		t, s, c, err := b.pipeline.core.AnswerWithInlineCitationsWithParentIDs(ctx, q, topK, b.parentIDs)
-		return rInlineCite{Text: t, Sources: s, Citations: c}, err
-	},
-	routeFilter: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rInlineCite, error) {
-		t, s, c, err := b.pipeline.core.AnswerWithInlineCitationsWithMetadataFilter(ctx, q, topK, b.filter)
-		return rInlineCite{Text: t, Sources: s, Citations: c}, err
-	},
+	routeBasic: mkInlineCite((*application.Pipeline).AnswerWithInlineCitations),
+	routeHyDE:  mkInlineCite((*application.Pipeline).AnswerHyDEWithInlineCitations),
+	routeMultiQuery: wrapInlineCite(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, RetrievalResult, []InlineCitation, error) {
+		return p.AnswerMultiWithInlineCitations(ctx, q, b.multiQuery, topK)
+	}),
+	routeHybrid: wrapInlineCite(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, RetrievalResult, []InlineCitation, error) {
+		return p.AnswerHybridWithInlineCitations(ctx, q, topK, *b.hybrid)
+	}),
+	routeParentIDs: wrapInlineCite(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, RetrievalResult, []InlineCitation, error) {
+		return p.AnswerWithInlineCitationsWithParentIDs(ctx, q, topK, b.parentIDs)
+	}),
+	routeFilter: wrapInlineCite(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, RetrievalResult, []InlineCitation, error) {
+		return p.AnswerWithInlineCitationsWithMetadataFilter(ctx, q, topK, b.filter)
+	}),
 }
 
-// streamHandlers maps routes to Stream handlers.
-//
-// @sk-task searchbuilder-generics#T2.1: handler maps для Stream (AC-001)
-//
-//nolint:dupl
+// @sk-task arch-generics#T2.1: handler maps через generic factory (AC-001)
 var streamHandlers = map[route]func(context.Context, string, int, *SearchBuilder) (rStream, error){
-	routeBasic: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rStream, error) {
-		ch, err := b.pipeline.core.AnswerStream(ctx, q, topK)
-		return rStream{Ch: ch}, err
-	},
-	routeHyDE: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rStream, error) {
-		ch, err := b.pipeline.core.AnswerHyDEStream(ctx, q, topK)
-		return rStream{Ch: ch}, err
-	},
-	routeMultiQuery: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rStream, error) {
-		ch, err := b.pipeline.core.AnswerMultiStream(ctx, q, b.multiQuery, topK)
-		return rStream{Ch: ch}, err
-	},
-	routeHybrid: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rStream, error) {
-		ch, err := b.pipeline.core.AnswerHybridStream(ctx, q, topK, *b.hybrid)
-		return rStream{Ch: ch}, err
-	},
-	routeParentIDs: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rStream, error) {
-		ch, err := b.pipeline.core.AnswerStreamWithParentIDs(ctx, q, topK, b.parentIDs)
-		return rStream{Ch: ch}, err
-	},
-	routeFilter: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rStream, error) {
-		ch, err := b.pipeline.core.AnswerStreamWithMetadataFilter(ctx, q, topK, b.filter)
-		return rStream{Ch: ch}, err
-	},
+	routeBasic: mkStream((*application.Pipeline).AnswerStream),
+	routeHyDE:  mkStream((*application.Pipeline).AnswerHyDEStream),
+	routeMultiQuery: wrapStream(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, error) {
+		return p.AnswerMultiStream(ctx, q, b.multiQuery, topK)
+	}),
+	routeHybrid: wrapStream(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, error) {
+		return p.AnswerHybridStream(ctx, q, topK, *b.hybrid)
+	}),
+	routeParentIDs: wrapStream(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, error) {
+		return p.AnswerStreamWithParentIDs(ctx, q, topK, b.parentIDs)
+	}),
+	routeFilter: wrapStream(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, error) {
+		return p.AnswerStreamWithMetadataFilter(ctx, q, topK, b.filter)
+	}),
 }
 
-// streamSourcesHandlers maps routes to StreamSources handlers.
-//
-// @sk-task searchbuilder-generics#T2.1: handler maps для StreamSources (AC-001)
-//
-//nolint:dupl
+// @sk-task arch-generics#T2.1: handler maps через generic factory (AC-001)
 var streamSourcesHandlers = map[route]func(context.Context, string, int, *SearchBuilder) (rStreamSources, error){
-	routeBasic: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rStreamSources, error) {
-		ch, s, err := b.pipeline.core.AnswerStreamWithSources(ctx, q, topK)
-		return rStreamSources{Ch: ch, Sources: s}, err
-	},
-	routeHyDE: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rStreamSources, error) {
-		ch, s, err := b.pipeline.core.AnswerHyDEStreamWithSources(ctx, q, topK)
-		return rStreamSources{Ch: ch, Sources: s}, err
-	},
-	routeMultiQuery: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rStreamSources, error) {
-		ch, s, err := b.pipeline.core.AnswerMultiStreamWithSources(ctx, q, b.multiQuery, topK)
-		return rStreamSources{Ch: ch, Sources: s}, err
-	},
-	routeHybrid: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rStreamSources, error) {
-		ch, s, err := b.pipeline.core.AnswerHybridStreamWithSources(ctx, q, topK, *b.hybrid)
-		return rStreamSources{Ch: ch, Sources: s}, err
-	},
-	routeParentIDs: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rStreamSources, error) {
-		ch, s, err := b.pipeline.core.AnswerStreamWithParentIDsWithSources(ctx, q, topK, b.parentIDs)
-		return rStreamSources{Ch: ch, Sources: s}, err
-	},
-	routeFilter: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rStreamSources, error) {
-		ch, s, err := b.pipeline.core.AnswerStreamWithMetadataFilterWithSources(ctx, q, topK, b.filter)
-		return rStreamSources{Ch: ch, Sources: s}, err
-	},
+	routeBasic: mkStreamSources((*application.Pipeline).AnswerStreamWithSources),
+	routeHyDE:  mkStreamSources((*application.Pipeline).AnswerHyDEStreamWithSources),
+	routeMultiQuery: wrapStreamSources(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, error) {
+		return p.AnswerMultiStreamWithSources(ctx, q, b.multiQuery, topK)
+	}),
+	routeHybrid: wrapStreamSources(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, error) {
+		return p.AnswerHybridStreamWithSources(ctx, q, topK, *b.hybrid)
+	}),
+	routeParentIDs: wrapStreamSources(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, error) {
+		return p.AnswerStreamWithParentIDsWithSources(ctx, q, topK, b.parentIDs)
+	}),
+	routeFilter: wrapStreamSources(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, error) {
+		return p.AnswerStreamWithMetadataFilterWithSources(ctx, q, topK, b.filter)
+	}),
 }
 
-// streamCiteHandlers maps routes to StreamCite handlers.
-//
-// @sk-task searchbuilder-generics#T2.1: handler maps для StreamCite (AC-001)
-//
-//nolint:dupl
+// @sk-task arch-generics#T2.1: handler maps через generic factory (AC-001)
 var streamCiteHandlers = map[route]func(context.Context, string, int, *SearchBuilder) (rStreamCite, error){
-	routeBasic: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rStreamCite, error) {
-		ch, s, c, err := b.pipeline.core.AnswerStreamWithInlineCitations(ctx, q, topK)
-		return rStreamCite{Ch: ch, Sources: s, Citations: c}, err
-	},
-	routeHyDE: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rStreamCite, error) {
-		ch, s, c, err := b.pipeline.core.AnswerHyDEStreamWithInlineCitations(ctx, q, topK)
-		return rStreamCite{Ch: ch, Sources: s, Citations: c}, err
-	},
-	routeMultiQuery: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rStreamCite, error) {
-		ch, s, c, err := b.pipeline.core.AnswerMultiStreamWithInlineCitations(ctx, q, b.multiQuery, topK)
-		return rStreamCite{Ch: ch, Sources: s, Citations: c}, err
-	},
-	routeHybrid: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rStreamCite, error) {
-		ch, s, c, err := b.pipeline.core.AnswerHybridStreamWithInlineCitations(ctx, q, topK, *b.hybrid)
-		return rStreamCite{Ch: ch, Sources: s, Citations: c}, err
-	},
-	routeParentIDs: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rStreamCite, error) {
-		ch, s, c, err := b.pipeline.core.AnswerStreamWithParentIDsWithInlineCitations(ctx, q, topK, b.parentIDs)
-		return rStreamCite{Ch: ch, Sources: s, Citations: c}, err
-	},
-	routeFilter: func(ctx context.Context, q string, topK int, b *SearchBuilder) (rStreamCite, error) {
-		ch, s, c, err := b.pipeline.core.AnswerStreamWithMetadataFilterWithInlineCitations(ctx, q, topK, b.filter)
-		return rStreamCite{Ch: ch, Sources: s, Citations: c}, err
-	},
+	routeBasic: mkStreamCite((*application.Pipeline).AnswerStreamWithInlineCitations),
+	routeHyDE:  mkStreamCite((*application.Pipeline).AnswerHyDEStreamWithInlineCitations),
+	routeMultiQuery: wrapStreamCite(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, []InlineCitation, error) {
+		return p.AnswerMultiStreamWithInlineCitations(ctx, q, b.multiQuery, topK)
+	}),
+	routeHybrid: wrapStreamCite(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, []InlineCitation, error) {
+		return p.AnswerHybridStreamWithInlineCitations(ctx, q, topK, *b.hybrid)
+	}),
+	routeParentIDs: wrapStreamCite(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, []InlineCitation, error) {
+		return p.AnswerStreamWithParentIDsWithInlineCitations(ctx, q, topK, b.parentIDs)
+	}),
+	routeFilter: wrapStreamCite(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, []InlineCitation, error) {
+		return p.AnswerStreamWithMetadataFilterWithInlineCitations(ctx, q, topK, b.filter)
+	}),
 }
 
-var retrieveRouter = router[rRetrieve]{handlers: retrieveHandlers}
-var answerRouter = router[rAnswer]{handlers: answerHandlers}
-var citeRouter = router[rCite]{handlers: citeHandlers}
-var inlineCiteRouter = router[rInlineCite]{handlers: inlineCiteHandlers}
-var streamRouter = router[rStream]{handlers: streamHandlers}
-var streamSourcesRouter = router[rStreamSources]{handlers: streamSourcesHandlers}
-var streamCiteRouter = router[rStreamCite]{handlers: streamCiteHandlers}
+var (
+	retrieveRouter      = router[rRetrieve]{handlers: retrieveHandlers}
+	answerRouter        = router[rAnswer]{handlers: answerHandlers}
+	citeRouter          = router[rCite]{handlers: citeHandlers}
+	inlineCiteRouter    = router[rInlineCite]{handlers: inlineCiteHandlers}
+	streamRouter        = router[rStream]{handlers: streamHandlers}
+	streamSourcesRouter = router[rStreamSources]{handlers: streamSourcesHandlers}
+	streamCiteRouter    = router[rStreamCite]{handlers: streamCiteHandlers}
+)

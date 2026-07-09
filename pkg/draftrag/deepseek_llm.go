@@ -75,9 +75,10 @@ func (p *deepseekLLM) Generate(ctx context.Context, systemPrompt, userMessage st
 }
 
 // @sk-task llm-providers-mistral-deepseek#T2.2: GenerateStream (AC-002, AC-004)
+// @sk-task arch-generics#T4.1: nil context guard вместо panic (AC-002)
 func (p *deepseekLLM) GenerateStream(ctx context.Context, systemPrompt, userMessage string) (<-chan string, error) {
-	if ctx == nil {
-		panic("nil context")
+	if err := checkCtx(ctx); err != nil {
+		return nil, err
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err

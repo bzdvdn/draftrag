@@ -253,9 +253,10 @@ func NewPipelineWithOptions(store VectorStore, llm LLMProvider, embedder Embedde
 }
 
 // Index индексирует документы.
+// @sk-task arch-generics#T2.2: nil context guard + checkCtx вместо panic (AC-002)
 func (p *Pipeline) Index(ctx context.Context, docs []Document) error {
-	if ctx == nil {
-		panic("nil context")
+	if err := checkCtx(ctx); err != nil {
+		return err
 	}
 	if err := ctx.Err(); err != nil {
 		return err
@@ -273,9 +274,10 @@ func (p *Pipeline) Index(ctx context.Context, docs []Document) error {
 
 // Query выполняет поиск с topK по умолчанию (PipelineOptions.DefaultTopK или 5).
 // Для расширенных параметров используйте Search builder.
+// @sk-task arch-generics#T2.2: nil context guard + checkCtx вместо panic (AC-002)
 func (p *Pipeline) Query(ctx context.Context, question string) (RetrievalResult, error) {
-	if ctx == nil {
-		panic("nil context")
+	if err := checkCtx(ctx); err != nil {
+		return RetrievalResult{}, err
 	}
 	if err := ctx.Err(); err != nil {
 		return RetrievalResult{}, err
@@ -290,9 +292,10 @@ func (p *Pipeline) Query(ctx context.Context, question string) (RetrievalResult,
 
 // Answer генерирует ответ с topK по умолчанию (PipelineOptions.DefaultTopK или 5).
 // Для расширенных параметров используйте Search builder.
+// @sk-task arch-generics#T2.2: nil context guard + checkCtx вместо panic (AC-002)
 func (p *Pipeline) Answer(ctx context.Context, question string) (string, error) {
-	if ctx == nil {
-		panic("nil context")
+	if err := checkCtx(ctx); err != nil {
+		return "", err
 	}
 	if err := ctx.Err(); err != nil {
 		return "", err
@@ -307,9 +310,10 @@ func (p *Pipeline) Answer(ctx context.Context, question string) (string, error) 
 // UpdateDocument удаляет все чанки документа и переиндексирует его.
 // Атомарности нет: при ошибке переиндексации старые чанки уже удалены.
 // Требует DocumentStore capability.
+// @sk-task arch-generics#T2.2: nil context guard + checkCtx вместо panic (AC-002)
 func (p *Pipeline) UpdateDocument(ctx context.Context, doc Document) error {
-	if ctx == nil {
-		panic("nil context")
+	if err := checkCtx(ctx); err != nil {
+		return err
 	}
 	if err := ctx.Err(); err != nil {
 		return err
@@ -334,9 +338,10 @@ func (p *Pipeline) Retrieve(ctx context.Context, question string, topK int) (Ret
 // DeleteDocument удаляет документ и все его чанки по ID документа (ParentID).
 // Требует, чтобы VectorStore реализовывал DocumentStore capability.
 // Если store не поддерживает — возвращает ErrDeleteNotSupported.
+// @sk-task arch-generics#T2.2: nil context guard + checkCtx вместо panic (AC-002)
 func (p *Pipeline) DeleteDocument(ctx context.Context, docID string) error {
-	if ctx == nil {
-		panic("nil context")
+	if err := checkCtx(ctx); err != nil {
+		return err
 	}
 	if err := ctx.Err(); err != nil {
 		return err
@@ -367,6 +372,7 @@ var ErrDeleteNotSupported = errors.New("vector store does not support DeleteByPa
 var ErrEmptyDocumentID = errors.New("document ID must not be empty")
 
 // IndexBatch индексирует документы параллельно с ограничением concurrency.
+// @sk-task arch-generics#T2.2: nil context guard + checkCtx вместо panic (AC-002)
 //
 // В отличие от Index, IndexBatch обрабатывает документы конкурентно (batchSize workers)
 // и возвращает partial results: успешно проиндексированные документы и ошибки отдельно.
@@ -377,8 +383,8 @@ var ErrEmptyDocumentID = errors.New("document ID must not be empty")
 // PipelineOptions.IndexBatchRateLimit и PipelineOptions.IndexBatchRateLimitPerWorker
 // при создании Pipeline.
 func (p *Pipeline) IndexBatch(ctx context.Context, docs []Document, batchSize int) (*IndexBatchResult, error) {
-	if ctx == nil {
-		panic("nil context")
+	if err := checkCtx(ctx); err != nil {
+		return nil, err
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err

@@ -78,7 +78,10 @@ func TestPipeline_WithPGVectorStore(t *testing.T) {
 		_, _ = db.ExecContext(ctx, `DROP TABLE IF EXISTS "`+tableName+`_schema_migrations"`)
 	})
 
-	store := NewPGVectorStore(db, opts)
+	store, pgerr := NewPGVectorStore(db, opts)
+	if pgerr != nil {
+		t.Fatalf("create store: %v", pgerr)
+	}
 	pipeline, err := NewPipeline(store, pgvectorTestLLM{}, pgvectorTestEmbedder{})
 	if err != nil {
 		t.Fatal(err)

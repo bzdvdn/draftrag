@@ -48,13 +48,16 @@ func main() {
     })
 
     // 3. Собираем пайплайн
-    pipeline := draftrag.NewPipelineWithChunker(
+    pipeline, err := draftrag.NewPipelineWithChunker(
         store, llm, embedder,
         draftrag.NewBasicChunker(draftrag.BasicChunkerOptions{
             ChunkSize: 1000,
             Overlap:   100,
         }),
     )
+    if err != nil {
+        log.Fatal(err)
+    }
 
     // 4. Индексируем документы
     docs := []draftrag.Document{

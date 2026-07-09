@@ -77,13 +77,11 @@ func TestSearchBuilder_InvalidTopK(t *testing.T) {
 
 func TestSearchBuilder_NilContext(t *testing.T) {
 	p, _ := setupPipeline(t)
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic on nil context")
-		}
-	}()
 	//nolint:staticcheck
-	_, _ = p.Search("q").TopK(5).Retrieve(nil)
+	_, err := p.Search("q").TopK(5).Retrieve(nil)
+	if !errors.Is(err, ErrNilContext) {
+		t.Fatalf("expected ErrNilContext, got %v", err)
+	}
 }
 
 // --- Basic Retrieve ---
@@ -264,7 +262,7 @@ func TestSearchBuilder_StreamSources_StreamingNotSupported(t *testing.T) {
 	}
 }
 
-// @sk-test searchbuilder-generics#T3.1: table-driven test всех комбинаций маршрут × output-метод (AC-002)
+// @sk-test arch-generics#T3.1: table-driven test всех комбинаций маршрут × output-метод (AC-002)
 func TestSearchBuilder_RouteMatrix(t *testing.T) {
 	p, _ := setupPipeline(t)
 	ctx := context.Background()
@@ -309,7 +307,7 @@ func TestSearchBuilder_RouteMatrix(t *testing.T) {
 	}
 }
 
-// @sk-test searchbuilder-generics#T3.2: prototype добавления нового output-метода через router (AC-003)
+// @sk-test arch-generics#T3.2: prototype добавления нового output-метода через router (AC-003)
 func TestSearchBuilder_AnalyzePrototype(t *testing.T) {
 	p, _ := setupPipeline(t)
 	ctx := context.Background()

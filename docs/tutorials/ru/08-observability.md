@@ -59,10 +59,13 @@ if err != nil {
     log.Fatal(err)
 }
 
-pipeline := draftrag.NewPipelineWithOptions(store, llm, embedder, draftrag.PipelineOptions{
+pipeline, err := draftrag.NewPipelineWithOptions(store, llm, embedder, draftrag.PipelineOptions{
     Chunker: chunker,
     Hooks:   hooks,
 })
+if err != nil {
+    log.Fatal(err)
+}
 ```
 
 ## 4. Анализируйте вывод

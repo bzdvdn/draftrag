@@ -34,9 +34,10 @@ func NewBasicChunker(opts BasicChunkerOptions) Chunker {
 	return &basicChunker{opts: opts}
 }
 
+// @sk-task arch-generics#T4.1: nil context guard вместо panic (AC-002)
 func (c *basicChunker) Chunk(ctx context.Context, doc domain.Document) ([]domain.Chunk, error) {
-	if ctx == nil {
-		panic("nil context")
+	if err := checkCtx(ctx); err != nil {
+		return nil, err
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err

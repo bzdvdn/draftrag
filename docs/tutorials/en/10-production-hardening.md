@@ -48,13 +48,16 @@ hooks, _ := otel.NewHooks(otel.HooksOptions{
     MeterProvider:  mp,
 })
 
-pipeline := draftrag.NewPipelineWithOptions(store, retryLLM, retryEmbedder,
+pipeline, err := draftrag.NewPipelineWithOptions(store, retryLLM, retryEmbedder,
     draftrag.PipelineOptions{
         Chunker:                chunker,
         Hooks:                  hooks,
         MaxContextChars:        4000,
-        DedupSourcesByParentID: true,
+        DedupByParentID: true,
     })
+if err != nil {
+    log.Fatal(err)
+}
 ```
 
 ## 10.3 Embedding Cache
@@ -71,7 +74,7 @@ fmt.Printf("Hit rate: %d/%d\n", stats.Hits, stats.Misses)
 ## 10.4 Rate Limiting and Concurrency
 
 ```go
-pipeline := draftrag.NewPipelineWithOptions(store, retryLLM, retryEmbedder,
+pipeline, err := draftrag.NewPipelineWithOptions(store, retryLLM, retryEmbedder,
     draftrag.PipelineOptions{
         Chunker:                    chunker,
         IndexConcurrency:           4,
@@ -80,6 +83,9 @@ pipeline := draftrag.NewPipelineWithOptions(store, retryLLM, retryEmbedder,
         MMREnabled:                 true,
         MMRLambda:                  0.5,
     })
+if err != nil {
+    log.Fatal(err)
+}
 
 result, _ := pipeline.IndexBatch(ctx, allDocs, 10)
 ```
@@ -125,16 +131,19 @@ func main() {
 
     hooks, _ := otel.NewHooks(otel.HooksOptions{})
 
-    pipeline := draftrag.NewPipelineWithOptions(store, retryLLM, cachedEmb,
+    pipeline, err := draftrag.NewPipelineWithOptions(store, retryLLM, cachedEmb,
         draftrag.PipelineOptions{
             Chunker: draftrag.NewBasicChunker(draftrag.BasicChunkerOptions{
                 ChunkSize: 1000, Overlap: 100,
             }),
             Hooks:               hooks,
             MaxContextChars:     4000,
-            DedupSourcesByParentID: true,
+            DedupByParentID: true,
             MMREnabled:          true,
         })
+    if err != nil {
+        log.Fatal(err)
+    }
 
     pipeline.Index(ctx, []draftrag.Document{
         {ID: "prod1", Content: "Production RAG needs monitoring, retry, and caching."},

@@ -111,20 +111,26 @@ type Chunker interface {
 
 ```go
 // Минимальная конфигурация
-pipeline := draftrag.NewPipeline(store, llm, embedder)
+pipeline, err := draftrag.NewPipeline(store, llm, embedder)
+if err != nil {
+    // обработка ошибки
+}
 
 // Полная конфигурация
-pipeline := draftrag.NewPipelineWithOptions(store, llm, embedder, draftrag.PipelineOptions{
-    DefaultTopK:            5,
-    Chunker:                myChunker,
-    SystemPrompt:           "Ты — помощник...",
-    MaxContextChars:        4000,
-    MaxContextChunks:       10,
-    DedupSourcesByParentID: true,
-    MMREnabled:             true,
-    MMRLambda:              0.6,
-    Hooks:                  myHooks,
+pipeline, err := draftrag.NewPipelineWithOptions(store, llm, embedder, draftrag.PipelineOptions{
+    DefaultTopK:      5,
+    Chunker:          myChunker,
+    SystemPrompt:     "Ты — помощник...",
+    MaxContextChars:  4000,
+    MaxContextChunks: 10,
+    DedupByParentID:  true,
+    MMREnabled:       true,
+    MMRLambda:        0.6,
+    Hooks:            myHooks,
 })
+if err != nil {
+    // обработка ошибки
+}
 ```
 
 ## RetrievalResult
@@ -152,6 +158,7 @@ var (
     ErrEmptyDocument            // пустой документ при индексации
     ErrEmptyQuery               // пустой вопрос
     ErrInvalidTopK              // topK <= 0
+    ErrNilContext               // nil context в публичном методе
     ErrFiltersNotSupported      // store не поддерживает фильтры
     ErrStreamingNotSupported    // LLM не поддерживает streaming
     ErrHybridNotSupported       // store не поддерживает hybrid search

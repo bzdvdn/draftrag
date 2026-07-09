@@ -9,9 +9,10 @@ import (
 
 type embedCallFunc func(ctx context.Context, text string) ([]float64, error)
 
+// @sk-task arch-generics#T4.1: nil context guard вместо panic (AC-002)
 func embedWithValidation(ctx context.Context, text string, timeout time.Duration, validate func() error, call embedCallFunc) ([]float64, error) {
-	if ctx == nil {
-		panic("nil context")
+	if err := checkCtx(ctx); err != nil {
+		return nil, err
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -32,9 +33,10 @@ func embedWithValidation(ctx context.Context, text string, timeout time.Duration
 
 type generateCallFunc func(ctx context.Context, systemPrompt, userMessage string) (string, error)
 
+// @sk-task arch-generics#T4.1: nil context guard вместо panic (AC-002)
 func generateWithValidation(ctx context.Context, systemPrompt, userMessage string, timeout time.Duration, validate func() error, call generateCallFunc) (string, error) {
-	if ctx == nil {
-		panic("nil context")
+	if err := checkCtx(ctx); err != nil {
+		return "", err
 	}
 	if err := ctx.Err(); err != nil {
 		return "", err

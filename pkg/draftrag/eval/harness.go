@@ -28,9 +28,10 @@ type Options struct {
 }
 
 // Run прогоняет датасет кейсов и возвращает отчёт с базовыми retrieval-метриками.
+// @sk-task arch-generics#T4.1: nil context guard вместо panic (AC-002)
 func Run(ctx context.Context, runner RetrievalRunner, cases []Case, opts Options) (Report, error) {
 	if ctx == nil {
-		panic("nil context")
+		return Report{}, draftrag.ErrNilContext
 	}
 	if runner == nil {
 		return Report{}, errors.New("nil runner")
