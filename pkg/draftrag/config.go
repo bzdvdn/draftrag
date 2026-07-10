@@ -187,14 +187,22 @@ type MistralLLMConfig struct {
 
 // ChunkerConfig — настройки чанкера.
 type ChunkerConfig struct {
-	Type  string             `yaml:"type"`
-	Basic *BasicChunkerConfig `yaml:"basic,omitempty"`
+	Type     string               `yaml:"type"`
+	Basic    *BasicChunkerConfig  `yaml:"basic,omitempty"`
+	Semantic *SemanticChunkerConfig `yaml:"semantic,omitempty"`
 }
 
 // BasicChunkerConfig — настройки BasicChunker.
 type BasicChunkerConfig struct {
 	ChunkSize    int `yaml:"chunk_size"`
 	ChunkOverlap int `yaml:"chunk_overlap"`
+}
+
+// @sk-task chunker-semantic#T3.1: YAML semantic chunker config (AC-009)
+type SemanticChunkerConfig struct {
+	SimilarityThreshold float64 `yaml:"threshold"`
+	MinChunkSize        int     `yaml:"min_chunk_size"`
+	MaxChunkSize        int     `yaml:"max_chunk_size"`
 }
 
 // RerankerConfig — настройки reranker.
@@ -444,6 +452,19 @@ func NewPipelineFromConfig(ctx context.Context, cfg Config, deps ...ExternalDeps
 			ChunkSize: cfg.Chunker.Basic.ChunkSize,
 			Overlap:   cfg.Chunker.Basic.ChunkOverlap,
 		})
+	}
+
+	if cfg.Chunker.Type == "semantic" && cfg.Chunker.Semantic != nil {
+		sc, err := NewSemanticChunker(SemanticChunkerOptions{
+			Embedder:            embedder,
+			SimilarityThreshold: cfg.Chunker.Semantic.SimilarityThreshold,
+			MinChunkSize:        cfg.Chunker.Semantic.MinChunkSize,
+			MaxChunkSize:        cfg.Chunker.Semantic.MaxChunkSize,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("semantic chunker: %w", err)
+		}
+		opts.Chunker = sc
 	}
 
 	if cfg.Reranker.Type == "llm" && cfg.Reranker.LLM != nil {

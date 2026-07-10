@@ -20,6 +20,7 @@ Compact code-only navigation index for the draftRAG Go library.
 - `pkg/draftrag/mistral_embedder.go` — `NewMistralEmbedder` (Mistral embeddings)
 - `pkg/draftrag/deepseek_llm.go` — `NewDeepSeekLLM` (DeepSeek Chat Completions API)
 - `pkg/draftrag/basic_chunker.go` — `NewBasicChunker` (default chunker)
+- `pkg/draftrag/semantic_chunker.go` — `NewSemanticChunker` (semantic chunker)
 - `pkg/draftrag/cached_embedder.go` — `NewCachedEmbedder` + `cached_embedder_redis.go::NewRedisCache`
 - `pkg/draftrag/resilience.go` — `NewRetryEmbedder` / `NewRetryLLMProvider`
 - `pkg/draftrag/pgvector_migrate.go` — SQL migration runner (uses `pgvector_migrations_assets.go` for embedded SQL)
@@ -31,7 +32,7 @@ Compact code-only navigation index for the draftRAG Go library.
 
 - `internal/domain/` — domain layer: interfaces (`VectorStore`, `TransactionalDocumentStore`, `DocumentStore`, `Embedder`, `LLMProvider`, `Chunker`, `Hooks`, `Logger`), models (`Document`, `RetrievalResult`, sentinels, `HybridConfig`), redaction helpers (`RedactSecret`/`RedactSecrets`), `models_test.go`
 - `internal/application/` — application/orchestration layer: Pipeline implementation (index/query/retrieve/answer/stream), worker pool, atomic update, batch, MMR/rrf helpers, error sentinels
-- `internal/infrastructure/chunker/` — chunker implementation (`BasicChunker`)
+- `internal/infrastructure/chunker/` — chunker implementations (`BasicChunker`, `SemanticChunker`)
 - `internal/infrastructure/rewriter/` — LLMRewriter implementation (LLM-based query rewriting strategy)
 - `internal/infrastructure/reranker/` — LLMReranker implementation (LLM-as-judge reranking strategy)
 - `internal/infrastructure/embedder/` — concrete embedder HTTP clients (Ollama, OpenAI-compatible) + `cache/` subpackage (LRU + Redis + stats)
