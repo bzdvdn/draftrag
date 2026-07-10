@@ -130,6 +130,7 @@ func (b *SearchBuilder) validate() (string, error) {
 // Routing (HyDE > MultiQuery > Hybrid > ParentIDs > Filter > basic) делегирован в runRetrieve.
 //
 // @sk-task arch-generics#T2.2: nil context guard + routing delegate через router.execute (AC-001, AC-002)
+// @sk-task pii-guardrails#T2.3: PII redaction в SearchBuilder.Retrieve (AC-002, RQ-002)
 func (b *SearchBuilder) Retrieve(ctx context.Context) (RetrievalResult, error) {
 	if err := checkCtx(ctx); err != nil {
 		return RetrievalResult{}, err
@@ -142,7 +143,11 @@ func (b *SearchBuilder) Retrieve(ctx context.Context) (RetrievalResult, error) {
 		return RetrievalResult{}, err
 	}
 	res, err := retrieveRouter.execute(ctx, q, b.topK, r, b)
-	return res.Result, err
+	if err != nil {
+		return RetrievalResult{}, err
+	}
+	b.pipeline.redactRetrievalResult(&res.Result)
+	return res.Result, nil
 }
 
 // Answer выполняет RAG-ответ и возвращает строку.
@@ -168,6 +173,7 @@ func (b *SearchBuilder) Answer(ctx context.Context) (string, error) {
 // Routing делегирован в runCite.
 //
 // @sk-task arch-generics#T2.2: nil context guard + routing delegate через router.execute (AC-001, AC-002)
+// @sk-task pii-guardrails#T2.3: PII redaction в Cite (RQ-002)
 func (b *SearchBuilder) Cite(ctx context.Context) (string, RetrievalResult, error) {
 	if err := checkCtx(ctx); err != nil {
 		return "", RetrievalResult{}, err
@@ -180,7 +186,11 @@ func (b *SearchBuilder) Cite(ctx context.Context) (string, RetrievalResult, erro
 		return "", RetrievalResult{}, err
 	}
 	res, err := citeRouter.execute(ctx, q, b.topK, r, b)
-	return res.Text, res.Sources, err
+	if err != nil {
+		return "", RetrievalResult{}, err
+	}
+	b.pipeline.redactRetrievalResult(&res.Sources)
+	return res.Text, res.Sources, nil
 }
 
 // InlineCite выполняет RAG-ответ с inline-цитатами `[n]`.
@@ -188,6 +198,7 @@ func (b *SearchBuilder) Cite(ctx context.Context) (string, RetrievalResult, erro
 // Routing делегирован в runInlineCite.
 //
 // @sk-task arch-generics#T2.2: nil context guard + routing delegate через router.execute (AC-001, AC-002)
+// @sk-task pii-guardrails#T2.3: PII redaction в InlineCite (RQ-002)
 func (b *SearchBuilder) InlineCite(ctx context.Context) (string, RetrievalResult, []InlineCitation, error) {
 	if err := checkCtx(ctx); err != nil {
 		return "", RetrievalResult{}, nil, err
@@ -200,7 +211,11 @@ func (b *SearchBuilder) InlineCite(ctx context.Context) (string, RetrievalResult
 		return "", RetrievalResult{}, nil, err
 	}
 	res, err := inlineCiteRouter.execute(ctx, q, b.topK, r, b)
-	return res.Text, res.Sources, res.Citations, err
+	if err != nil {
+		return "", RetrievalResult{}, nil, err
+	}
+	b.pipeline.redactRetrievalResult(&res.Sources)
+	return res.Text, res.Sources, res.Citations, nil
 }
 
 // Stream выполняет RAG-ответ через streaming (токен за токеном).

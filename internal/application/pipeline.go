@@ -23,6 +23,7 @@ var (
 //
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task arch-quality-pass#T3.2: единый struct конфигурации (AC-004)
+// @sk-task pii-guardrails#T2.1: PipelineOptions.PIIDetector (RQ-001, RQ-002)
 type PipelineOptions struct {
 	SystemPrompt                 string
 	Chunker                      domain.Chunker
@@ -38,11 +39,13 @@ type PipelineOptions struct {
 	IndexBatchRateLimitPerWorker bool
 	StreamBufferSize             int
 	Reranker                     domain.Reranker
+	PIIDetector                  domain.PIIDetector
 }
 
 // Pipeline is the core RAG pipeline coordinating store, LLM, and embedder.
 //
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
+// @sk-task pii-guardrails#T2.1: Pipeline.PIIDetector (RQ-001, RQ-002)
 type Pipeline struct {
 	store                        domain.VectorStore
 	llm                          domain.LLMProvider
@@ -61,6 +64,7 @@ type Pipeline struct {
 	indexBatchRateLimitPerWorker bool
 	streamBufferSize             int
 	reranker                     domain.Reranker
+	piidetector                  domain.PIIDetector
 }
 
 // NewPipeline creates a Pipeline with required dependencies.
@@ -132,6 +136,7 @@ func NewPipelineWithConfig(
 	p.indexBatchRateLimitPerWorker = cfg.IndexBatchRateLimitPerWorker
 	p.streamBufferSize = cfg.StreamBufferSize
 	p.reranker = cfg.Reranker
+	p.piidetector = cfg.PIIDetector
 	return p, nil
 }
 

@@ -27,26 +27,29 @@ Compact code-only navigation index for the draftRAG Go library.
 - `pkg/draftrag/otel/hooks.go` — `NewHooks` (OpenTelemetry hooks/tracing)
 - `pkg/draftrag/rewriter.go` — `NewLLMRewriter` (QueryRewriter constructor)
 - `pkg/draftrag/reranker_llm.go` — `NewLLMReranker` (LLM-as-judge Reranker constructor)
+- `pkg/draftrag/pii.go` — `NewDefaultPIIDetector` / `NewCompositePIIDetector` (public PII detector constructors)
 
 ## Top-Level Code
 
-- `internal/domain/` — domain layer: interfaces (`VectorStore`, `TransactionalDocumentStore`, `DocumentStore`, `Embedder`, `LLMProvider`, `Chunker`, `Hooks`, `Logger`), models (`Document`, `RetrievalResult`, sentinels, `HybridConfig`), redaction helpers (`RedactSecret`/`RedactSecrets`), `models_test.go`
+- `internal/domain/` — domain layer: interfaces (`VectorStore`, `TransactionalDocumentStore`, `DocumentStore`, `Embedder`, `LLMProvider`, `Chunker`, `Hooks`, `Logger`, `PIIDetector`), models (`Document`, `RetrievalResult`, sentinels, `HybridConfig`), redaction helpers (`RedactSecret`/`RedactSecrets`), `models_test.go`
 - `internal/application/` — application/orchestration layer: Pipeline implementation (index/query/retrieve/answer/stream), worker pool, atomic update, batch, MMR/rrf helpers, error sentinels
 - `internal/infrastructure/chunker/` — chunker implementations (`BasicChunker`, `SemanticChunker`)
 - `internal/infrastructure/rewriter/` — LLMRewriter implementation (LLM-based query rewriting strategy)
 - `internal/infrastructure/reranker/` — LLMReranker implementation (LLM-as-judge reranking strategy)
 - `internal/infrastructure/embedder/` — concrete embedder HTTP clients (Ollama, OpenAI-compatible) + `cache/` subpackage (LRU + Redis + stats)
 - `internal/infrastructure/llm/` — concrete LLM HTTP clients (Anthropic, Ollama, OpenAI-compatible, OpenAI Chat Completions, mock streaming)
+- `internal/infrastructure/piidetector/` — pattern-based PII detectors (`EmailDetector`, `PhoneDetector`, `SSNDetector`, `CreditCardDetector`, `CompositePIIDetector`)
 - `internal/infrastructure/costtracker/` — `CostTracker` wrapper: LLMProvider-обёртка с подсчётом токенов и стоимости
 - `internal/infrastructure/resilience/` — `circuitbreaker`, `retry`, `embedder`/`llm` wrappers, `hooks`, `errors`
 - `internal/infrastructure/vectorstore/` — concrete VectorStore implementations (pgvector with transactions, memory, qdrant, chromadb, weaviate, milvus, hybrid search) + extensive `*_test.go` per backend
 - `pkg/draftrag/` — public Go API surface: re-exports + facade + embedders/vectorstores/chunker/resilience/otel/eval/migrations
-- `examples/` — 9 runnable per-backend examples (memory, pgvector, qdrant, chromadb, weaviate, milvus, mistral, deepseek, cost-tracking) + shared mock/print helpers + legacy (chat, index-dir) — NOT part of library API, demo only
+- `examples/` — 9 runnable per-backend examples (memory, pgvector, qdrant, chromadb, weaviate, milvus, mistral, deepseek, cost-tracking) + pii-guardrails (PII redaction demo with InMemoryStore) + shared mock/print helpers + legacy (chat, index-dir) — NOT part of library API, demo only
 - `pkg/draftrag/mistral_embedder.go` — `NewMistralEmbedder` factory wrapping `OpenAICompatibleEmbedder` with Mistral defaults
 
 ## Key Paths
 
 - `internal/domain/interfaces.go` — `VectorStore`, `TransactionalDocumentStore` (BeginTx/DeleteByParentIDTx/UpsertTx/Commit/Rollback), `DocumentStore`, `Embedder`, `LLMProvider`, `Chunker`, `Hooks`, `Logger`, `UsageAwareLLMProvider`, `UsageAwareStreamingLLMProvider`, `QueryRewriter`
+- `internal/domain/pii.go` — `PIIDetector` interface, `PIICategories`
 - `internal/domain/models.go` — `Document`, `RetrievalResult`, `HybridConfig`, sentinels (`ErrEmptyQuery`, `ErrInvalidQueryTopK`, `ErrUpdateNotAtomic`, `ErrEmbeddingDimensionMismatch`, etc.); cost-tracking: `TokenUsage`, `ModelPricing`, `CostSnapshot`, `Diff`; query-rewriting: `RewrittenQuery`, `QueryHistory`
 - `internal/domain/hooks.go` — `Hooks` callback contract (OnStart/OnEnd/OnError) for instrumentation
 - `internal/domain/redaction.go` — `RedactSecret` / `RedactSecrets` helpers for PII/token redaction
@@ -58,10 +61,11 @@ Compact code-only navigation index for the draftRAG Go library.
 - `internal/application/{query,answer,retrieval,mmr,rrf}.go` — retrieval/answer/rerank logic; `QueryWithQueries`, `AnswerWithQueries*` (multi-query retrieval)
 - `internal/infrastructure/vectorstore/pgvector.go` — `pgVectorTx` transactional path; `BeginTx`; SQL operations
 - `internal/infrastructure/vectorstore/hybrid.go` — `HybridConfig` + `HybridSearch` plumbing
-- `pkg/draftrag/draftrag.go` — `Pipeline`, `PipelineOptions` (IndexConcurrency, StreamBufferSize, IndexBatchRateLimitPerWorker, HybridConfig, QueryRewriter, etc.), `NewPipeline*` constructors, `mapAppError`; re-export `TokenUsage`, `ModelPricing`, `CostSnapshot`, `UsageAwareLLMProvider`, `UsageAwareStreamingLLMProvider`, `Diff`, `QueryRewriter`, `RewrittenQuery`, `QueryHistory`
+- `pkg/draftrag/draftrag.go` — `Pipeline`, `PipelineOptions` (IndexConcurrency, StreamBufferSize, IndexBatchRateLimitPerWorker, HybridConfig, QueryRewriter, PIIDetector, etc.), `NewPipeline*` constructors, `mapAppError`; re-export `TokenUsage`, `ModelPricing`, `CostSnapshot`, `UsageAwareLLMProvider`, `UsageAwareStreamingLLMProvider`, `Diff`, `QueryRewriter`, `RewrittenQuery`, `QueryHistory`
 - `pkg/draftrag/costtracker.go` — `CostTracker`, `NewCostTracker` (публичная обёртка LLMProvider с подсчётом токенов/стоимости)
 - `pkg/draftrag/search.go` + `search_routing.go` — public `SearchBuilder` (Retrieve/Answer/Cite/InlineCite/Stream/StreamSources/StreamCite) with `selectRetrieval`/`selectGeneration`; `Rewriter`/`History` methods + `routeRewriter` handlers
 - `pkg/draftrag/errors.go` — re-exported public sentinels; `ErrUnknownConfigKey`, `ErrMissingRequiredField`
+- `pkg/draftrag/pii.go` — type aliases `PIIDetector`, `PIICategories`; `NewDefaultPIIDetector`, `NewCompositePIIDetector` constructors
 - `pkg/draftrag/config.go` — `Config` struct + all sub-config types; `LoadConfig`, `LoadConfigFromEnv`, `NewPipelineFromConfig`, `ExternalDeps`
 - `pkg/draftrag/migrations/pgvector/` — embedded SQL migrations (`0000_…` / `0001_…` / `0002_…`)
 - `pkg/draftrag/otel/` — OTel hooks (tracing + metrics)
@@ -76,6 +80,7 @@ Compact code-only navigation index for the draftRAG Go library.
 - New embedder/LLM provider → `internal/infrastructure/{embedder,llm}/` + `pkg/draftrag/<provider>.go`
 - New query rewriter → `internal/infrastructure/rewriter/` + `pkg/draftrag/rewriter.go`
 - New LLM reranker → `internal/infrastructure/reranker/` + `pkg/draftrag/reranker_llm.go`
+- New PII detector → `internal/domain/pii.go` (interface) + `internal/infrastructure/piidetector/` (implementation) + `pkg/draftrag/pii.go` (public API)
 - Unified config management (Config struct, LoadConfig, NewPipelineFromConfig) → `pkg/draftrag/config.go`
 - Pipeline public surface (constructor, options) → `pkg/draftrag/draftrag.go` (PipelineOptions struct)
 - Pipeline orchestration (Index/Query/Answer/Stream/UpdateDocument) → `internal/application/pipeline.go`; per-method helpers in `{query,answer,stream,retrieval,batch,mmr,rrf}.go`

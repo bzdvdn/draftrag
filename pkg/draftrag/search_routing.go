@@ -180,12 +180,18 @@ var streamCiteHandlers = map[route]func(context.Context, string, int, *SearchBui
 }
 
 // @sk-task query-rewriting#T2.2: rewriter handler helpers (AC-002, AC-005, AC-007)
+// @sk-task pii-guardrails#T3.2: PII redaction в RewrittenQuery (AC-007, RQ-007)
 
 // rewriterResult возвращает переформулированные запросы из rewriter'а.
 // При ошибке или пустом результате возвращает исходный запрос (fallback).
+// Если в pipeline сконфигурирован PIIDetector, rewritten queries проходят
+// через детектор перед возвратом.
 func rewriterResult(b *SearchBuilder, ctx context.Context, q string) []string {
 	rw := b.rewriter
 	if rw == nil {
+		if b.pipeline.piidetector != nil {
+			return []string{b.pipeline.piidetector.Detect(q)}
+		}
 		return []string{q}
 	}
 
@@ -196,6 +202,9 @@ func rewriterResult(b *SearchBuilder, ctx context.Context, q string) []string {
 
 	rewritten, err := rw.Rewrite(ctx, q, b.history)
 	if err != nil || len(rewritten) == 0 {
+		if b.pipeline.piidetector != nil {
+			return []string{b.pipeline.piidetector.Detect(q)}
+		}
 		return []string{q}
 	}
 
@@ -205,6 +214,9 @@ func rewriterResult(b *SearchBuilder, ctx context.Context, q string) []string {
 			out[i] = q
 		} else {
 			out[i] = r.Query
+		}
+		if b.pipeline.piidetector != nil {
+			out[i] = b.pipeline.piidetector.Detect(out[i])
 		}
 	}
 	return out

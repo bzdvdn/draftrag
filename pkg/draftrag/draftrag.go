@@ -160,10 +160,12 @@ type TransactionalDocumentStore = domain.TransactionalDocumentStore
 // Pipeline — публичный API для композиции core-компонентов draftRAG.
 // Валидация входных данных выполняется здесь (см. errors.go).
 // @sk-task query-rewriting#T2.1: добавлено поле queryRewriter (AC-002)
+// @sk-task pii-guardrails#T2.1: добавлено поле piidetector (RQ-001, RQ-002)
 type Pipeline struct {
 	core          *application.Pipeline
 	defaultTop    int
 	queryRewriter QueryRewriter
+	piidetector   domain.PIIDetector
 }
 
 // PipelineOptions задаёт конфигурацию Pipeline.
@@ -233,6 +235,13 @@ type PipelineOptions struct {
 	// Поддерживает 1:1 и 1:N режимы. nil означает "без переписывания".
 	// При установке per-request Rewriter через SearchBuilder.Rewriter имеет приоритет.
 	QueryRewriter QueryRewriter
+
+	// @sk-task pii-guardrails#T2.1: PIIDetector опция (RQ-001, RQ-002)
+	// PIIDetector — опциональный детектор PII.
+	// Если установлен, содержимое документов и результатов retrieval
+	// проходит через детектор для цензурирования PII.
+	// nil означает "без обработки" (backward compatible).
+	PIIDetector PIIDetector
 }
 
 // NewPipeline создаёт pipeline из зависимостей: VectorStore, LLMProvider и Embedder.
@@ -298,6 +307,7 @@ func NewPipelineWithOptions(store VectorStore, llm LLMProvider, embedder Embedde
 		IndexBatchRateLimitPerWorker: opts.IndexBatchRateLimitPerWorker,
 		StreamBufferSize:             opts.StreamBufferSize,
 		Reranker:                     opts.Reranker,
+		PIIDetector:                  opts.PIIDetector,
 	})
 	if err != nil {
 		return nil, err
@@ -306,6 +316,7 @@ func NewPipelineWithOptions(store VectorStore, llm LLMProvider, embedder Embedde
 		core:          core,
 		defaultTop:    defaultTop,
 		queryRewriter: opts.QueryRewriter,
+		piidetector:   opts.PIIDetector,
 	}, nil
 }
 
@@ -314,6 +325,7 @@ func NewPipelineWithOptions(store VectorStore, llm LLMProvider, embedder Embedde
 
 // Index индексирует документы.
 // @sk-task arch-generics#T2.2: nil context guard + checkCtx вместо panic (AC-002)
+// @sk-task pii-guardrails#T2.2: PII redaction в Index (AC-001, RQ-001)
 func (p *Pipeline) Index(ctx context.Context, docs []Document) error {
 	if err := checkCtx(ctx); err != nil {
 		return err
@@ -322,9 +334,13 @@ func (p *Pipeline) Index(ctx context.Context, docs []Document) error {
 		return err
 	}
 
-	for _, doc := range docs {
-		if strings.TrimSpace(doc.Content) == "" {
+	for i := range docs {
+		content := strings.TrimSpace(docs[i].Content)
+		if content == "" {
 			return ErrEmptyDocument
+		}
+		if p.piidetector != nil {
+			docs[i].Content = p.piidetector.Detect(docs[i].Content)
 		}
 	}
 
@@ -335,6 +351,7 @@ func (p *Pipeline) Index(ctx context.Context, docs []Document) error {
 // Query выполняет поиск с topK по умолчанию (PipelineOptions.DefaultTopK или 5).
 // Для расширенных параметров используйте Search builder.
 // @sk-task arch-generics#T2.2: nil context guard + checkCtx вместо panic (AC-002)
+// @sk-task pii-guardrails#T2.3: PII redaction в Query (AC-002, RQ-002)
 func (p *Pipeline) Query(ctx context.Context, question string) (RetrievalResult, error) {
 	if err := checkCtx(ctx); err != nil {
 		return RetrievalResult{}, err
@@ -347,7 +364,15 @@ func (p *Pipeline) Query(ctx context.Context, question string) (RetrievalResult,
 		return RetrievalResult{}, ErrEmptyQuery
 	}
 	result, err := p.core.Query(ctx, question, p.defaultTop)
-	return result, mapAppError(err)
+	if err != nil {
+		return RetrievalResult{}, mapAppError(err)
+	}
+	if p.piidetector != nil {
+		for i := range result.Chunks {
+			result.Chunks[i].Chunk.Content = p.piidetector.Detect(result.Chunks[i].Chunk.Content)
+		}
+	}
+	return result, nil
 }
 
 // Answer генерирует ответ с topK по умолчанию (PipelineOptions.DefaultTopK или 5).
@@ -458,6 +483,16 @@ func (p *Pipeline) IndexBatch(ctx context.Context, docs []Document, batchSize in
 
 	result, err := p.core.IndexBatch(ctx, docs, batchSize)
 	return result, mapAppError(err)
+}
+
+// @sk-task pii-guardrails#T2.3: redactRetrievalResult (RQ-002, AC-002)
+func (p *Pipeline) redactRetrievalResult(rr *RetrievalResult) {
+	if p.piidetector == nil {
+		return
+	}
+	for i := range rr.Chunks {
+		rr.Chunks[i].Chunk.Content = p.piidetector.Detect(rr.Chunks[i].Chunk.Content)
+	}
 }
 
 // mapAppError — единая точка маппинга application/domain ошибок на публичные sentinel'ы.
