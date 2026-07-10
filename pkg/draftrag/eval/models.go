@@ -14,6 +14,8 @@ type Case struct {
 	ExpectedParentIDs []string
 	// TopK — topK для retrieval в рамках кейса; 0 означает использование дефолта harness.
 	TopK int
+	// @sk-task eval-ragas-metrics#T1.1: Добавить поле ExpectedAnswer для RAGAS-метрик (DM)
+	ExpectedAnswer string
 }
 
 // CaseResult — подробный результат прогона одного кейса.
@@ -47,6 +49,12 @@ type Metrics struct {
 	Precision float64
 	// @sk-task T1.1: Добавить поле Recall для оценки полноты поиска (AC-002)
 	Recall float64
+	// @sk-task eval-ragas-metrics#T1.1: Добавить поле Faithfulness для RAGAS-метрик (DM)
+	Faithfulness float64
+	// @sk-task eval-ragas-metrics#T1.1: Добавить поле AnswerRelevance для RAGAS-метрик (DM)
+	AnswerRelevance float64
+	// @sk-task eval-ragas-metrics#T1.1: Добавить поле ContextRelevance для RAGAS-метрик (DM)
+	ContextRelevance float64
 }
 
 // Report — агрегированный отчёт по датасету.
