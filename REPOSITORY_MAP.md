@@ -24,6 +24,7 @@ Compact code-only navigation index for the draftRAG Go library.
 - `pkg/draftrag/pgvector_migrate.go` — SQL migration runner (uses `pgvector_migrations_assets.go` for embedded SQL)
 - `pkg/draftrag/otel/hooks.go` — `NewHooks` (OpenTelemetry hooks/tracing)
 - `pkg/draftrag/rewriter.go` — `NewLLMRewriter` (QueryRewriter constructor)
+- `pkg/draftrag/reranker_llm.go` — `NewLLMReranker` (LLM-as-judge Reranker constructor)
 
 ## Top-Level Code
 
@@ -31,6 +32,7 @@ Compact code-only navigation index for the draftRAG Go library.
 - `internal/application/` — application/orchestration layer: Pipeline implementation (index/query/retrieve/answer/stream), worker pool, atomic update, batch, MMR/rrf helpers, error sentinels
 - `internal/infrastructure/chunker/` — chunker implementation (`BasicChunker`)
 - `internal/infrastructure/rewriter/` — LLMRewriter implementation (LLM-based query rewriting strategy)
+- `internal/infrastructure/reranker/` — LLMReranker implementation (LLM-as-judge reranking strategy)
 - `internal/infrastructure/embedder/` — concrete embedder HTTP clients (Ollama, OpenAI-compatible) + `cache/` subpackage (LRU + Redis + stats)
 - `internal/infrastructure/llm/` — concrete LLM HTTP clients (Anthropic, Ollama, OpenAI-compatible, OpenAI Chat Completions, mock streaming)
 - `internal/infrastructure/costtracker/` — `CostTracker` wrapper: LLMProvider-обёртка с подсчётом токенов и стоимости
@@ -70,6 +72,7 @@ Compact code-only navigation index for the draftRAG Go library.
 - New VectorStore backend → implement `domain.VectorStore` in `internal/infrastructure/vectorstore/<name>.go`; add `<name>_test.go`; add `NewXxxStore` constructor in `pkg/draftrag/<name>.go`; add row to capability table in `docs/vector-stores.md`
 - New embedder/LLM provider → `internal/infrastructure/{embedder,llm}/` + `pkg/draftrag/<provider>.go`
 - New query rewriter → `internal/infrastructure/rewriter/` + `pkg/draftrag/rewriter.go`
+- New LLM reranker → `internal/infrastructure/reranker/` + `pkg/draftrag/reranker_llm.go`
 - Pipeline public surface (constructor, options) → `pkg/draftrag/draftrag.go` (PipelineOptions struct)
 - Pipeline orchestration (Index/Query/Answer/Stream/UpdateDocument) → `internal/application/pipeline.go`; per-method helpers in `{query,answer,stream,retrieval,batch,mmr,rrf}.go`
 - Concurrency / worker pool / rate limit → `internal/application/worker_pool.go`; options in `pkg/draftrag/draftrag.go::PipelineOptions`
