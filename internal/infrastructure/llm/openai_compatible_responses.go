@@ -68,7 +68,7 @@ type responsesStreamRequest struct {
 
 // streamEvent — структура SSE события от OpenAI streaming API.
 type streamEvent struct {
-	Type   string           `json:"type"`
+	Type   string `json:"type"`
 	Output []struct {
 		Type    string `json:"type"`
 		Content []struct {

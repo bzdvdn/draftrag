@@ -221,7 +221,7 @@ func TestPipeline_AnswerWithMetadataFilter_FiltersNotSupported(t *testing.T) {
 // noFilterStore — минимальный VectorStore без VectorStoreWithFilters capability.
 type noFilterStore struct{}
 
-func (noFilterStore) Health(_ context.Context) error { return nil }
+func (noFilterStore) Health(_ context.Context) error                 { return nil }
 func (noFilterStore) Upsert(_ context.Context, _ domain.Chunk) error { return nil }
 func (noFilterStore) Delete(_ context.Context, _ string) error       { return nil }
 func (noFilterStore) Search(_ context.Context, _ []float64, _ int) (domain.RetrievalResult, error) {

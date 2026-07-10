@@ -150,6 +150,19 @@ type BatchReranker interface {
 	RerankBatch(ctx context.Context, queries []string, chunks []RetrievedChunk) ([][]RetrievedChunk, error)
 }
 
+// @sk-task query-rewriting#T1.1: QueryRewriter interface (AC-001)
+// QueryRewriter — опциональный компонент для переписывания запроса перед retrieval.
+//
+// Реализации могут быть LLM-based (через LLMProvider), rule-based или гибридными.
+// Поддерживает два режима: 1:1 (одна переформулировка) и 1:N (несколько переформулировок).
+type QueryRewriter interface {
+	// Rewrite переписывает запрос с учётом истории диалога.
+	// Возвращает одну или несколько переформулировок.
+	// При пустом результате (nil или len==0) pipeline использует исходный запрос.
+	// Ошибка не фатальна — pipeline логирует и использует исходный запрос.
+	Rewrite(ctx context.Context, query string, history QueryHistory) ([]RewrittenQuery, error)
+}
+
 // DocumentStore — опциональная capability VectorStore для удаления документа целиком по ParentID.
 type DocumentStore interface {
 	VectorStore

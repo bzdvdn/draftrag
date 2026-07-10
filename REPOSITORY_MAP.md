@@ -23,12 +23,14 @@ Compact code-only navigation index for the draftRAG Go library.
 - `pkg/draftrag/resilience.go` — `NewRetryEmbedder` / `NewRetryLLMProvider`
 - `pkg/draftrag/pgvector_migrate.go` — SQL migration runner (uses `pgvector_migrations_assets.go` for embedded SQL)
 - `pkg/draftrag/otel/hooks.go` — `NewHooks` (OpenTelemetry hooks/tracing)
+- `pkg/draftrag/rewriter.go` — `NewLLMRewriter` (QueryRewriter constructor)
 
 ## Top-Level Code
 
 - `internal/domain/` — domain layer: interfaces (`VectorStore`, `TransactionalDocumentStore`, `DocumentStore`, `Embedder`, `LLMProvider`, `Chunker`, `Hooks`, `Logger`), models (`Document`, `RetrievalResult`, sentinels, `HybridConfig`), redaction helpers (`RedactSecret`/`RedactSecrets`), `models_test.go`
 - `internal/application/` — application/orchestration layer: Pipeline implementation (index/query/retrieve/answer/stream), worker pool, atomic update, batch, MMR/rrf helpers, error sentinels
 - `internal/infrastructure/chunker/` — chunker implementation (`BasicChunker`)
+- `internal/infrastructure/rewriter/` — LLMRewriter implementation (LLM-based query rewriting strategy)
 - `internal/infrastructure/embedder/` — concrete embedder HTTP clients (Ollama, OpenAI-compatible) + `cache/` subpackage (LRU + Redis + stats)
 - `internal/infrastructure/llm/` — concrete LLM HTTP clients (Anthropic, Ollama, OpenAI-compatible, OpenAI Chat Completions, mock streaming)
 - `internal/infrastructure/costtracker/` — `CostTracker` wrapper: LLMProvider-обёртка с подсчётом токенов и стоимости
@@ -40,8 +42,8 @@ Compact code-only navigation index for the draftRAG Go library.
 
 ## Key Paths
 
-- `internal/domain/interfaces.go` — `VectorStore`, `TransactionalDocumentStore` (BeginTx/DeleteByParentIDTx/UpsertTx/Commit/Rollback), `DocumentStore`, `Embedder`, `LLMProvider`, `Chunker`, `Hooks`, `Logger`, `UsageAwareLLMProvider`, `UsageAwareStreamingLLMProvider`
-- `internal/domain/models.go` — `Document`, `RetrievalResult`, `HybridConfig`, sentinels (`ErrEmptyQuery`, `ErrInvalidQueryTopK`, `ErrUpdateNotAtomic`, `ErrEmbeddingDimensionMismatch`, etc.); cost-tracking: `TokenUsage`, `ModelPricing`, `CostSnapshot`, `Diff`
+- `internal/domain/interfaces.go` — `VectorStore`, `TransactionalDocumentStore` (BeginTx/DeleteByParentIDTx/UpsertTx/Commit/Rollback), `DocumentStore`, `Embedder`, `LLMProvider`, `Chunker`, `Hooks`, `Logger`, `UsageAwareLLMProvider`, `UsageAwareStreamingLLMProvider`, `QueryRewriter`
+- `internal/domain/models.go` — `Document`, `RetrievalResult`, `HybridConfig`, sentinels (`ErrEmptyQuery`, `ErrInvalidQueryTopK`, `ErrUpdateNotAtomic`, `ErrEmbeddingDimensionMismatch`, etc.); cost-tracking: `TokenUsage`, `ModelPricing`, `CostSnapshot`, `Diff`; query-rewriting: `RewrittenQuery`, `QueryHistory`
 - `internal/domain/hooks.go` — `Hooks` callback contract (OnStart/OnEnd/OnError) for instrumentation
 - `internal/domain/redaction.go` — `RedactSecret` / `RedactSecrets` helpers for PII/token redaction
 - `internal/application/pipeline.go` — `(*Pipeline).Index`, `(*Pipeline).Query`, `(*Pipeline).Retrieve`, `(*Pipeline).Answer`, `(*Pipeline).UpdateDocument`; `PipelineConfig` + `Pipeline` field plumbing
@@ -49,12 +51,12 @@ Compact code-only navigation index for the draftRAG Go library.
 - `internal/application/atomic_update.go` — `updateDocumentAtomic` (transactional vs best-effort with `ErrUpdateNotAtomic`)
 - `internal/application/batch.go` — `IndexBatch` (thin wrapper over worker pool)
 - `internal/application/stream.go` — `wrapStreamWithHook` (bounded backpressure via `streamBufferSize`)
-- `internal/application/{query,answer,retrieval,mmr,rrf}.go` — retrieval/answer/rerank logic
+- `internal/application/{query,answer,retrieval,mmr,rrf}.go` — retrieval/answer/rerank logic; `QueryWithQueries`, `AnswerWithQueries*` (multi-query retrieval)
 - `internal/infrastructure/vectorstore/pgvector.go` — `pgVectorTx` transactional path; `BeginTx`; SQL operations
 - `internal/infrastructure/vectorstore/hybrid.go` — `HybridConfig` + `HybridSearch` plumbing
-- `pkg/draftrag/draftrag.go` — `Pipeline`, `PipelineOptions` (IndexConcurrency, StreamBufferSize, IndexBatchRateLimitPerWorker, HybridConfig, etc.), `NewPipeline*` constructors, `mapAppError`; re-export `TokenUsage`, `ModelPricing`, `CostSnapshot`, `UsageAwareLLMProvider`, `UsageAwareStreamingLLMProvider`, `Diff`
+- `pkg/draftrag/draftrag.go` — `Pipeline`, `PipelineOptions` (IndexConcurrency, StreamBufferSize, IndexBatchRateLimitPerWorker, HybridConfig, QueryRewriter, etc.), `NewPipeline*` constructors, `mapAppError`; re-export `TokenUsage`, `ModelPricing`, `CostSnapshot`, `UsageAwareLLMProvider`, `UsageAwareStreamingLLMProvider`, `Diff`, `QueryRewriter`, `RewrittenQuery`, `QueryHistory`
 - `pkg/draftrag/costtracker.go` — `CostTracker`, `NewCostTracker` (публичная обёртка LLMProvider с подсчётом токенов/стоимости)
-- `pkg/draftrag/search.go` + `search_routing.go` — public `SearchBuilder` (Retrieve/Answer/Cite/InlineCite/Stream/StreamSources/StreamCite) with `selectRetrieval`/`selectGeneration`
+- `pkg/draftrag/search.go` + `search_routing.go` — public `SearchBuilder` (Retrieve/Answer/Cite/InlineCite/Stream/StreamSources/StreamCite) with `selectRetrieval`/`selectGeneration`; `Rewriter`/`History` methods + `routeRewriter` handlers
 - `pkg/draftrag/errors.go` — re-exported public sentinels
 - `pkg/draftrag/migrations/pgvector/` — embedded SQL migrations (`0000_…` / `0001_…` / `0002_…`)
 - `pkg/draftrag/otel/` — OTel hooks (tracing + metrics)
@@ -67,6 +69,7 @@ Compact code-only navigation index for the draftRAG Go library.
 
 - New VectorStore backend → implement `domain.VectorStore` in `internal/infrastructure/vectorstore/<name>.go`; add `<name>_test.go`; add `NewXxxStore` constructor in `pkg/draftrag/<name>.go`; add row to capability table in `docs/vector-stores.md`
 - New embedder/LLM provider → `internal/infrastructure/{embedder,llm}/` + `pkg/draftrag/<provider>.go`
+- New query rewriter → `internal/infrastructure/rewriter/` + `pkg/draftrag/rewriter.go`
 - Pipeline public surface (constructor, options) → `pkg/draftrag/draftrag.go` (PipelineOptions struct)
 - Pipeline orchestration (Index/Query/Answer/Stream/UpdateDocument) → `internal/application/pipeline.go`; per-method helpers in `{query,answer,stream,retrieval,batch,mmr,rrf}.go`
 - Concurrency / worker pool / rate limit → `internal/application/worker_pool.go`; options in `pkg/draftrag/draftrag.go::PipelineOptions`

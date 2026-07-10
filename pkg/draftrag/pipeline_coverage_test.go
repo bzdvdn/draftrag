@@ -13,7 +13,7 @@ import (
 
 type noDocStore struct{}
 
-func (noDocStore) Health(_ context.Context) error { return nil }
+func (noDocStore) Health(_ context.Context) error                 { return nil }
 func (noDocStore) Upsert(_ context.Context, _ domain.Chunk) error { return nil }
 func (noDocStore) Delete(_ context.Context, _ string) error       { return nil }
 func (noDocStore) Search(_ context.Context, _ []float64, _ int) (domain.RetrievalResult, error) {

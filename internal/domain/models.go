@@ -214,6 +214,35 @@ func Diff(prev, curr CostSnapshot) CostSnapshot {
 	return diff
 }
 
+// @sk-task query-rewriting#T1.2: RewrittenQuery и QueryHistory (AC-001)
+
+// RewrittenQuery представляет результат переформулировки запроса.
+type RewrittenQuery struct {
+	// Query — переписанный текст запроса.
+	Query string
+
+	// Weight — вес при fusion (0 — эквивалентно 1.0).
+	// Зарезервировано для weighted fusion в будущем.
+	Weight float64
+}
+
+// Message представляет одно сообщение в истории диалога.
+type Message struct {
+	// Role — отправитель: "user" или "assistant".
+	Role string
+
+	// Content — текст сообщения.
+	Content string
+}
+
+// QueryHistory содержит историю предыдущих сообщений диалога для multi-turn контекста.
+//
+// Caller управляет жизненным циклом и размером истории. Pipeline не хранит,
+// не обрезает и не персистирует QueryHistory.
+type QueryHistory struct {
+	Entries []Message
+}
+
 // HybridConfig задаёт параметры гибридного поиска (BM25 + semantic).
 type HybridConfig struct {
 	// SemanticWeight вес семантического скора (0.0 - 1.0).

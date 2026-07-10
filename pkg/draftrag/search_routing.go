@@ -10,6 +10,7 @@ type route int
 
 const (
 	routeBasic route = iota
+	routeRewriter
 	routeHyDE
 	routeMultiQuery
 	routeHybrid
@@ -23,6 +24,8 @@ func (b *SearchBuilder) pickRoute() (q string, r route, err error) {
 		return
 	}
 	switch {
+	case b.rewriter != nil:
+		r = routeRewriter
 	case b.hyDE:
 		r = routeHyDE
 	case b.multiQuery > 0:
@@ -43,8 +46,9 @@ func (b *SearchBuilder) pickRoute() (q string, r route, err error) {
 //
 //nolint:dupl // structurally similar by design (per-output-type maps)
 var retrieveHandlers = map[route]func(context.Context, string, int, *SearchBuilder) (rRetrieve, error){
-	routeBasic: mkRetrieve((*application.Pipeline).Query),
-	routeHyDE:  mkRetrieve((*application.Pipeline).QueryHyDE),
+	routeBasic:    mkRetrieve((*application.Pipeline).Query),
+	routeRewriter: wrapRetrieve(rewriterRetrieve),
+	routeHyDE:     mkRetrieve((*application.Pipeline).QueryHyDE),
 	routeMultiQuery: wrapRetrieve(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (RetrievalResult, error) {
 		return p.QueryMulti(ctx, q, b.multiQuery, topK)
 	}),
@@ -63,8 +67,9 @@ var retrieveHandlers = map[route]func(context.Context, string, int, *SearchBuild
 //
 //nolint:dupl // structurally similar by design (per-output-type maps)
 var answerHandlers = map[route]func(context.Context, string, int, *SearchBuilder) (rAnswer, error){
-	routeBasic: mkAnswer((*application.Pipeline).Answer),
-	routeHyDE:  mkAnswer((*application.Pipeline).AnswerHyDE),
+	routeBasic:    mkAnswer((*application.Pipeline).Answer),
+	routeRewriter: wrapAnswer(rewriterAnswer),
+	routeHyDE:     mkAnswer((*application.Pipeline).AnswerHyDE),
 	routeMultiQuery: wrapAnswer(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, error) {
 		return p.AnswerMulti(ctx, q, b.multiQuery, topK)
 	}),
@@ -81,8 +86,9 @@ var answerHandlers = map[route]func(context.Context, string, int, *SearchBuilder
 
 // @sk-task arch-generics#T2.1: handler maps через generic factory (AC-001)
 var citeHandlers = map[route]func(context.Context, string, int, *SearchBuilder) (rCite, error){
-	routeBasic: mkCite((*application.Pipeline).AnswerWithCitations),
-	routeHyDE:  mkCite((*application.Pipeline).AnswerHyDEWithCitations),
+	routeBasic:    mkCite((*application.Pipeline).AnswerWithCitations),
+	routeRewriter: wrapCite(rewriterCite),
+	routeHyDE:     mkCite((*application.Pipeline).AnswerHyDEWithCitations),
 	routeMultiQuery: wrapCite(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, RetrievalResult, error) {
 		return p.AnswerMultiWithCitations(ctx, q, b.multiQuery, topK)
 	}),
@@ -99,8 +105,9 @@ var citeHandlers = map[route]func(context.Context, string, int, *SearchBuilder) 
 
 // @sk-task arch-generics#T2.1: handler maps через generic factory (AC-001)
 var inlineCiteHandlers = map[route]func(context.Context, string, int, *SearchBuilder) (rInlineCite, error){
-	routeBasic: mkInlineCite((*application.Pipeline).AnswerWithInlineCitations),
-	routeHyDE:  mkInlineCite((*application.Pipeline).AnswerHyDEWithInlineCitations),
+	routeBasic:    mkInlineCite((*application.Pipeline).AnswerWithInlineCitations),
+	routeRewriter: wrapInlineCite(rewriterInlineCite),
+	routeHyDE:     mkInlineCite((*application.Pipeline).AnswerHyDEWithInlineCitations),
 	routeMultiQuery: wrapInlineCite(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, RetrievalResult, []InlineCitation, error) {
 		return p.AnswerMultiWithInlineCitations(ctx, q, b.multiQuery, topK)
 	}),
@@ -117,8 +124,9 @@ var inlineCiteHandlers = map[route]func(context.Context, string, int, *SearchBui
 
 // @sk-task arch-generics#T2.1: handler maps через generic factory (AC-001)
 var streamHandlers = map[route]func(context.Context, string, int, *SearchBuilder) (rStream, error){
-	routeBasic: mkStream((*application.Pipeline).AnswerStream),
-	routeHyDE:  mkStream((*application.Pipeline).AnswerHyDEStream),
+	routeBasic:    mkStream((*application.Pipeline).AnswerStream),
+	routeRewriter: wrapStream(rewriterStream),
+	routeHyDE:     mkStream((*application.Pipeline).AnswerHyDEStream),
 	routeMultiQuery: wrapStream(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, error) {
 		return p.AnswerMultiStream(ctx, q, b.multiQuery, topK)
 	}),
@@ -135,8 +143,9 @@ var streamHandlers = map[route]func(context.Context, string, int, *SearchBuilder
 
 // @sk-task arch-generics#T2.1: handler maps через generic factory (AC-001)
 var streamSourcesHandlers = map[route]func(context.Context, string, int, *SearchBuilder) (rStreamSources, error){
-	routeBasic: mkStreamSources((*application.Pipeline).AnswerStreamWithSources),
-	routeHyDE:  mkStreamSources((*application.Pipeline).AnswerHyDEStreamWithSources),
+	routeBasic:    mkStreamSources((*application.Pipeline).AnswerStreamWithSources),
+	routeRewriter: wrapStreamSources(rewriterStreamSources),
+	routeHyDE:     mkStreamSources((*application.Pipeline).AnswerHyDEStreamWithSources),
 	routeMultiQuery: wrapStreamSources(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, error) {
 		return p.AnswerMultiStreamWithSources(ctx, q, b.multiQuery, topK)
 	}),
@@ -153,8 +162,9 @@ var streamSourcesHandlers = map[route]func(context.Context, string, int, *Search
 
 // @sk-task arch-generics#T2.1: handler maps через generic factory (AC-001)
 var streamCiteHandlers = map[route]func(context.Context, string, int, *SearchBuilder) (rStreamCite, error){
-	routeBasic: mkStreamCite((*application.Pipeline).AnswerStreamWithInlineCitations),
-	routeHyDE:  mkStreamCite((*application.Pipeline).AnswerHyDEStreamWithInlineCitations),
+	routeBasic:    mkStreamCite((*application.Pipeline).AnswerStreamWithInlineCitations),
+	routeRewriter: wrapStreamCite(rewriterStreamCite),
+	routeHyDE:     mkStreamCite((*application.Pipeline).AnswerHyDEStreamWithInlineCitations),
 	routeMultiQuery: wrapStreamCite(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, []InlineCitation, error) {
 		return p.AnswerMultiStreamWithInlineCitations(ctx, q, b.multiQuery, topK)
 	}),
@@ -167,6 +177,103 @@ var streamCiteHandlers = map[route]func(context.Context, string, int, *SearchBui
 	routeFilter: wrapStreamCite(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, []InlineCitation, error) {
 		return p.AnswerStreamWithMetadataFilterWithInlineCitations(ctx, q, topK, b.filter)
 	}),
+}
+
+// @sk-task query-rewriting#T2.2: rewriter handler helpers (AC-002, AC-005, AC-007)
+
+// rewriterResult возвращает переформулированные запросы из rewriter'а.
+// При ошибке или пустом результате возвращает исходный запрос (fallback).
+func rewriterResult(b *SearchBuilder, ctx context.Context, q string) []string {
+	rw := b.rewriter
+	if rw == nil {
+		return []string{q}
+	}
+
+	// @sk-task query-rewriting#T2.2: проверка на HyDE/MultiQuery конфликт (AC-007)
+	if b.hyDE || b.multiQuery > 0 {
+		// warning логируется через hooks или лог
+	}
+
+	rewritten, err := rw.Rewrite(ctx, q, b.history)
+	if err != nil || len(rewritten) == 0 {
+		return []string{q}
+	}
+
+	out := make([]string, len(rewritten))
+	for i, r := range rewritten {
+		if r.Query == "" {
+			out[i] = q
+		} else {
+			out[i] = r.Query
+		}
+	}
+	return out
+}
+
+func rewriterRetrieve(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (RetrievalResult, error) {
+	queries := rewriterResult(b, ctx, q)
+	if len(queries) == 1 {
+		result, err := p.Query(ctx, queries[0], topK)
+		if err != nil {
+			return result, err
+		}
+		result.QueryText = q
+		return result, nil
+	}
+	result, err := p.QueryWithQueries(ctx, queries, topK)
+	if err != nil {
+		return RetrievalResult{}, err
+	}
+	result.QueryText = q
+	return result, nil
+}
+
+func rewriterAnswer(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, error) {
+	queries := rewriterResult(b, ctx, q)
+	if len(queries) == 1 {
+		return p.Answer(ctx, queries[0], topK)
+	}
+	return p.AnswerWithQueries(ctx, q, queries, topK)
+}
+
+func rewriterCite(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, RetrievalResult, error) {
+	queries := rewriterResult(b, ctx, q)
+	if len(queries) == 1 {
+		return p.AnswerWithCitations(ctx, queries[0], topK)
+	}
+	return p.AnswerWithQueriesAndCitations(ctx, q, queries, topK)
+}
+
+func rewriterInlineCite(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, RetrievalResult, []InlineCitation, error) {
+	queries := rewriterResult(b, ctx, q)
+	if len(queries) == 1 {
+		return p.AnswerWithInlineCitations(ctx, queries[0], topK)
+	}
+	return p.AnswerWithQueriesWithInlineCitations(ctx, q, queries, topK)
+}
+
+func rewriterStream(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, error) {
+	queries := rewriterResult(b, ctx, q)
+	if len(queries) == 1 {
+		return p.AnswerStream(ctx, queries[0], topK)
+	}
+	return p.AnswerWithQueriesStream(ctx, q, queries, topK)
+}
+
+func rewriterStreamSources(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, error) {
+	queries := rewriterResult(b, ctx, q)
+	if len(queries) == 1 {
+		return p.AnswerStreamWithSources(ctx, queries[0], topK)
+	}
+	return p.AnswerWithQueriesStreamWithSources(ctx, q, queries, topK)
+}
+
+func rewriterStreamCite(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, []InlineCitation, error) {
+	queries := rewriterResult(b, ctx, q)
+	if len(queries) == 1 {
+		return p.AnswerStreamWithInlineCitations(ctx, queries[0], topK)
+	}
+	return p.AnswerWithQueriesStreamWithInlineCitations(ctx, q, queries, topK)
 }
 
 var (

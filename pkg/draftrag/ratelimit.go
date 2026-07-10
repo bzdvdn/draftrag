@@ -35,4 +35,3 @@ func NewTokenBucketEmbedder(emb Embedder, opts TokenBucketOptions) (Embedder, er
 	}
 	return resilience.NewTokenBucketEmbedder(emb, opts.TokensPerSecond, opts.BurstSize, nil), nil
 }
-

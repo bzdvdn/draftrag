@@ -11,7 +11,7 @@ type fixedSearchStoreDedup struct {
 	result domain.RetrievalResult
 }
 
-func (fixedSearchStoreDedup) Health(_ context.Context) error { return nil }
+func (fixedSearchStoreDedup) Health(_ context.Context) error                 { return nil }
 func (fixedSearchStoreDedup) Upsert(_ context.Context, _ domain.Chunk) error { return nil }
 func (fixedSearchStoreDedup) Delete(_ context.Context, _ string) error       { return nil }
 func (s fixedSearchStoreDedup) Search(_ context.Context, _ []float64, _ int) (domain.RetrievalResult, error) {

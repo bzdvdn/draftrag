@@ -284,6 +284,65 @@ func (p *Pipeline) QueryWithMetadataFilter(ctx context.Context, question string,
 	return result, nil
 }
 
+// @sk-task query-rewriting#T2.2: QueryWithQueries для pre-generated переформулировок (AC-003)
+// QueryWithQueries выполняет multi-query retrieval из уже готового списка запросов.
+// Каждый запрос эмбеддится и ищется, результаты объединяются через RRF.
+func (p *Pipeline) QueryWithQueries(ctx context.Context, queries []string, topK int) (domain.RetrievalResult, error) {
+	if ctx == nil {
+		panic("nil context")
+	}
+	if err := ctx.Err(); err != nil {
+		return domain.RetrievalResult{}, err
+	}
+	if len(queries) == 0 {
+		return domain.RetrievalResult{}, fmt.Errorf("%w: no queries", domain.ErrEmptyQueryText)
+	}
+
+	allResults := make([]domain.RetrievalResult, 0, len(queries))
+	for _, q := range queries {
+		if err := ctx.Err(); err != nil {
+			return domain.RetrievalResult{}, err
+		}
+		q = strings.TrimSpace(q)
+		if q == "" {
+			continue
+		}
+		embedStart := time.Now()
+		p.hookStart(ctx, "QueryWithQueries:embed", domain.HookStageEmbed)
+		emb, err := p.embedder.Embed(ctx, q)
+		p.hookEnd(ctx, "QueryWithQueries:embed", domain.HookStageEmbed, embedStart, err)
+		if err != nil {
+			return domain.RetrievalResult{}, fmt.Errorf("rewriter embed: %w", err)
+		}
+		searchStart := time.Now()
+		p.hookStart(ctx, "QueryWithQueries:search", domain.HookStageSearch)
+		res, err := p.store.Search(ctx, emb, topK)
+		p.hookEnd(ctx, "QueryWithQueries:search", domain.HookStageSearch, searchStart, err)
+		if err != nil {
+			return domain.RetrievalResult{}, err
+		}
+		allResults = append(allResults, res)
+	}
+
+	if len(allResults) == 0 {
+		return domain.RetrievalResult{}, fmt.Errorf("%w: all queries were empty", domain.ErrEmptyQueryText)
+	}
+
+	merged := rrfMergeMultiple(allResults, topK)
+	merged = p.maybeDedup(merged)
+	merged.QueryText = queries[0]
+
+	if p.reranker != nil {
+		var err error
+		merged, err = p.maybeRerankBatch(ctx, queries, merged)
+		if err != nil {
+			return domain.RetrievalResult{}, err
+		}
+	}
+
+	return merged, nil
+}
+
 // ErrHybridNotSupported is returned when a hybrid search method is called
 // but the underlying VectorStore does not implement HybridSearcher.
 var ErrHybridNotSupported = errors.New("vector store does not support hybrid search")

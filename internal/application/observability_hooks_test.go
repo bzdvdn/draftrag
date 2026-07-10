@@ -27,7 +27,7 @@ func (h *recordHooks) StageEnd(_ context.Context, ev domain.StageEndEvent) {
 type okStoreForIndex struct{}
 
 func (okStoreForIndex) Upsert(_ context.Context, _ domain.Chunk) error { return nil }
-func (okStoreForIndex) Health(_ context.Context) error { return nil }
+func (okStoreForIndex) Health(_ context.Context) error                 { return nil }
 func (okStoreForIndex) Delete(_ context.Context, _ string) error       { return nil }
 func (okStoreForIndex) Search(_ context.Context, _ []float64, _ int) (domain.RetrievalResult, error) {
 	return domain.RetrievalResult{}, nil

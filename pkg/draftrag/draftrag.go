@@ -126,6 +126,18 @@ type Reranker = domain.Reranker
 // @sk-task reranker-cross-encoder#T1.1: re-export BatchReranker (AC-008)
 type BatchReranker = domain.BatchReranker
 
+// @sk-task query-rewriting#T2.1: re-export QueryRewriter (AC-002)
+// QueryRewriter — опциональный компонент для переписывания запроса перед retrieval.
+type QueryRewriter = domain.QueryRewriter
+
+// @sk-task query-rewriting#T2.1: re-export RewrittenQuery (AC-002)
+// RewrittenQuery представляет результат переформулировки запроса.
+type RewrittenQuery = domain.RewrittenQuery
+
+// @sk-task query-rewriting#T2.1: re-export QueryHistory (AC-002)
+// QueryHistory содержит историю предыдущих сообщений диалога.
+type QueryHistory = domain.QueryHistory
+
 // PipelineConfig — удалён. Используйте PipelineOptions.
 //
 // @sk-task arch-quality-pass#T1.1: re-export alias PipelineConfig → PipelineOptions (AC-004)
@@ -147,9 +159,11 @@ type TransactionalDocumentStore = domain.TransactionalDocumentStore
 
 // Pipeline — публичный API для композиции core-компонентов draftRAG.
 // Валидация входных данных выполняется здесь (см. errors.go).
+// @sk-task query-rewriting#T2.1: добавлено поле queryRewriter (AC-002)
 type Pipeline struct {
-	core       *application.Pipeline
-	defaultTop int
+	core          *application.Pipeline
+	defaultTop    int
+	queryRewriter QueryRewriter
 }
 
 // PipelineOptions задаёт конфигурацию Pipeline.
@@ -214,6 +228,11 @@ type PipelineOptions struct {
 	// Reranker — опциональный reranker, применяется после retrieval.
 	// nil означает "без reranking".
 	Reranker Reranker
+
+	// QueryRewriter — опциональный rewriter для переписывания запроса перед retrieval.
+	// Поддерживает 1:1 и 1:N режимы. nil означает "без переписывания".
+	// При установке per-request Rewriter через SearchBuilder.Rewriter имеет приоритет.
+	QueryRewriter QueryRewriter
 }
 
 // NewPipeline создаёт pipeline из зависимостей: VectorStore, LLMProvider и Embedder.
@@ -284,10 +303,14 @@ func NewPipelineWithOptions(store VectorStore, llm LLMProvider, embedder Embedde
 		return nil, err
 	}
 	return &Pipeline{
-		core:       core,
-		defaultTop: defaultTop,
+		core:          core,
+		defaultTop:    defaultTop,
+		queryRewriter: opts.QueryRewriter,
 	}, nil
 }
+
+// queryRewriter доступен на Pipeline для передачи в SearchBuilder.
+// @sk-task query-rewriting#T2.1: pipeline-level queryRewriter (AC-002)
 
 // Index индексирует документы.
 // @sk-task arch-generics#T2.2: nil context guard + checkCtx вместо panic (AC-002)

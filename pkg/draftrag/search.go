@@ -21,6 +21,15 @@ import (
 //
 //	// Streaming
 //	tokens, err := pipeline.Search("вопрос").TopK(5).Stream(ctx)
+//
+//	// С кастомным rewriter
+//	result, err := pipeline.Search("вопрос").Rewriter(myRewriter).Retrieve(ctx)
+//
+//	// С multi-turn историей
+//	history := QueryHistory{Entries: []Message{{Role: "user", Content: "..."}}}
+//	result, err := pipeline.Search("вопрос").Rewriter(rw).History(history).Retrieve(ctx)
+//
+// @sk-task query-rewriting#T2.1: добавлены поля rewriter и history (AC-002)
 type SearchBuilder struct {
 	pipeline   *Pipeline
 	question   string
@@ -30,15 +39,20 @@ type SearchBuilder struct {
 	hybrid     *HybridConfig
 	hyDE       bool
 	multiQuery int // 0 = disabled
+	rewriter   QueryRewriter
+	history    QueryHistory
 }
 
 // Search создаёт SearchBuilder для заданного вопроса.
 // По умолчанию TopK берётся из PipelineOptions.DefaultTopK (или 5).
+// Pipeline-level QueryRewriter передаётся в SearchBuilder, но может быть
+// переопределён через Rewriter().
 func (p *Pipeline) Search(question string) *SearchBuilder {
 	return &SearchBuilder{
 		pipeline: p,
 		question: question,
 		topK:     p.defaultTop,
+		rewriter: p.queryRewriter,
 	}
 }
 
@@ -84,6 +98,20 @@ func (b *SearchBuilder) MultiQuery(n int) *SearchBuilder {
 	if b.multiQuery == 0 {
 		b.multiQuery = 3
 	}
+	return b
+}
+
+// @sk-task query-rewriting#T2.1: Rewriter — per-request override (AC-002)
+// Rewriter задаёт per-request rewriter, который имеет приоритет над pipeline-level.
+func (b *SearchBuilder) Rewriter(r QueryRewriter) *SearchBuilder {
+	b.rewriter = r
+	return b
+}
+
+// @sk-task query-rewriting#T2.1: History — multi-turn контекст (AC-004)
+// History задаёт историю диалога для multi-turn переписывания.
+func (b *SearchBuilder) History(h QueryHistory) *SearchBuilder {
+	b.history = h
 	return b
 }
 

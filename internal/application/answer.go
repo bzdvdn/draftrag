@@ -582,3 +582,33 @@ func (p *Pipeline) AnswerMulti(ctx context.Context, question string, n, topK int
 	}
 	return p.generateAnswer(ctx, question, result)
 }
+
+// @sk-task query-rewriting#T2.2: AnswerWithQueries для pre-generated переформулировок (AC-003)
+// AnswerWithQueries генерирует ответ используя multi-query retrieval из готового списка запросов.
+func (p *Pipeline) AnswerWithQueries(ctx context.Context, originalQuery string, queries []string, topK int) (string, error) {
+	result, err := p.QueryWithQueries(ctx, queries, topK)
+	if err != nil {
+		return "", err
+	}
+	return p.generateAnswer(ctx, originalQuery, result)
+}
+
+// @sk-task query-rewriting#T2.2: AnswerWithQueriesAndCitations (AC-003)
+// AnswerWithQueriesAndCitations генерирует ответ с источниками из pre-generated переформулировок.
+func (p *Pipeline) AnswerWithQueriesAndCitations(ctx context.Context, originalQuery string, queries []string, topK int) (string, domain.RetrievalResult, error) {
+	result, err := p.QueryWithQueries(ctx, queries, topK)
+	if err != nil {
+		return "", domain.RetrievalResult{}, err
+	}
+	return p.generateCitedFromResult(ctx, originalQuery, result)
+}
+
+// @sk-task query-rewriting#T2.2: AnswerWithQueriesWithInlineCitations (AC-003)
+// AnswerWithQueriesWithInlineCitations генерирует ответ с inline-цитатами из pre-generated переформулировок.
+func (p *Pipeline) AnswerWithQueriesWithInlineCitations(ctx context.Context, originalQuery string, queries []string, topK int) (string, domain.RetrievalResult, []domain.InlineCitation, error) {
+	result, err := p.QueryWithQueries(ctx, queries, topK)
+	if err != nil {
+		return "", domain.RetrievalResult{}, nil, err
+	}
+	return p.generateInlineCitedFromResult(ctx, originalQuery, result)
+}

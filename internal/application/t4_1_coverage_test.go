@@ -18,7 +18,7 @@ type txMockStore struct {
 	tx *txMockTx
 }
 
-func (s *txMockStore) Health(_ context.Context) error { return nil }
+func (s *txMockStore) Health(_ context.Context) error                 { return nil }
 func (s *txMockStore) Upsert(_ context.Context, _ domain.Chunk) error { return nil }
 func (s *txMockStore) Delete(_ context.Context, _ string) error       { return nil }
 func (s *txMockStore) Search(_ context.Context, _ []float64, _ int) (domain.RetrievalResult, error) {

@@ -13,7 +13,7 @@ type mmrStore struct {
 	lastTopK   int
 }
 
-func (s *mmrStore) Health(_ context.Context) error { return nil }
+func (s *mmrStore) Health(_ context.Context) error                 { return nil }
 func (s *mmrStore) Upsert(_ context.Context, _ domain.Chunk) error { return nil }
 func (s *mmrStore) Delete(_ context.Context, _ string) error       { return nil }
 
@@ -30,7 +30,7 @@ type fixedEmbedderMMR struct {
 	v []float64
 }
 
-func (e fixedEmbedderMMR) Health(_ context.Context) error { return nil }
+func (e fixedEmbedderMMR) Health(_ context.Context) error                       { return nil }
 func (e fixedEmbedderMMR) Embed(_ context.Context, _ string) ([]float64, error) { return e.v, nil }
 
 type okLLM struct{}

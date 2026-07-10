@@ -244,6 +244,40 @@ func (p *Pipeline) streamInlineFromResult(ctx context.Context, question string, 
 	return p.wrapStreamWithHook(ctx, tokenChan, genStart), citations, nil
 }
 
+// @sk-task query-rewriting#T2.2: AnswerWithQueriesStream (AC-003)
+// AnswerWithQueriesStream выполняет multi-query retrieval из готового списка запросов и streaming генерацию.
+func (p *Pipeline) AnswerWithQueriesStream(ctx context.Context, originalQuery string, queries []string, topK int) (<-chan string, error) {
+	result, err := p.QueryWithQueries(ctx, queries, topK)
+	if err != nil {
+		return nil, err
+	}
+	return p.streamFromResult(ctx, originalQuery, result)
+}
+
+// @sk-task query-rewriting#T2.2: AnswerWithQueriesStreamWithSources (AC-003)
+// AnswerWithQueriesStreamWithSources выполняет multi-query retrieval из готового списка запросов,
+// streaming генерацию и возвращает источники.
+func (p *Pipeline) AnswerWithQueriesStreamWithSources(ctx context.Context, originalQuery string, queries []string, topK int) (<-chan string, domain.RetrievalResult, error) {
+	result, err := p.QueryWithQueries(ctx, queries, topK)
+	if err != nil {
+		return nil, domain.RetrievalResult{}, err
+	}
+	tokenChan, err := p.streamFromResult(ctx, originalQuery, result)
+	return tokenChan, result, err
+}
+
+// @sk-task query-rewriting#T2.2: AnswerWithQueriesStreamWithInlineCitations (AC-003)
+// AnswerWithQueriesStreamWithInlineCitations выполняет multi-query retrieval из готового списка запросов,
+// streaming генерацию с inline-цитатами.
+func (p *Pipeline) AnswerWithQueriesStreamWithInlineCitations(ctx context.Context, originalQuery string, queries []string, topK int) (<-chan string, domain.RetrievalResult, []domain.InlineCitation, error) {
+	result, err := p.QueryWithQueries(ctx, queries, topK)
+	if err != nil {
+		return nil, domain.RetrievalResult{}, nil, err
+	}
+	tokenChan, citations, err := p.streamInlineFromResult(ctx, originalQuery, result)
+	return tokenChan, result, citations, err
+}
+
 // AnswerHyDEStream выполняет HyDE retrieval и streaming генерацию.
 //
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)

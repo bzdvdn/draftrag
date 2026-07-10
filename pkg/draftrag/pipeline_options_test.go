@@ -14,7 +14,7 @@ type topKStore struct {
 	gotTopK int
 }
 
-func (s *topKStore) Health(_ context.Context) error { return nil }
+func (s *topKStore) Health(_ context.Context) error                 { return nil }
 func (s *topKStore) Upsert(_ context.Context, _ domain.Chunk) error { return nil }
 func (s *topKStore) Delete(_ context.Context, _ string) error       { return nil }
 func (s *topKStore) Search(_ context.Context, _ []float64, topK int) (domain.RetrievalResult, error) {

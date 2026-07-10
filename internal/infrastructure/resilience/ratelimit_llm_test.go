@@ -118,5 +118,3 @@ func TestTokenBucketLLMProvider_WithRetry(t *testing.T) {
 	assert.Equal(t, "ok", result)
 	mockLLM.AssertExpectations(t)
 }
-
-

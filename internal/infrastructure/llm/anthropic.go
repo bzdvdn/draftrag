@@ -43,8 +43,8 @@ type anthropicUsage struct {
 }
 
 type messagesResponse struct {
-	Content []contentBlock `json:"content"`
-	Role    string         `json:"role"`
+	Content []contentBlock  `json:"content"`
+	Role    string          `json:"role"`
 	Usage   *anthropicUsage `json:"usage,omitempty"`
 }
 

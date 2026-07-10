@@ -12,7 +12,7 @@ type fixedSearchStore2 struct {
 	result domain.RetrievalResult
 }
 
-func (fixedSearchStore2) Health(_ context.Context) error { return nil }
+func (fixedSearchStore2) Health(_ context.Context) error                 { return nil }
 func (fixedSearchStore2) Upsert(_ context.Context, _ domain.Chunk) error { return nil }
 func (fixedSearchStore2) Delete(_ context.Context, _ string) error       { return nil }
 func (s fixedSearchStore2) Search(_ context.Context, _ []float64, _ int) (domain.RetrievalResult, error) {
