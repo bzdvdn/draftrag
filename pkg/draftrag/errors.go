@@ -55,6 +55,12 @@ var (
 	//
 	// @sk-task arch-generics#T1.1: sentinel для nil context guard (AC-002)
 	ErrNilContext = errors.New("nil context")
+
+	// @sk-task config-management#T1.2: sentinel для неизвестного YAML-ключа (RQ-004, AC-003)
+	ErrUnknownConfigKey = errors.New("unknown config key")
+
+	// @sk-task config-management#T1.2: sentinel для отсутствующего обязательного поля (RQ-005, AC-004)
+	ErrMissingRequiredField = errors.New("missing required config field")
 )
 
 // @sk-task arch-generics#T1.1: nil context guard helper (AC-002)

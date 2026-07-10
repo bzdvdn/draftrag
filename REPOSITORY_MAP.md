@@ -5,6 +5,7 @@ Compact code-only navigation index for the draftRAG Go library.
 ## Entry Points
 
 - `pkg/draftrag/draftrag.go` — `NewPipeline` / `NewPipelineWithChunker` / `NewPipelineWithOptions` (public Pipeline constructors)
+- `pkg/draftrag/config.go` — `Config` struct, `LoadConfig`, `LoadConfigFromEnv`, `NewPipelineFromConfig` (unified YAML/env config management)
 - `pkg/draftrag/pgvector.go` — `NewPGVectorStore` / `NewPGVectorStoreWithOptions` / `NewPGVectorStoreWithRuntimeOptions`
 - `pkg/draftrag/memory.go` — `NewInMemoryStore` (in-memory VectorStore)
 - `pkg/draftrag/qdrant.go` — `NewQdrantStore` (Qdrant)
@@ -59,7 +60,8 @@ Compact code-only navigation index for the draftRAG Go library.
 - `pkg/draftrag/draftrag.go` — `Pipeline`, `PipelineOptions` (IndexConcurrency, StreamBufferSize, IndexBatchRateLimitPerWorker, HybridConfig, QueryRewriter, etc.), `NewPipeline*` constructors, `mapAppError`; re-export `TokenUsage`, `ModelPricing`, `CostSnapshot`, `UsageAwareLLMProvider`, `UsageAwareStreamingLLMProvider`, `Diff`, `QueryRewriter`, `RewrittenQuery`, `QueryHistory`
 - `pkg/draftrag/costtracker.go` — `CostTracker`, `NewCostTracker` (публичная обёртка LLMProvider с подсчётом токенов/стоимости)
 - `pkg/draftrag/search.go` + `search_routing.go` — public `SearchBuilder` (Retrieve/Answer/Cite/InlineCite/Stream/StreamSources/StreamCite) with `selectRetrieval`/`selectGeneration`; `Rewriter`/`History` methods + `routeRewriter` handlers
-- `pkg/draftrag/errors.go` — re-exported public sentinels
+- `pkg/draftrag/errors.go` — re-exported public sentinels; `ErrUnknownConfigKey`, `ErrMissingRequiredField`
+- `pkg/draftrag/config.go` — `Config` struct + all sub-config types; `LoadConfig`, `LoadConfigFromEnv`, `NewPipelineFromConfig`, `ExternalDeps`
 - `pkg/draftrag/migrations/pgvector/` — embedded SQL migrations (`0000_…` / `0001_…` / `0002_…`)
 - `pkg/draftrag/otel/` — OTel hooks (tracing + metrics)
 - `pkg/draftrag/eval/` — evaluation harness (`harness.go`, `metrics.go`, `models.go`)
@@ -73,6 +75,7 @@ Compact code-only navigation index for the draftRAG Go library.
 - New embedder/LLM provider → `internal/infrastructure/{embedder,llm}/` + `pkg/draftrag/<provider>.go`
 - New query rewriter → `internal/infrastructure/rewriter/` + `pkg/draftrag/rewriter.go`
 - New LLM reranker → `internal/infrastructure/reranker/` + `pkg/draftrag/reranker_llm.go`
+- Unified config management (Config struct, LoadConfig, NewPipelineFromConfig) → `pkg/draftrag/config.go`
 - Pipeline public surface (constructor, options) → `pkg/draftrag/draftrag.go` (PipelineOptions struct)
 - Pipeline orchestration (Index/Query/Answer/Stream/UpdateDocument) → `internal/application/pipeline.go`; per-method helpers in `{query,answer,stream,retrieval,batch,mmr,rrf}.go`
 - Concurrency / worker pool / rate limit → `internal/application/worker_pool.go`; options in `pkg/draftrag/draftrag.go::PipelineOptions`
