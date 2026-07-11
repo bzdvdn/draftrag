@@ -61,6 +61,9 @@ var (
 
 	// @sk-task config-management#T1.2: sentinel для отсутствующего обязательного поля (RQ-005, AC-004)
 	ErrMissingRequiredField = errors.New("missing required config field")
+
+	// @sk-task sub-query-decomposition#T1.1: sentinel для SubDecompose без decomposer (AC-001, AC-006)
+	ErrSubDecomposeNotSupported = errors.New("sub-query decomposition not supported: no QueryDecomposer configured")
 )
 
 // @sk-task arch-generics#T1.1: nil context guard helper (AC-002)

@@ -17,6 +17,9 @@ var (
 	ErrStreamingNotSupported = errors.New("LLM provider does not support streaming")
 
 	ErrDeleteNotSupported = errors.New("vector store does not support DeleteByParentID")
+
+	// @sk-task sub-query-decomposition#T3.3: sentinel for nil decomposer guard (AC-005, AC-006)
+	ErrSubDecomposeNotSupported = errors.New("sub-query decomposition not supported: no QueryDecomposer configured")
 )
 
 // PipelineOptions configures a Pipeline behaviour.

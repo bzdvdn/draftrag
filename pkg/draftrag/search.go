@@ -30,17 +30,20 @@ import (
 //	result, err := pipeline.Search("вопрос").Rewriter(rw).History(history).Retrieve(ctx)
 //
 // @sk-task query-rewriting#T2.1: добавлены поля rewriter и history (AC-002)
+// @sk-task sub-query-decomposition#T1.2: добавлены поля subDecompose и decomposer (AC-001, AC-006)
 type SearchBuilder struct {
-	pipeline   *Pipeline
-	question   string
-	topK       int
-	parentIDs  []string
-	filter     MetadataFilter
-	hybrid     *HybridConfig
-	hyDE       bool
-	multiQuery int // 0 = disabled
-	rewriter   QueryRewriter
-	history    QueryHistory
+	pipeline     *Pipeline
+	question     string
+	topK         int
+	parentIDs    []string
+	filter       MetadataFilter
+	hybrid       *HybridConfig
+	hyDE         bool
+	multiQuery   int // 0 = disabled
+	rewriter     QueryRewriter
+	history      QueryHistory
+	subDecompose bool
+	decomposer   QueryDecomposer
 }
 
 // Search создаёт SearchBuilder для заданного вопроса.
@@ -49,10 +52,11 @@ type SearchBuilder struct {
 // переопределён через Rewriter().
 func (p *Pipeline) Search(question string) *SearchBuilder {
 	return &SearchBuilder{
-		pipeline: p,
-		question: question,
-		topK:     p.defaultTop,
-		rewriter: p.queryRewriter,
+		pipeline:   p,
+		question:   question,
+		topK:       p.defaultTop,
+		rewriter:   p.queryRewriter,
+		decomposer: p.queryDecomposer,
 	}
 }
 
@@ -112,6 +116,15 @@ func (b *SearchBuilder) Rewriter(r QueryRewriter) *SearchBuilder {
 // History задаёт историю диалога для multi-turn переписывания.
 func (b *SearchBuilder) History(h QueryHistory) *SearchBuilder {
 	b.history = h
+	return b
+}
+
+// @sk-task sub-query-decomposition#T1.2: SubDecompose — включает декомпозицию (AC-001, AC-006)
+// SubDecompose включает разбиение запроса на под-вопросы для улучшения recall.
+// Требует настроенного QueryDecomposer на уровне Pipeline или per-request.
+// Если decomposer не настроен, вызов Retrieve/Answer вернёт ErrSubDecomposeNotSupported.
+func (b *SearchBuilder) SubDecompose() *SearchBuilder {
+	b.subDecompose = true
 	return b
 }
 

@@ -163,6 +163,19 @@ type QueryRewriter interface {
 	Rewrite(ctx context.Context, query string, history QueryHistory) ([]RewrittenQuery, error)
 }
 
+// @sk-task sub-query-decomposition#T1.1: QueryDecomposer interface (AC-001, AC-006)
+// QueryDecomposer — опциональный компонент для разбиения запроса на под-вопросы.
+//
+// Реализации могут быть LLM-based (через LLMProvider) или rule-based.
+// Возвращает список под-вопросов для параллельного retrieval.
+// Пустой или nil результат означает «декомпозиция не нужна» — pipeline выполняет single-query.
+type QueryDecomposer interface {
+	// Decompose разбивает запрос на независимые под-вопросы.
+	// Возвращает nil или пустой срез, если декомпозиция не требуется.
+	// Ошибка не фатальна — pipeline логирует и использует исходный запрос.
+	Decompose(ctx context.Context, query string) ([]string, error)
+}
+
 // DocumentStore — опциональная capability VectorStore для удаления документа целиком по ParentID.
 type DocumentStore interface {
 	VectorStore

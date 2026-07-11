@@ -310,6 +310,111 @@ func TestSearchBuilder_RouteMatrix(t *testing.T) {
 	}
 }
 
+// @sk-test sub-query-decomposition#T4.1: SubDecompose per-request override — basic route без вызова SubDecompose() (AC-006)
+func TestSearchBuilder_SubDecompose_PerRequestOverride(t *testing.T) {
+	store := vectorstore.NewInMemoryStore()
+	ctx := context.Background()
+	_ = store.Upsert(ctx, domain.Chunk{
+		ID: "c1", Content: "Go concurrency", ParentID: "doc-1",
+		Embedding: []float64{1, 0, 0}, Position: 0,
+	})
+
+	errDecomposer := &failDecomposer{}
+	p, err := NewPipelineWithOptions(
+		store,
+		&mockLLM{reply: "answer"},
+		&fixedEmbedder{vec: []float64{1, 0, 0}},
+		PipelineOptions{QueryDecomposer: errDecomposer},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// SubDecompose() не вызван → routeBasic (single-query)
+	// failDecomposer никогда не будет вызван
+	result, err := p.Search("test query").TopK(5).Retrieve(ctx)
+	if err != nil {
+		t.Fatalf("expected success via basic route, got %v", err)
+	}
+	if len(result.Chunks) == 0 {
+		t.Fatal("expected results from basic route")
+	}
+}
+
+// failDecomposer всегда возвращает ошибку (проверка, что не вызывается без SubDecompose)
+type failDecomposer struct{}
+
+func (d *failDecomposer) Decompose(_ context.Context, _ string) ([]string, error) {
+	return nil, errors.New("decomposer should not be called")
+}
+
+// simpleDecomposer возвращает фиксированные под-вопросы.
+type simpleDecomposer struct {
+	subs []string
+}
+
+func (d *simpleDecomposer) Decompose(_ context.Context, _ string) ([]string, error) {
+	return d.subs, nil
+}
+
+// @sk-test sub-query-decomposition#T4.1: All output methods with SubDecompose route (AC-009)
+func TestSearchBuilder_SubDecompose_AllOutputMethods(t *testing.T) {
+	p, err := NewPipelineWithOptions(
+		vectorstore.NewInMemoryStore(),
+		&mockLLM{reply: "answer"},
+		&fixedEmbedder{vec: []float64{1, 0, 0}},
+		PipelineOptions{
+			QueryDecomposer: &simpleDecomposer{subs: []string{"sub-q1"}},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+
+	// Retrieve
+	_, err = p.Search("test").SubDecompose().TopK(3).Retrieve(ctx)
+	if err != nil {
+		t.Fatalf("Retrieve: %v", err)
+	}
+
+	// Answer
+	_, err = p.Search("test").SubDecompose().TopK(3).Answer(ctx)
+	if err != nil {
+		t.Fatalf("Answer: %v", err)
+	}
+
+	// Cite
+	_, _, err = p.Search("test").SubDecompose().TopK(3).Cite(ctx)
+	if err != nil {
+		t.Fatalf("Cite: %v", err)
+	}
+
+	// InlineCite
+	_, _, _, err = p.Search("test").SubDecompose().TopK(3).InlineCite(ctx)
+	if err != nil {
+		t.Fatalf("InlineCite: %v", err)
+	}
+
+	// Stream — mockLLM не поддерживает streaming
+	_, err = p.Search("test").SubDecompose().TopK(3).Stream(ctx)
+	if !errors.Is(err, ErrStreamingNotSupported) {
+		t.Fatalf("expected ErrStreamingNotSupported for Stream, got %v", err)
+	}
+
+	// StreamSources
+	_, _, err = p.Search("test").SubDecompose().TopK(3).StreamSources(ctx)
+	if !errors.Is(err, ErrStreamingNotSupported) {
+		t.Fatalf("expected ErrStreamingNotSupported for StreamSources, got %v", err)
+	}
+
+	// StreamCite
+	_, _, _, err = p.Search("test").SubDecompose().TopK(3).StreamCite(ctx)
+	if !errors.Is(err, ErrStreamingNotSupported) {
+		t.Fatalf("expected ErrStreamingNotSupported for StreamCite, got %v", err)
+	}
+}
+
 // @sk-test arch-generics#T3.2: prototype добавления нового output-метода через router (AC-003)
 func TestSearchBuilder_AnalyzePrototype(t *testing.T) {
 	p, _ := setupPipeline(t)

@@ -138,6 +138,10 @@ type RewrittenQuery = domain.RewrittenQuery
 // QueryHistory содержит историю предыдущих сообщений диалога.
 type QueryHistory = domain.QueryHistory
 
+// @sk-task sub-query-decomposition#T1.2: re-export QueryDecomposer (AC-001, AC-006)
+// QueryDecomposer — опциональный компонент для разбиения запроса на под-вопросы.
+type QueryDecomposer = domain.QueryDecomposer
+
 // PipelineConfig — удалён. Используйте PipelineOptions.
 //
 // @sk-task arch-quality-pass#T1.1: re-export alias PipelineConfig → PipelineOptions (AC-004)
@@ -161,11 +165,13 @@ type TransactionalDocumentStore = domain.TransactionalDocumentStore
 // Валидация входных данных выполняется здесь (см. errors.go).
 // @sk-task query-rewriting#T2.1: добавлено поле queryRewriter (AC-002)
 // @sk-task pii-guardrails#T2.1: добавлено поле piidetector (RQ-001, RQ-002)
+// @sk-task sub-query-decomposition#T1.2: добавлено поле queryDecomposer (AC-001, AC-006)
 type Pipeline struct {
-	core          *application.Pipeline
-	defaultTop    int
-	queryRewriter QueryRewriter
-	piidetector   domain.PIIDetector
+	core            *application.Pipeline
+	defaultTop      int
+	queryRewriter   QueryRewriter
+	piidetector     domain.PIIDetector
+	queryDecomposer QueryDecomposer
 }
 
 // PipelineOptions задаёт конфигурацию Pipeline.
@@ -242,6 +248,12 @@ type PipelineOptions struct {
 	// проходит через детектор для цензурирования PII.
 	// nil означает "без обработки" (backward compatible).
 	PIIDetector PIIDetector
+
+	// @sk-task sub-query-decomposition#T1.2: QueryDecomposer опция (AC-001, AC-006)
+	// QueryDecomposer — опциональный decomposer для разбиения запроса на под-вопросы.
+	// Если установлен, Search(...).SubDecompose() включает декомпозицию.
+	// nil означает "декомпозиция отключена".
+	QueryDecomposer QueryDecomposer
 }
 
 // NewPipeline создаёт pipeline из зависимостей: VectorStore, LLMProvider и Embedder.
@@ -313,10 +325,11 @@ func NewPipelineWithOptions(store VectorStore, llm LLMProvider, embedder Embedde
 		return nil, err
 	}
 	return &Pipeline{
-		core:          core,
-		defaultTop:    defaultTop,
-		queryRewriter: opts.QueryRewriter,
-		piidetector:   opts.PIIDetector,
+		core:            core,
+		defaultTop:      defaultTop,
+		queryRewriter:   opts.QueryRewriter,
+		piidetector:     opts.PIIDetector,
+		queryDecomposer: opts.QueryDecomposer,
 	}, nil
 }
 
@@ -522,6 +535,9 @@ func mapAppError(err error) error {
 		return ErrEmbeddingDimensionMismatch
 	case errors.Is(err, domain.ErrUpdateNotAtomic):
 		return ErrUpdateNotAtomic
+	// @sk-task sub-query-decomposition#T3.3: map application sentinel (AC-005, AC-006)
+	case errors.Is(err, application.ErrSubDecomposeNotSupported):
+		return ErrSubDecomposeNotSupported
 	}
 	return err
 }
