@@ -10,13 +10,24 @@ import (
 )
 
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
+// @sk-task middleware-chain#T3.2: userMessage from d.Query, return stageResult.Answer (AC-004)
 func (p *Pipeline) generateAnswer(ctx context.Context, question string, result domain.RetrievalResult) (string, error) {
-	userMessage := buildUserMessageV1(result, question, p.maxContextChars, p.maxContextChunks)
-	genStart := time.Now()
-	p.hookStart(ctx, "Answer:generate", domain.HookStageGenerate)
-	answer, err := p.llm.Generate(ctx, p.systemPrompt, userMessage)
-	p.hookEnd(ctx, "Answer:generate", domain.HookStageGenerate, genStart, err)
-	return answer, err
+	stageResult, err := p.execWithStageMiddleware(ctx, domain.HookStageGenerate, "Answer", domain.StageData{Query: question, Chunks: result.Chunks}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		genStart := time.Now()
+		p.hookStart(ctx, "Answer:generate", domain.HookStageGenerate)
+		userMessage := buildUserMessageV1(result, d.Query, p.maxContextChars, p.maxContextChunks)
+		answer, genErr := p.llm.Generate(ctx, p.systemPrompt, userMessage)
+		p.hookEnd(ctx, "Answer:generate", domain.HookStageGenerate, genStart, genErr)
+		if genErr != nil {
+			return d, genErr
+		}
+		d.Answer = answer
+		return d, nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return stageResult.Answer, nil
 }
 
 // Answer выполняет полный RAG-цикл: retrieval (Embed+Search) → prompt → LLM.Generate.
@@ -24,6 +35,7 @@ func (p *Pipeline) generateAnswer(ctx context.Context, question string, result d
 // @sk-task hierarchical-indices#T3.3: parent context attach in Answer (AC-002)
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
+// @sk-task middleware-chain#T3.2: userMessage from d.Query, return stageResult.Answer (AC-004)
 func (p *Pipeline) Answer(ctx context.Context, question string, topK int) (string, error) {
 	if ctx == nil {
 		panic("nil context")
@@ -40,10 +52,18 @@ func (p *Pipeline) Answer(ctx context.Context, question string, topK int) (strin
 		return "", fmt.Errorf("%w: topK must be > 0", domain.ErrInvalidQueryTopK)
 	}
 
-	embedStart := time.Now()
-	p.hookStart(ctx, "Answer", domain.HookStageEmbed)
-	embedding, err := p.embedder.Embed(ctx, question)
-	p.hookEnd(ctx, "Answer", domain.HookStageEmbed, embedStart, err)
+	var embedding []float64
+	_, err := p.execWithStageMiddleware(ctx, domain.HookStageEmbed, "Answer", domain.StageData{Query: question}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		embedStart := time.Now()
+		p.hookStart(ctx, "Answer", domain.HookStageEmbed)
+		var embedErr error
+		embedding, embedErr = p.embedder.Embed(ctx, d.Query)
+		p.hookEnd(ctx, "Answer", domain.HookStageEmbed, embedStart, embedErr)
+		if embedErr != nil {
+			return d, embedErr
+		}
+		return d, nil
+	})
 	if err != nil {
 		return "", err
 	}
@@ -53,10 +73,18 @@ func (p *Pipeline) Answer(ctx context.Context, question string, topK int) (strin
 		candidateTopK = p.mmrCandidatePool
 	}
 
-	searchStart := time.Now()
-	p.hookStart(ctx, "Answer", domain.HookStageSearch)
-	result, err := p.store.Search(ctx, embedding, candidateTopK)
-	p.hookEnd(ctx, "Answer", domain.HookStageSearch, searchStart, err)
+	var result domain.RetrievalResult
+	_, err = p.execWithStageMiddleware(ctx, domain.HookStageSearch, "Answer", domain.StageData{Query: question, Embedding: embedding}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		searchStart := time.Now()
+		p.hookStart(ctx, "Answer", domain.HookStageSearch)
+		var searchErr error
+		result, searchErr = p.store.Search(ctx, d.Embedding, candidateTopK)
+		p.hookEnd(ctx, "Answer", domain.HookStageSearch, searchStart, searchErr)
+		if searchErr != nil {
+			return d, searchErr
+		}
+		return d, nil
+	})
 	if err != nil {
 		return "", err
 	}
@@ -72,13 +100,25 @@ func (p *Pipeline) Answer(ctx context.Context, question string, topK int) (strin
 	}
 
 	systemPrompt := p.systemPrompt
-	userMessage := buildUserMessageV1(result, question, p.maxContextChars, p.maxContextChunks)
 
-	genStart := time.Now()
-	p.hookStart(ctx, "Answer", domain.HookStageGenerate)
-	answer, err := p.llm.Generate(ctx, systemPrompt, userMessage)
-	p.hookEnd(ctx, "Answer", domain.HookStageGenerate, genStart, err)
-	return answer, err
+	var answer string
+	stageResult, err := p.execWithStageMiddleware(ctx, domain.HookStageGenerate, "Answer", domain.StageData{Query: question, Chunks: result.Chunks}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		genStart := time.Now()
+		p.hookStart(ctx, "Answer", domain.HookStageGenerate)
+		userMessage := buildUserMessageV1(result, d.Query, p.maxContextChars, p.maxContextChunks)
+		var genErr error
+		answer, genErr = p.llm.Generate(ctx, systemPrompt, userMessage)
+		p.hookEnd(ctx, "Answer", domain.HookStageGenerate, genStart, genErr)
+		if genErr != nil {
+			return d, genErr
+		}
+		d.Answer = answer
+		return d, nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return stageResult.Answer, nil
 }
 
 // AnswerWithParentIDs выполняет retrieval с фильтром по ParentIDs и генерирует ответ.
@@ -125,10 +165,18 @@ func (p *Pipeline) AnswerWithMetadataFilter(ctx context.Context, question string
 		return "", ErrFiltersNotSupported
 	}
 
-	embedStart := time.Now()
-	p.hookStart(ctx, "Answer", domain.HookStageEmbed)
-	embedding, err := p.embedder.Embed(ctx, question)
-	p.hookEnd(ctx, "Answer", domain.HookStageEmbed, embedStart, err)
+	var embedding []float64
+	_, err := p.execWithStageMiddleware(ctx, domain.HookStageEmbed, "Answer", domain.StageData{Query: question}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		embedStart := time.Now()
+		p.hookStart(ctx, "Answer", domain.HookStageEmbed)
+		var embedErr error
+		embedding, embedErr = p.embedder.Embed(ctx, d.Query)
+		p.hookEnd(ctx, "Answer", domain.HookStageEmbed, embedStart, embedErr)
+		if embedErr != nil {
+			return d, embedErr
+		}
+		return d, nil
+	})
 	if err != nil {
 		return "", err
 	}
@@ -138,10 +186,18 @@ func (p *Pipeline) AnswerWithMetadataFilter(ctx context.Context, question string
 		candidateTopK = p.mmrCandidatePool
 	}
 
-	searchStart := time.Now()
-	p.hookStart(ctx, "Answer", domain.HookStageSearch)
-	result, err := vs.SearchWithMetadataFilter(ctx, embedding, candidateTopK, filter)
-	p.hookEnd(ctx, "Answer", domain.HookStageSearch, searchStart, err)
+	var result domain.RetrievalResult
+	_, err = p.execWithStageMiddleware(ctx, domain.HookStageSearch, "Answer", domain.StageData{Query: question, Embedding: embedding}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		searchStart := time.Now()
+		p.hookStart(ctx, "Answer", domain.HookStageSearch)
+		var searchErr error
+		result, searchErr = vs.SearchWithMetadataFilter(ctx, d.Embedding, candidateTopK, filter)
+		p.hookEnd(ctx, "Answer", domain.HookStageSearch, searchStart, searchErr)
+		if searchErr != nil {
+			return d, searchErr
+		}
+		return d, nil
+	})
 	if err != nil {
 		return "", err
 	}
@@ -157,13 +213,23 @@ func (p *Pipeline) AnswerWithMetadataFilter(ctx context.Context, question string
 	}
 
 	systemPrompt := p.systemPrompt
-	userMessage := buildUserMessageV1(result, question, p.maxContextChars, p.maxContextChunks)
 
-	genStart := time.Now()
-	p.hookStart(ctx, "Answer", domain.HookStageGenerate)
-	answer, genErr := p.llm.Generate(ctx, systemPrompt, userMessage)
-	p.hookEnd(ctx, "Answer", domain.HookStageGenerate, genStart, genErr)
-	return answer, genErr
+	stageResult, err := p.execWithStageMiddleware(ctx, domain.HookStageGenerate, "Answer", domain.StageData{Query: question, Chunks: result.Chunks}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		genStart := time.Now()
+		p.hookStart(ctx, "Answer", domain.HookStageGenerate)
+		userMessage := buildUserMessageV1(result, d.Query, p.maxContextChars, p.maxContextChunks)
+		answer, genErr := p.llm.Generate(ctx, systemPrompt, userMessage)
+		p.hookEnd(ctx, "Answer", domain.HookStageGenerate, genStart, genErr)
+		if genErr != nil {
+			return d, genErr
+		}
+		d.Answer = answer
+		return d, nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return stageResult.Answer, nil
 }
 
 // AnswerHybrid выполняет гибридный поиск (BM25 + semantic) и генерирует ответ.
@@ -235,10 +301,18 @@ func (p *Pipeline) AnswerWithInlineCitations(
 		return "", domain.RetrievalResult{}, nil, fmt.Errorf("%w: topK must be > 0", domain.ErrInvalidQueryTopK)
 	}
 
-	embedStart := time.Now()
-	p.hookStart(ctx, "Answer", domain.HookStageEmbed)
-	embedding, err := p.embedder.Embed(ctx, question)
-	p.hookEnd(ctx, "Answer", domain.HookStageEmbed, embedStart, err)
+	var embedding []float64
+	_, err := p.execWithStageMiddleware(ctx, domain.HookStageEmbed, "Answer", domain.StageData{Query: question}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		embedStart := time.Now()
+		p.hookStart(ctx, "Answer", domain.HookStageEmbed)
+		var embedErr error
+		embedding, embedErr = p.embedder.Embed(ctx, d.Query)
+		p.hookEnd(ctx, "Answer", domain.HookStageEmbed, embedStart, embedErr)
+		if embedErr != nil {
+			return d, embedErr
+		}
+		return d, nil
+	})
 	if err != nil {
 		return "", domain.RetrievalResult{}, nil, err
 	}
@@ -248,10 +322,18 @@ func (p *Pipeline) AnswerWithInlineCitations(
 		candidateTopK = p.mmrCandidatePool
 	}
 
-	searchStart := time.Now()
-	p.hookStart(ctx, "Answer", domain.HookStageSearch)
-	result, err := p.store.Search(ctx, embedding, candidateTopK)
-	p.hookEnd(ctx, "Answer", domain.HookStageSearch, searchStart, err)
+	var result domain.RetrievalResult
+	_, err = p.execWithStageMiddleware(ctx, domain.HookStageSearch, "Answer", domain.StageData{Query: question, Embedding: embedding}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		searchStart := time.Now()
+		p.hookStart(ctx, "Answer", domain.HookStageSearch)
+		var searchErr error
+		result, searchErr = p.store.Search(ctx, d.Embedding, candidateTopK)
+		p.hookEnd(ctx, "Answer", domain.HookStageSearch, searchStart, searchErr)
+		if searchErr != nil {
+			return d, searchErr
+		}
+		return d, nil
+	})
 	if err != nil {
 		return "", domain.RetrievalResult{}, nil, err
 	}
@@ -268,16 +350,25 @@ func (p *Pipeline) AnswerWithInlineCitations(
 	}
 
 	systemPrompt := p.systemPrompt
-	userMessage, citations := buildUserMessageV1InlineCitations(result, question, p.maxContextChars, p.maxContextChunks)
 
-	genStart := time.Now()
-	p.hookStart(ctx, "Answer", domain.HookStageGenerate)
-	answer, genErr := p.llm.Generate(ctx, systemPrompt, userMessage)
-	p.hookEnd(ctx, "Answer", domain.HookStageGenerate, genStart, genErr)
-	if genErr != nil {
-		return "", result, citations, genErr
+	var citations []domain.InlineCitation
+	stageResult, err := p.execWithStageMiddleware(ctx, domain.HookStageGenerate, "Answer", domain.StageData{Query: question, Chunks: result.Chunks}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		genStart := time.Now()
+		p.hookStart(ctx, "Answer", domain.HookStageGenerate)
+		userMessage, ic := buildUserMessageV1InlineCitations(result, d.Query, p.maxContextChars, p.maxContextChunks)
+		citations = ic
+		answer, genErr := p.llm.Generate(ctx, systemPrompt, userMessage)
+		p.hookEnd(ctx, "Answer", domain.HookStageGenerate, genStart, genErr)
+		if genErr != nil {
+			return d, genErr
+		}
+		d.Answer = answer
+		return d, nil
+	})
+	if err != nil {
+		return "", result, citations, err
 	}
-	return answer, result, citations, nil
+	return stageResult.Answer, result, citations, nil
 }
 
 // AnswerWithCitations выполняет полный RAG-цикл и возвращает retrieval evidence вместе с ответом.
@@ -304,10 +395,18 @@ func (p *Pipeline) AnswerWithCitations(ctx context.Context, question string, top
 		return "", domain.RetrievalResult{}, fmt.Errorf("%w: topK must be > 0", domain.ErrInvalidQueryTopK)
 	}
 
-	embedStart := time.Now()
-	p.hookStart(ctx, "Answer", domain.HookStageEmbed)
-	embedding, err := p.embedder.Embed(ctx, question)
-	p.hookEnd(ctx, "Answer", domain.HookStageEmbed, embedStart, err)
+	var embedding []float64
+	_, err := p.execWithStageMiddleware(ctx, domain.HookStageEmbed, "Answer", domain.StageData{Query: question}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		embedStart := time.Now()
+		p.hookStart(ctx, "Answer", domain.HookStageEmbed)
+		var embedErr error
+		embedding, embedErr = p.embedder.Embed(ctx, d.Query)
+		p.hookEnd(ctx, "Answer", domain.HookStageEmbed, embedStart, embedErr)
+		if embedErr != nil {
+			return d, embedErr
+		}
+		return d, nil
+	})
 	if err != nil {
 		return "", domain.RetrievalResult{}, err
 	}
@@ -317,10 +416,18 @@ func (p *Pipeline) AnswerWithCitations(ctx context.Context, question string, top
 		candidateTopK = p.mmrCandidatePool
 	}
 
-	searchStart := time.Now()
-	p.hookStart(ctx, "Answer", domain.HookStageSearch)
-	result, err := p.store.Search(ctx, embedding, candidateTopK)
-	p.hookEnd(ctx, "Answer", domain.HookStageSearch, searchStart, err)
+	var result domain.RetrievalResult
+	_, err = p.execWithStageMiddleware(ctx, domain.HookStageSearch, "Answer", domain.StageData{Query: question, Embedding: embedding}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		searchStart := time.Now()
+		p.hookStart(ctx, "Answer", domain.HookStageSearch)
+		var searchErr error
+		result, searchErr = p.store.Search(ctx, d.Embedding, candidateTopK)
+		p.hookEnd(ctx, "Answer", domain.HookStageSearch, searchStart, searchErr)
+		if searchErr != nil {
+			return d, searchErr
+		}
+		return d, nil
+	})
 	if err != nil {
 		return "", domain.RetrievalResult{}, err
 	}
@@ -337,16 +444,23 @@ func (p *Pipeline) AnswerWithCitations(ctx context.Context, question string, top
 	}
 
 	systemPrompt := p.systemPrompt
-	userMessage := buildUserMessageV1(result, question, p.maxContextChars, p.maxContextChunks)
 
-	genStart := time.Now()
-	p.hookStart(ctx, "Answer", domain.HookStageGenerate)
-	answer, genErr := p.llm.Generate(ctx, systemPrompt, userMessage)
-	p.hookEnd(ctx, "Answer", domain.HookStageGenerate, genStart, genErr)
-	if genErr != nil {
-		return "", result, genErr
+	stageResult, err := p.execWithStageMiddleware(ctx, domain.HookStageGenerate, "Answer", domain.StageData{Query: question, Chunks: result.Chunks}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		genStart := time.Now()
+		p.hookStart(ctx, "Answer", domain.HookStageGenerate)
+		userMessage := buildUserMessageV1(result, d.Query, p.maxContextChars, p.maxContextChunks)
+		answer, genErr := p.llm.Generate(ctx, systemPrompt, userMessage)
+		p.hookEnd(ctx, "Answer", domain.HookStageGenerate, genStart, genErr)
+		if genErr != nil {
+			return d, genErr
+		}
+		d.Answer = answer
+		return d, nil
+	})
+	if err != nil {
+		return "", result, err
 	}
-	return answer, result, nil
+	return stageResult.Answer, result, nil
 }
 
 // AnswerWithCitationsWithParentIDs выполняет RAG-цикл с фильтром по ParentIDs и возвращает retrieval evidence.
@@ -386,10 +500,18 @@ func (p *Pipeline) AnswerWithCitationsWithParentIDs(
 		return "", domain.RetrievalResult{}, ErrFiltersNotSupported
 	}
 
-	embedStart := time.Now()
-	p.hookStart(ctx, "Answer", domain.HookStageEmbed)
-	embedding, err := p.embedder.Embed(ctx, question)
-	p.hookEnd(ctx, "Answer", domain.HookStageEmbed, embedStart, err)
+	var embedding []float64
+	_, err := p.execWithStageMiddleware(ctx, domain.HookStageEmbed, "Answer", domain.StageData{Query: question}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		embedStart := time.Now()
+		p.hookStart(ctx, "Answer", domain.HookStageEmbed)
+		var embedErr error
+		embedding, embedErr = p.embedder.Embed(ctx, d.Query)
+		p.hookEnd(ctx, "Answer", domain.HookStageEmbed, embedStart, embedErr)
+		if embedErr != nil {
+			return d, embedErr
+		}
+		return d, nil
+	})
 	if err != nil {
 		return "", domain.RetrievalResult{}, err
 	}
@@ -399,10 +521,18 @@ func (p *Pipeline) AnswerWithCitationsWithParentIDs(
 		candidateTopK = p.mmrCandidatePool
 	}
 
-	searchStart := time.Now()
-	p.hookStart(ctx, "Answer", domain.HookStageSearch)
-	result, err := vs.SearchWithFilter(ctx, embedding, candidateTopK, domain.ParentIDFilter{ParentIDs: parentIDs})
-	p.hookEnd(ctx, "Answer", domain.HookStageSearch, searchStart, err)
+	var result domain.RetrievalResult
+	_, err = p.execWithStageMiddleware(ctx, domain.HookStageSearch, "Answer", domain.StageData{Query: question, Embedding: embedding}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		searchStart := time.Now()
+		p.hookStart(ctx, "Answer", domain.HookStageSearch)
+		var searchErr error
+		result, searchErr = vs.SearchWithFilter(ctx, d.Embedding, candidateTopK, domain.ParentIDFilter{ParentIDs: parentIDs})
+		p.hookEnd(ctx, "Answer", domain.HookStageSearch, searchStart, searchErr)
+		if searchErr != nil {
+			return d, searchErr
+		}
+		return d, nil
+	})
 	if err != nil {
 		return "", domain.RetrievalResult{}, err
 	}
@@ -419,16 +549,23 @@ func (p *Pipeline) AnswerWithCitationsWithParentIDs(
 	}
 
 	systemPrompt := p.systemPrompt
-	userMessage := buildUserMessageV1(result, question, p.maxContextChars, p.maxContextChunks)
 
-	genStart := time.Now()
-	p.hookStart(ctx, "Answer", domain.HookStageGenerate)
-	answer, genErr := p.llm.Generate(ctx, systemPrompt, userMessage)
-	p.hookEnd(ctx, "Answer", domain.HookStageGenerate, genStart, genErr)
-	if genErr != nil {
-		return "", result, genErr
+	stageResult, err := p.execWithStageMiddleware(ctx, domain.HookStageGenerate, "Answer", domain.StageData{Query: question, Chunks: result.Chunks}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		genStart := time.Now()
+		p.hookStart(ctx, "Answer", domain.HookStageGenerate)
+		userMessage := buildUserMessageV1(result, d.Query, p.maxContextChars, p.maxContextChunks)
+		answer, genErr := p.llm.Generate(ctx, systemPrompt, userMessage)
+		p.hookEnd(ctx, "Answer", domain.HookStageGenerate, genStart, genErr)
+		if genErr != nil {
+			return d, genErr
+		}
+		d.Answer = answer
+		return d, nil
+	})
+	if err != nil {
+		return "", result, err
 	}
-	return answer, result, nil
+	return stageResult.Answer, result, nil
 }
 
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
@@ -440,16 +577,23 @@ func (p *Pipeline) generateCitedFromResult(
 	result domain.RetrievalResult,
 ) (string, domain.RetrievalResult, error) {
 	systemPrompt := p.systemPrompt
-	userMessage := buildUserMessageV1(result, question, p.maxContextChars, p.maxContextChunks)
 
-	genStart := time.Now()
-	p.hookStart(ctx, "Answer", domain.HookStageGenerate)
-	answer, genErr := p.llm.Generate(ctx, systemPrompt, userMessage)
-	p.hookEnd(ctx, "Answer", domain.HookStageGenerate, genStart, genErr)
+	stageResult, genErr := p.execWithStageMiddleware(ctx, domain.HookStageGenerate, "Answer", domain.StageData{Query: question, Chunks: result.Chunks}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		genStart := time.Now()
+		p.hookStart(ctx, "Answer", domain.HookStageGenerate)
+		userMessage := buildUserMessageV1(result, d.Query, p.maxContextChars, p.maxContextChunks)
+		answer, gErr := p.llm.Generate(ctx, systemPrompt, userMessage)
+		p.hookEnd(ctx, "Answer", domain.HookStageGenerate, genStart, gErr)
+		if gErr != nil {
+			return d, gErr
+		}
+		d.Answer = answer
+		return d, nil
+	})
 	if genErr != nil {
 		return "", result, genErr
 	}
-	return answer, result, nil
+	return stageResult.Answer, result, nil
 }
 
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
@@ -460,16 +604,25 @@ func (p *Pipeline) generateInlineCitedFromResult(
 	result domain.RetrievalResult,
 ) (string, domain.RetrievalResult, []domain.InlineCitation, error) {
 	systemPrompt := p.systemPrompt
-	userMessage, citations := buildUserMessageV1InlineCitations(result, question, p.maxContextChars, p.maxContextChunks)
 
-	genStart := time.Now()
-	p.hookStart(ctx, "Answer", domain.HookStageGenerate)
-	answer, genErr := p.llm.Generate(ctx, systemPrompt, userMessage)
-	p.hookEnd(ctx, "Answer", domain.HookStageGenerate, genStart, genErr)
+	var citations []domain.InlineCitation
+	stageResult, genErr := p.execWithStageMiddleware(ctx, domain.HookStageGenerate, "Answer", domain.StageData{Query: question, Chunks: result.Chunks}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		genStart := time.Now()
+		p.hookStart(ctx, "Answer", domain.HookStageGenerate)
+		userMessage, ic := buildUserMessageV1InlineCitations(result, d.Query, p.maxContextChars, p.maxContextChunks)
+		citations = ic
+		answer, gErr := p.llm.Generate(ctx, systemPrompt, userMessage)
+		p.hookEnd(ctx, "Answer", domain.HookStageGenerate, genStart, gErr)
+		if gErr != nil {
+			return d, gErr
+		}
+		d.Answer = answer
+		return d, nil
+	})
 	if genErr != nil {
 		return "", result, citations, genErr
 	}
-	return answer, result, citations, nil
+	return stageResult.Answer, result, citations, nil
 }
 
 // AnswerHyDEWithCitations выполняет HyDE retrieval и генерирует ответ с цитатами.

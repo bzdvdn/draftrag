@@ -44,6 +44,7 @@ type PipelineOptions struct {
 	Reranker                     domain.Reranker
 	PIIDetector                  domain.PIIDetector
 	ParentContextEnabled         *bool
+	Middleware                   []domain.Middleware
 }
 
 // Pipeline is the core RAG pipeline coordinating store, LLM, and embedder.
@@ -70,6 +71,7 @@ type Pipeline struct {
 	reranker                     domain.Reranker
 	piidetector                  domain.PIIDetector
 	parentContextEnabled         bool
+	middleware                   []domain.Middleware
 }
 
 // NewPipeline creates a Pipeline with required dependencies.
@@ -143,6 +145,7 @@ func NewPipelineWithConfig(
 	p.streamBufferSize = cfg.StreamBufferSize
 	p.reranker = cfg.Reranker
 	p.piidetector = cfg.PIIDetector
+	p.middleware = cfg.Middleware
 	p.parentContextEnabled = true
 	if cfg.ParentContextEnabled != nil {
 		p.parentContextEnabled = *cfg.ParentContextEnabled
@@ -226,33 +229,56 @@ func (p *Pipeline) processDocumentOp(ctx context.Context, operationName string, 
 // - updateDocumentAtomicBestEffort (T3.2) — косвенно через processDocumentOp.
 func (p *Pipeline) produceChunks(ctx context.Context, operationName string, doc domain.Document) ([]domain.Chunk, error) {
 	if p.chunker != nil {
-		chunkStart := time.Now()
-		traceCtx := p.hookStart(ctx, operationName, domain.HookStageChunking)
-		chunks, err := p.chunker.Chunk(traceCtx, doc)
-		p.hookEnd(traceCtx, operationName, domain.HookStageChunking, chunkStart, err)
+		var chunks []domain.Chunk
+		_, err := p.execWithStageMiddleware(ctx, domain.HookStageChunking, operationName, domain.StageData{Document: doc}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+			chunkStart := time.Now()
+			traceCtx := p.hookStart(ctx, operationName, domain.HookStageChunking)
+			var chunkErr error
+			chunks, chunkErr = p.chunker.Chunk(traceCtx, d.Document)
+			p.hookEnd(traceCtx, operationName, domain.HookStageChunking, chunkStart, chunkErr)
+			if chunkErr != nil {
+				return d, chunkErr
+			}
+			for i := range chunks {
+				embedData, eErr := p.execWithStageMiddleware(ctx, domain.HookStageEmbed, operationName, domain.StageData{Query: chunks[i].Content}, func(ctx context.Context, ed domain.StageData) (domain.StageData, error) {
+					embedStart := time.Now()
+					traceCtx := p.hookStart(ctx, operationName, domain.HookStageEmbed)
+					embedding, embedErr := p.embedder.Embed(traceCtx, ed.Query)
+					p.hookEnd(traceCtx, operationName, domain.HookStageEmbed, embedStart, embedErr)
+					if embedErr != nil {
+						return ed, embedErr
+					}
+					ed.Embedding = embedding
+					return ed, nil
+				})
+				if eErr != nil {
+					return d, eErr
+				}
+				chunks[i].Embedding = embedData.Embedding
+				if err := chunks[i].Validate(); err != nil {
+					return d, err
+				}
+			}
+			return d, nil
+		})
 		if err != nil {
 			return nil, err
-		}
-		for i := range chunks {
-			embedStart := time.Now()
-			traceCtx := p.hookStart(ctx, operationName, domain.HookStageEmbed)
-			embedding, err := p.embedder.Embed(traceCtx, chunks[i].Content)
-			p.hookEnd(traceCtx, operationName, domain.HookStageEmbed, embedStart, err)
-			if err != nil {
-				return nil, err
-			}
-			chunks[i].Embedding = embedding
-			if err := chunks[i].Validate(); err != nil {
-				return nil, err
-			}
 		}
 		return chunks, nil
 	}
 
-	embedStart := time.Now()
-	traceCtx := p.hookStart(ctx, operationName, domain.HookStageEmbed)
-	embedding, err := p.embedder.Embed(traceCtx, doc.Content)
-	p.hookEnd(traceCtx, operationName, domain.HookStageEmbed, embedStart, err)
+	var embedding []float64
+	_, err := p.execWithStageMiddleware(ctx, domain.HookStageEmbed, operationName, domain.StageData{Query: doc.Content}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		embedStart := time.Now()
+		traceCtx := p.hookStart(ctx, operationName, domain.HookStageEmbed)
+		var embedErr error
+		embedding, embedErr = p.embedder.Embed(traceCtx, d.Query)
+		p.hookEnd(traceCtx, operationName, domain.HookStageEmbed, embedStart, embedErr)
+		if embedErr != nil {
+			return d, embedErr
+		}
+		return d, nil
+	})
 	if err != nil {
 		return nil, err
 	}

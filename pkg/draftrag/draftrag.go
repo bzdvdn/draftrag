@@ -148,6 +148,18 @@ type QueryHistory = domain.QueryHistory
 // QueryDecomposer — опциональный компонент для разбиения запроса на под-вопросы.
 type QueryDecomposer = domain.QueryDecomposer
 
+// @sk-task middleware-chain#T2.5: Middleware type alias (AC-001, AC-004)
+// Middleware — функциональный тип для обёртки Handler в middleware-цепочке.
+type Middleware = domain.Middleware
+
+// @sk-task middleware-chain#T2.5: Handler type alias (AC-001, AC-004)
+// Handler — обработчик стадии pipeline в middleware-цепочке.
+type Handler = domain.Handler
+
+// @sk-task middleware-chain#T2.5: StageData type alias (AC-001, AC-003)
+// StageData — единая структура данных для всех стадий pipeline.
+type StageData = domain.StageData
+
 // PipelineConfig — удалён. Используйте PipelineOptions.
 //
 // @sk-task arch-quality-pass#T1.1: re-export alias PipelineConfig → PipelineOptions (AC-004)
@@ -267,6 +279,11 @@ type PipelineOptions struct {
 	// При false pipeline пропускает как сохранение parent-сущности при индексации,
 	// так и загрузку parent-контента при retrieval (AC-004).
 	ParentContextEnabled *bool
+
+	// @sk-task middleware-chain#T2.5: Middleware опция (AC-001, AC-004)
+	// Middleware — опциональная цепочка middleware для стадий pipeline.
+	// nil или пустой срез означает "без middleware" (backward compatible).
+	Middleware []Middleware
 }
 
 // NewPipeline создаёт pipeline из зависимостей: VectorStore, LLMProvider и Embedder.
@@ -334,6 +351,7 @@ func NewPipelineWithOptions(store VectorStore, llm LLMProvider, embedder Embedde
 		Reranker:                     opts.Reranker,
 		PIIDetector:                  opts.PIIDetector,
 		ParentContextEnabled:         opts.ParentContextEnabled,
+		Middleware:                   opts.Middleware,
 	})
 	if err != nil {
 		return nil, err

@@ -25,26 +25,50 @@ func (p *Pipeline) QueryHyDE(ctx context.Context, question string, topK int) (do
 		return domain.RetrievalResult{}, err
 	}
 
-	genStart := time.Now()
-	p.hookStart(ctx, "QueryHyDE:generate", domain.HookStageGenerate)
-	hypothetical, err := p.llm.Generate(ctx, hydeSystemPrompt, question)
-	p.hookEnd(ctx, "QueryHyDE:generate", domain.HookStageGenerate, genStart, err)
+	var hypothetical string
+	_, err := p.execWithStageMiddleware(ctx, domain.HookStageGenerate, "QueryHyDE", domain.StageData{Query: question}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		genStart := time.Now()
+		p.hookStart(ctx, "QueryHyDE:generate", domain.HookStageGenerate)
+		var genErr error
+		hypothetical, genErr = p.llm.Generate(ctx, hydeSystemPrompt, question)
+		p.hookEnd(ctx, "QueryHyDE:generate", domain.HookStageGenerate, genStart, genErr)
+		if genErr != nil {
+			return d, genErr
+		}
+		return d, nil
+	})
 	if err != nil {
 		return domain.RetrievalResult{}, fmt.Errorf("hyde generate: %w", err)
 	}
 
-	embedStart := time.Now()
-	p.hookStart(ctx, "QueryHyDE:embed", domain.HookStageEmbed)
-	embedding, err := p.embedder.Embed(ctx, hypothetical)
-	p.hookEnd(ctx, "QueryHyDE:embed", domain.HookStageEmbed, embedStart, err)
+	var embedding []float64
+	_, err = p.execWithStageMiddleware(ctx, domain.HookStageEmbed, "QueryHyDE", domain.StageData{Query: hypothetical}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		embedStart := time.Now()
+		p.hookStart(ctx, "QueryHyDE:embed", domain.HookStageEmbed)
+		var embedErr error
+		embedding, embedErr = p.embedder.Embed(ctx, d.Query)
+		p.hookEnd(ctx, "QueryHyDE:embed", domain.HookStageEmbed, embedStart, embedErr)
+		if embedErr != nil {
+			return d, embedErr
+		}
+		return d, nil
+	})
 	if err != nil {
 		return domain.RetrievalResult{}, fmt.Errorf("hyde embed: %w", err)
 	}
 
-	searchStart := time.Now()
-	p.hookStart(ctx, "QueryHyDE:search", domain.HookStageSearch)
-	result, err := p.store.Search(ctx, embedding, topK)
-	p.hookEnd(ctx, "QueryHyDE:search", domain.HookStageSearch, searchStart, err)
+	var result domain.RetrievalResult
+	_, err = p.execWithStageMiddleware(ctx, domain.HookStageSearch, "QueryHyDE", domain.StageData{Query: hypothetical, Embedding: embedding}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		searchStart := time.Now()
+		p.hookStart(ctx, "QueryHyDE:search", domain.HookStageSearch)
+		var searchErr error
+		result, searchErr = p.store.Search(ctx, d.Embedding, topK)
+		p.hookEnd(ctx, "QueryHyDE:search", domain.HookStageSearch, searchStart, searchErr)
+		if searchErr != nil {
+			return d, searchErr
+		}
+		return d, nil
+	})
 	if err != nil {
 		return domain.RetrievalResult{}, err
 	}
@@ -77,10 +101,18 @@ func (p *Pipeline) QueryMulti(ctx context.Context, question string, n, topK int)
 	}
 
 	userMsg := fmt.Sprintf("Generate %d alternative phrasings of this question:\n\n%s", n, question)
-	genStart := time.Now()
-	p.hookStart(ctx, "QueryMulti:generate", domain.HookStageGenerate)
-	raw, err := p.llm.Generate(ctx, multiQuerySystemPrompt, userMsg)
-	p.hookEnd(ctx, "QueryMulti:generate", domain.HookStageGenerate, genStart, err)
+	var raw string
+	_, err := p.execWithStageMiddleware(ctx, domain.HookStageGenerate, "QueryMulti", domain.StageData{Query: userMsg}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		genStart := time.Now()
+		p.hookStart(ctx, "QueryMulti:generate", domain.HookStageGenerate)
+		var genErr error
+		raw, genErr = p.llm.Generate(ctx, multiQuerySystemPrompt, userMsg)
+		p.hookEnd(ctx, "QueryMulti:generate", domain.HookStageGenerate, genStart, genErr)
+		if genErr != nil {
+			return d, genErr
+		}
+		return d, nil
+	})
 	if err != nil {
 		return domain.RetrievalResult{}, fmt.Errorf("multi-query generate: %w", err)
 	}
@@ -93,17 +125,33 @@ func (p *Pipeline) QueryMulti(ctx context.Context, question string, n, topK int)
 		if err := ctx.Err(); err != nil {
 			return domain.RetrievalResult{}, err
 		}
-		embedStart := time.Now()
-		p.hookStart(ctx, "QueryMulti:embed", domain.HookStageEmbed)
-		emb, err := p.embedder.Embed(ctx, q)
-		p.hookEnd(ctx, "QueryMulti:embed", domain.HookStageEmbed, embedStart, err)
+		var emb []float64
+		_, err = p.execWithStageMiddleware(ctx, domain.HookStageEmbed, "QueryMulti", domain.StageData{Query: q}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+			embedStart := time.Now()
+			p.hookStart(ctx, "QueryMulti:embed", domain.HookStageEmbed)
+			var embedErr error
+			emb, embedErr = p.embedder.Embed(ctx, d.Query)
+			p.hookEnd(ctx, "QueryMulti:embed", domain.HookStageEmbed, embedStart, embedErr)
+			if embedErr != nil {
+				return d, embedErr
+			}
+			return d, nil
+		})
 		if err != nil {
 			return domain.RetrievalResult{}, fmt.Errorf("multi-query embed: %w", err)
 		}
-		searchStart := time.Now()
-		p.hookStart(ctx, "QueryMulti:search", domain.HookStageSearch)
-		res, err := p.store.Search(ctx, emb, topK)
-		p.hookEnd(ctx, "QueryMulti:search", domain.HookStageSearch, searchStart, err)
+		var res domain.RetrievalResult
+		_, err = p.execWithStageMiddleware(ctx, domain.HookStageSearch, "QueryMulti", domain.StageData{Query: q, Embedding: emb}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+			searchStart := time.Now()
+			p.hookStart(ctx, "QueryMulti:search", domain.HookStageSearch)
+			var searchErr error
+			res, searchErr = p.store.Search(ctx, d.Embedding, topK)
+			p.hookEnd(ctx, "QueryMulti:search", domain.HookStageSearch, searchStart, searchErr)
+			if searchErr != nil {
+				return d, searchErr
+			}
+			return d, nil
+		})
 		if err != nil {
 			return domain.RetrievalResult{}, err
 		}
@@ -147,18 +195,34 @@ func (p *Pipeline) Query(ctx context.Context, question string, topK int) (domain
 		return domain.RetrievalResult{}, fmt.Errorf("%w: topK must be > 0", domain.ErrInvalidQueryTopK)
 	}
 
-	embedStart := time.Now()
-	p.hookStart(ctx, "Query", domain.HookStageEmbed)
-	embedding, err := p.embedder.Embed(ctx, question)
-	p.hookEnd(ctx, "Query", domain.HookStageEmbed, embedStart, err)
+	var embedding []float64
+	_, err := p.execWithStageMiddleware(ctx, domain.HookStageEmbed, "Query", domain.StageData{Query: question}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		embedStart := time.Now()
+		p.hookStart(ctx, "Query", domain.HookStageEmbed)
+		var embedErr error
+		embedding, embedErr = p.embedder.Embed(ctx, d.Query)
+		p.hookEnd(ctx, "Query", domain.HookStageEmbed, embedStart, embedErr)
+		if embedErr != nil {
+			return d, embedErr
+		}
+		return d, nil
+	})
 	if err != nil {
 		return domain.RetrievalResult{}, err
 	}
 
-	searchStart := time.Now()
-	p.hookStart(ctx, "Query", domain.HookStageSearch)
-	result, err := p.store.Search(ctx, embedding, topK)
-	p.hookEnd(ctx, "Query", domain.HookStageSearch, searchStart, err)
+	var result domain.RetrievalResult
+	_, err = p.execWithStageMiddleware(ctx, domain.HookStageSearch, "Query", domain.StageData{Query: question, Embedding: embedding}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		searchStart := time.Now()
+		p.hookStart(ctx, "Query", domain.HookStageSearch)
+		var searchErr error
+		result, searchErr = p.store.Search(ctx, d.Embedding, topK)
+		p.hookEnd(ctx, "Query", domain.HookStageSearch, searchStart, searchErr)
+		if searchErr != nil {
+			return d, searchErr
+		}
+		return d, nil
+	})
 	if err != nil {
 		return domain.RetrievalResult{}, err
 	}
@@ -205,18 +269,34 @@ func (p *Pipeline) QueryWithParentIDs(ctx context.Context, question string, topK
 		return domain.RetrievalResult{}, ErrFiltersNotSupported
 	}
 
-	embedStart := time.Now()
-	p.hookStart(ctx, "Query", domain.HookStageEmbed)
-	embedding, err := p.embedder.Embed(ctx, question)
-	p.hookEnd(ctx, "Query", domain.HookStageEmbed, embedStart, err)
+	var embedding []float64
+	_, err := p.execWithStageMiddleware(ctx, domain.HookStageEmbed, "Query", domain.StageData{Query: question}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		embedStart := time.Now()
+		p.hookStart(ctx, "Query", domain.HookStageEmbed)
+		var embedErr error
+		embedding, embedErr = p.embedder.Embed(ctx, d.Query)
+		p.hookEnd(ctx, "Query", domain.HookStageEmbed, embedStart, embedErr)
+		if embedErr != nil {
+			return d, embedErr
+		}
+		return d, nil
+	})
 	if err != nil {
 		return domain.RetrievalResult{}, err
 	}
 
-	searchStart := time.Now()
-	p.hookStart(ctx, "Query", domain.HookStageSearch)
-	result, err := vs.SearchWithFilter(ctx, embedding, topK, domain.ParentIDFilter{ParentIDs: parentIDs})
-	p.hookEnd(ctx, "Query", domain.HookStageSearch, searchStart, err)
+	var result domain.RetrievalResult
+	_, err = p.execWithStageMiddleware(ctx, domain.HookStageSearch, "Query", domain.StageData{Query: question, Embedding: embedding}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		searchStart := time.Now()
+		p.hookStart(ctx, "Query", domain.HookStageSearch)
+		var searchErr error
+		result, searchErr = vs.SearchWithFilter(ctx, d.Embedding, topK, domain.ParentIDFilter{ParentIDs: parentIDs})
+		p.hookEnd(ctx, "Query", domain.HookStageSearch, searchStart, searchErr)
+		if searchErr != nil {
+			return d, searchErr
+		}
+		return d, nil
+	})
 	if err != nil {
 		return domain.RetrievalResult{}, err
 	}
@@ -265,18 +345,34 @@ func (p *Pipeline) QueryWithMetadataFilter(ctx context.Context, question string,
 		return domain.RetrievalResult{}, ErrFiltersNotSupported
 	}
 
-	embedStart := time.Now()
-	p.hookStart(ctx, "Query", domain.HookStageEmbed)
-	embedding, err := p.embedder.Embed(ctx, question)
-	p.hookEnd(ctx, "Query", domain.HookStageEmbed, embedStart, err)
+	var embedding []float64
+	_, err := p.execWithStageMiddleware(ctx, domain.HookStageEmbed, "Query", domain.StageData{Query: question}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		embedStart := time.Now()
+		p.hookStart(ctx, "Query", domain.HookStageEmbed)
+		var embedErr error
+		embedding, embedErr = p.embedder.Embed(ctx, d.Query)
+		p.hookEnd(ctx, "Query", domain.HookStageEmbed, embedStart, embedErr)
+		if embedErr != nil {
+			return d, embedErr
+		}
+		return d, nil
+	})
 	if err != nil {
 		return domain.RetrievalResult{}, err
 	}
 
-	searchStart := time.Now()
-	p.hookStart(ctx, "Query", domain.HookStageSearch)
-	result, err := vs.SearchWithMetadataFilter(ctx, embedding, topK, filter)
-	p.hookEnd(ctx, "Query", domain.HookStageSearch, searchStart, err)
+	var result domain.RetrievalResult
+	_, err = p.execWithStageMiddleware(ctx, domain.HookStageSearch, "Query", domain.StageData{Query: question, Embedding: embedding}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		searchStart := time.Now()
+		p.hookStart(ctx, "Query", domain.HookStageSearch)
+		var searchErr error
+		result, searchErr = vs.SearchWithMetadataFilter(ctx, d.Embedding, topK, filter)
+		p.hookEnd(ctx, "Query", domain.HookStageSearch, searchStart, searchErr)
+		if searchErr != nil {
+			return d, searchErr
+		}
+		return d, nil
+	})
 	if err != nil {
 		return domain.RetrievalResult{}, err
 	}
@@ -316,17 +412,33 @@ func (p *Pipeline) QueryWithQueries(ctx context.Context, queries []string, topK 
 		if q == "" {
 			continue
 		}
-		embedStart := time.Now()
-		p.hookStart(ctx, "QueryWithQueries:embed", domain.HookStageEmbed)
-		emb, err := p.embedder.Embed(ctx, q)
-		p.hookEnd(ctx, "QueryWithQueries:embed", domain.HookStageEmbed, embedStart, err)
+		var emb []float64
+		_, err := p.execWithStageMiddleware(ctx, domain.HookStageEmbed, "QueryWithQueries", domain.StageData{Query: q}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+			embedStart := time.Now()
+			p.hookStart(ctx, "QueryWithQueries:embed", domain.HookStageEmbed)
+			var embedErr error
+			emb, embedErr = p.embedder.Embed(ctx, d.Query)
+			p.hookEnd(ctx, "QueryWithQueries:embed", domain.HookStageEmbed, embedStart, embedErr)
+			if embedErr != nil {
+				return d, embedErr
+			}
+			return d, nil
+		})
 		if err != nil {
 			return domain.RetrievalResult{}, fmt.Errorf("rewriter embed: %w", err)
 		}
-		searchStart := time.Now()
-		p.hookStart(ctx, "QueryWithQueries:search", domain.HookStageSearch)
-		res, err := p.store.Search(ctx, emb, topK)
-		p.hookEnd(ctx, "QueryWithQueries:search", domain.HookStageSearch, searchStart, err)
+		var res domain.RetrievalResult
+		_, err = p.execWithStageMiddleware(ctx, domain.HookStageSearch, "QueryWithQueries", domain.StageData{Query: q, Embedding: emb}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+			searchStart := time.Now()
+			p.hookStart(ctx, "QueryWithQueries:search", domain.HookStageSearch)
+			var searchErr error
+			res, searchErr = p.store.Search(ctx, d.Embedding, topK)
+			p.hookEnd(ctx, "QueryWithQueries:search", domain.HookStageSearch, searchStart, searchErr)
+			if searchErr != nil {
+				return d, searchErr
+			}
+			return d, nil
+		})
 		if err != nil {
 			return domain.RetrievalResult{}, err
 		}
@@ -388,18 +500,34 @@ func (p *Pipeline) QueryHybrid(ctx context.Context, question string, topK int, c
 		return domain.RetrievalResult{}, ErrHybridNotSupported
 	}
 
-	embedStart := time.Now()
-	p.hookStart(ctx, "QueryHybrid", domain.HookStageEmbed)
-	embedding, err := p.embedder.Embed(ctx, question)
-	p.hookEnd(ctx, "QueryHybrid", domain.HookStageEmbed, embedStart, err)
+	var embedding []float64
+	_, err := p.execWithStageMiddleware(ctx, domain.HookStageEmbed, "QueryHybrid", domain.StageData{Query: question}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		embedStart := time.Now()
+		p.hookStart(ctx, "QueryHybrid", domain.HookStageEmbed)
+		var embedErr error
+		embedding, embedErr = p.embedder.Embed(ctx, d.Query)
+		p.hookEnd(ctx, "QueryHybrid", domain.HookStageEmbed, embedStart, embedErr)
+		if embedErr != nil {
+			return d, embedErr
+		}
+		return d, nil
+	})
 	if err != nil {
 		return domain.RetrievalResult{}, err
 	}
 
-	searchStart := time.Now()
-	p.hookStart(ctx, "QueryHybrid", domain.HookStageSearch)
-	result, err := hs.SearchHybrid(ctx, question, embedding, topK, config)
-	p.hookEnd(ctx, "QueryHybrid", domain.HookStageSearch, searchStart, err)
+	var result domain.RetrievalResult
+	_, err = p.execWithStageMiddleware(ctx, domain.HookStageSearch, "QueryHybrid", domain.StageData{Query: question, Embedding: embedding}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		searchStart := time.Now()
+		p.hookStart(ctx, "QueryHybrid", domain.HookStageSearch)
+		var searchErr error
+		result, searchErr = hs.SearchHybrid(ctx, d.Query, d.Embedding, topK, config)
+		p.hookEnd(ctx, "QueryHybrid", domain.HookStageSearch, searchStart, searchErr)
+		if searchErr != nil {
+			return d, searchErr
+		}
+		return d, nil
+	})
 	if err != nil {
 		return domain.RetrievalResult{}, err
 	}

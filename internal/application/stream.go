@@ -16,6 +16,7 @@ import (
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
 // @ds-task T2.3: Реализовать AnswerStream в application Pipeline (AC-001, DEC-003)
+// @sk-task middleware-chain#T3.2: userMessage from d.Query (AC-004)
 func (p *Pipeline) AnswerStream(
 	ctx context.Context,
 	question string,
@@ -42,10 +43,18 @@ func (p *Pipeline) AnswerStream(
 		return nil, ErrStreamingNotSupported
 	}
 
-	embedStart := time.Now()
-	p.hookStart(ctx, "AnswerStream", domain.HookStageEmbed)
-	embedding, err := p.embedder.Embed(ctx, question)
-	p.hookEnd(ctx, "AnswerStream", domain.HookStageEmbed, embedStart, err)
+	var embedding []float64
+	_, err := p.execWithStageMiddleware(ctx, domain.HookStageEmbed, "AnswerStream", domain.StageData{Query: question}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		embedStart := time.Now()
+		p.hookStart(ctx, "AnswerStream", domain.HookStageEmbed)
+		var embedErr error
+		embedding, embedErr = p.embedder.Embed(ctx, d.Query)
+		p.hookEnd(ctx, "AnswerStream", domain.HookStageEmbed, embedStart, embedErr)
+		if embedErr != nil {
+			return d, embedErr
+		}
+		return d, nil
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -55,10 +64,18 @@ func (p *Pipeline) AnswerStream(
 		candidateTopK = p.mmrCandidatePool
 	}
 
-	searchStart := time.Now()
-	p.hookStart(ctx, "AnswerStream", domain.HookStageSearch)
-	result, err := p.store.Search(ctx, embedding, candidateTopK)
-	p.hookEnd(ctx, "AnswerStream", domain.HookStageSearch, searchStart, err)
+	var result domain.RetrievalResult
+	_, err = p.execWithStageMiddleware(ctx, domain.HookStageSearch, "AnswerStream", domain.StageData{Query: question, Embedding: embedding}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		searchStart := time.Now()
+		p.hookStart(ctx, "AnswerStream", domain.HookStageSearch)
+		var searchErr error
+		result, searchErr = p.store.Search(ctx, d.Embedding, candidateTopK)
+		p.hookEnd(ctx, "AnswerStream", domain.HookStageSearch, searchStart, searchErr)
+		if searchErr != nil {
+			return d, searchErr
+		}
+		return d, nil
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -73,19 +90,25 @@ func (p *Pipeline) AnswerStream(
 		result.Chunks = selected
 	}
 
-	systemPrompt := p.systemPrompt
-	userMessage := buildUserMessageV1(result, question, p.maxContextChars, p.maxContextChunks)
-
+	var tokenChan <-chan string
 	genStart := time.Now()
-	p.hookStart(ctx, "AnswerStream", domain.HookStageGenerate)
-	tokenChan, genErr := streamingLLM.GenerateStream(ctx, systemPrompt, userMessage)
-	if genErr != nil {
-		p.hookEnd(ctx, "AnswerStream", domain.HookStageGenerate, genStart, genErr)
-		return nil, genErr
+	_, err = p.execWithStageMiddleware(ctx, domain.HookStageGenerate, "AnswerStream", domain.StageData{Query: question, Chunks: result.Chunks}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		p.hookStart(ctx, "AnswerStream", domain.HookStageGenerate)
+		userMessage := buildUserMessageV1(result, d.Query, p.maxContextChars, p.maxContextChunks)
+		var genErr error
+		tokenChan, genErr = streamingLLM.GenerateStream(ctx, p.systemPrompt, userMessage)
+		if genErr != nil {
+			p.hookEnd(ctx, "AnswerStream", domain.HookStageGenerate, genStart, genErr)
+			return d, genErr
+		}
+		return d, nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	// Обёртка для отслеживания завершения генерации
-	return p.wrapStreamWithHook(ctx, tokenChan, genStart), nil
+	// Обёртка для отслеживания завершения генерации + middleware channel wrapper
+	return p.wrapStreamWithHook(ctx, p.wrapStreamWithMiddleware(ctx, tokenChan), genStart), nil
 }
 
 // wrapStreamWithHook оборачивает канал токенов для вызова hook по завершении.
@@ -129,6 +152,7 @@ func (p *Pipeline) wrapStreamWithHook(ctx context.Context, source <-chan string,
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
 // @ds-task T2.4: Реализовать AnswerStreamWithInlineCitations в application Pipeline (AC-002)
+// @sk-task middleware-chain#T-concern: add middleware on embed/search/generate (AC-003)
 func (p *Pipeline) AnswerStreamWithInlineCitations(
 	ctx context.Context,
 	question string,
@@ -155,10 +179,18 @@ func (p *Pipeline) AnswerStreamWithInlineCitations(
 		return nil, domain.RetrievalResult{}, nil, ErrStreamingNotSupported
 	}
 
-	embedStart := time.Now()
-	p.hookStart(ctx, "AnswerStream", domain.HookStageEmbed)
-	embedding, err := p.embedder.Embed(ctx, question)
-	p.hookEnd(ctx, "AnswerStream", domain.HookStageEmbed, embedStart, err)
+	var embedding []float64
+	_, err := p.execWithStageMiddleware(ctx, domain.HookStageEmbed, "AnswerStream", domain.StageData{Query: question}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		embedStart := time.Now()
+		p.hookStart(ctx, "AnswerStream", domain.HookStageEmbed)
+		var embedErr error
+		embedding, embedErr = p.embedder.Embed(ctx, d.Query)
+		p.hookEnd(ctx, "AnswerStream", domain.HookStageEmbed, embedStart, embedErr)
+		if embedErr != nil {
+			return d, embedErr
+		}
+		return d, nil
+	})
 	if err != nil {
 		return nil, domain.RetrievalResult{}, nil, err
 	}
@@ -168,10 +200,18 @@ func (p *Pipeline) AnswerStreamWithInlineCitations(
 		candidateTopK = p.mmrCandidatePool
 	}
 
-	searchStart := time.Now()
-	p.hookStart(ctx, "AnswerStream", domain.HookStageSearch)
-	result, err := p.store.Search(ctx, embedding, candidateTopK)
-	p.hookEnd(ctx, "AnswerStream", domain.HookStageSearch, searchStart, err)
+	var result domain.RetrievalResult
+	_, err = p.execWithStageMiddleware(ctx, domain.HookStageSearch, "AnswerStream", domain.StageData{Query: question, Embedding: embedding}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		searchStart := time.Now()
+		p.hookStart(ctx, "AnswerStream", domain.HookStageSearch)
+		var searchErr error
+		result, searchErr = p.store.Search(ctx, d.Embedding, candidateTopK)
+		p.hookEnd(ctx, "AnswerStream", domain.HookStageSearch, searchStart, searchErr)
+		if searchErr != nil {
+			return d, searchErr
+		}
+		return d, nil
+	})
 	if err != nil {
 		return nil, domain.RetrievalResult{}, nil, err
 	}
@@ -187,20 +227,58 @@ func (p *Pipeline) AnswerStreamWithInlineCitations(
 	}
 
 	systemPrompt := p.systemPrompt
-	userMessage, citations := buildUserMessageV1InlineCitations(result, question, p.maxContextChars, p.maxContextChunks)
-
+	var tokenChan <-chan string
+	var citations []domain.InlineCitation
 	genStart := time.Now()
-	p.hookStart(ctx, "AnswerStream", domain.HookStageGenerate)
-	tokenChan, genErr := streamingLLM.GenerateStream(ctx, systemPrompt, userMessage)
-	if genErr != nil {
-		p.hookEnd(ctx, "AnswerStream", domain.HookStageGenerate, genStart, genErr)
-		return nil, result, citations, genErr
+	_, err = p.execWithStageMiddleware(ctx, domain.HookStageGenerate, "AnswerStream", domain.StageData{Query: question, Chunks: result.Chunks}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		p.hookStart(ctx, "AnswerStream", domain.HookStageGenerate)
+		userMessage, ic := buildUserMessageV1InlineCitations(result, d.Query, p.maxContextChars, p.maxContextChunks)
+		citations = ic
+		var genErr error
+		tokenChan, genErr = streamingLLM.GenerateStream(ctx, systemPrompt, userMessage)
+		if genErr != nil {
+			p.hookEnd(ctx, "AnswerStream", domain.HookStageGenerate, genStart, genErr)
+			return d, genErr
+		}
+		return d, nil
+	})
+	if err != nil {
+		return nil, domain.RetrievalResult{}, citations, err
 	}
 
-	return p.wrapStreamWithHook(ctx, tokenChan, genStart), result, citations, nil
+	return p.wrapStreamWithHook(ctx, p.wrapStreamWithMiddleware(ctx, tokenChan), genStart), result, citations, nil
+}
+
+// @sk-task middleware-chain#T2.4: wrapStreamWithMiddleware (AC-003, AC-004)
+//
+// wrapStreamWithMiddleware обёртывает канал токенов, вызывая post-generate middleware
+// после закрытия source-канала. Middleware может прочитать полный ответ из канала,
+// модифицировать его и отправить в выходной канал.
+func (p *Pipeline) wrapStreamWithMiddleware(ctx context.Context, source <-chan string) <-chan string {
+	if len(p.middleware) == 0 {
+		return source
+	}
+	output := make(chan string, p.streamBufferSize)
+	go func() {
+		defer close(output)
+		var sb strings.Builder
+		for token := range source {
+			sb.WriteString(token)
+			output <- token
+		}
+		data := domain.StageData{
+			Stage:  domain.HookStageGenerate,
+			Answer: sb.String(),
+		}
+		runMiddleware(ctx, p.middleware, data, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+			return d, nil
+		})
+	}()
+	return output
 }
 
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
+// @sk-task middleware-chain#T-concern: add middleware on generate (AC-003)
 // streamFromResult выполняет streaming генерацию из готового RetrievalResult.
 func (p *Pipeline) streamFromResult(ctx context.Context, question string, result domain.RetrievalResult) (<-chan string, error) {
 	streamingLLM, ok := p.llm.(domain.StreamingLLMProvider)
@@ -209,20 +287,29 @@ func (p *Pipeline) streamFromResult(ctx context.Context, question string, result
 	}
 
 	systemPrompt := p.systemPrompt
-	userMessage := buildUserMessageV1(result, question, p.maxContextChars, p.maxContextChunks)
 
+	var tokenChan <-chan string
 	genStart := time.Now()
-	p.hookStart(ctx, "AnswerStream", domain.HookStageGenerate)
-	tokenChan, genErr := streamingLLM.GenerateStream(ctx, systemPrompt, userMessage)
-	if genErr != nil {
-		p.hookEnd(ctx, "AnswerStream", domain.HookStageGenerate, genStart, genErr)
-		return nil, genErr
+	_, err := p.execWithStageMiddleware(ctx, domain.HookStageGenerate, "AnswerStream", domain.StageData{Query: question, Chunks: result.Chunks}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		p.hookStart(ctx, "AnswerStream", domain.HookStageGenerate)
+		userMessage := buildUserMessageV1(result, d.Query, p.maxContextChars, p.maxContextChunks)
+		var genErr error
+		tokenChan, genErr = streamingLLM.GenerateStream(ctx, systemPrompt, userMessage)
+		if genErr != nil {
+			p.hookEnd(ctx, "AnswerStream", domain.HookStageGenerate, genStart, genErr)
+			return d, genErr
+		}
+		return d, nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	return p.wrapStreamWithHook(ctx, tokenChan, genStart), nil
+	return p.wrapStreamWithHook(ctx, p.wrapStreamWithMiddleware(ctx, tokenChan), genStart), nil
 }
 
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
+// @sk-task middleware-chain#T-concern: add middleware on generate (AC-003)
 // streamInlineFromResult выполняет streaming генерацию с inline citations из готового RetrievalResult.
 func (p *Pipeline) streamInlineFromResult(ctx context.Context, question string, result domain.RetrievalResult) (<-chan string, []domain.InlineCitation, error) {
 	streamingLLM, ok := p.llm.(domain.StreamingLLMProvider)
@@ -231,17 +318,26 @@ func (p *Pipeline) streamInlineFromResult(ctx context.Context, question string, 
 	}
 
 	systemPrompt := p.systemPrompt
-	userMessage, citations := buildUserMessageV1InlineCitations(result, question, p.maxContextChars, p.maxContextChunks)
-
+	var tokenChan <-chan string
+	var citations []domain.InlineCitation
 	genStart := time.Now()
-	p.hookStart(ctx, "AnswerStream", domain.HookStageGenerate)
-	tokenChan, genErr := streamingLLM.GenerateStream(ctx, systemPrompt, userMessage)
-	if genErr != nil {
-		p.hookEnd(ctx, "AnswerStream", domain.HookStageGenerate, genStart, genErr)
-		return nil, citations, genErr
+	_, err := p.execWithStageMiddleware(ctx, domain.HookStageGenerate, "AnswerStream", domain.StageData{Query: question, Chunks: result.Chunks}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		p.hookStart(ctx, "AnswerStream", domain.HookStageGenerate)
+		userMessage, ic := buildUserMessageV1InlineCitations(result, d.Query, p.maxContextChars, p.maxContextChunks)
+		citations = ic
+		var genErr error
+		tokenChan, genErr = streamingLLM.GenerateStream(ctx, systemPrompt, userMessage)
+		if genErr != nil {
+			p.hookEnd(ctx, "AnswerStream", domain.HookStageGenerate, genStart, genErr)
+			return d, genErr
+		}
+		return d, nil
+	})
+	if err != nil {
+		return nil, citations, err
 	}
 
-	return p.wrapStreamWithHook(ctx, tokenChan, genStart), citations, nil
+	return p.wrapStreamWithHook(ctx, p.wrapStreamWithMiddleware(ctx, tokenChan), genStart), citations, nil
 }
 
 // @sk-task query-rewriting#T2.2: AnswerWithQueriesStream (AC-003)
