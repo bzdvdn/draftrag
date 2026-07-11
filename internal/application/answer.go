@@ -21,6 +21,7 @@ func (p *Pipeline) generateAnswer(ctx context.Context, question string, result d
 
 // Answer выполняет полный RAG-цикл: retrieval (Embed+Search) → prompt → LLM.Generate.
 //
+// @sk-task hierarchical-indices#T3.3: parent context attach in Answer (AC-002)
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
 func (p *Pipeline) Answer(ctx context.Context, question string, topK int) (string, error) {
@@ -60,6 +61,7 @@ func (p *Pipeline) Answer(ctx context.Context, question string, topK int) (strin
 		return "", err
 	}
 	result = p.maybeDedup(result)
+	result = p.maybeAttachParentContent(ctx, result)
 
 	if p.mmrEnabled {
 		selected, err := selectMMR(ctx, embedding, result.Chunks, topK, p.mmrLambda)
@@ -95,6 +97,7 @@ func (p *Pipeline) AnswerWithParentIDs(ctx context.Context, question string, top
 // Если store не реализует VectorStoreWithFilters — возвращает ErrFiltersNotSupported.
 //
 // @ds-task T3.1: Добавить AnswerWithMetadataFilter в application.Pipeline (RQ-006, AC-003, DEC-003)
+// @sk-task hierarchical-indices#T3.3: parent context attach in AnswerWithMetadataFilter (AC-002)
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
 func (p *Pipeline) AnswerWithMetadataFilter(ctx context.Context, question string, topK int, filter domain.MetadataFilter) (string, error) {
@@ -143,6 +146,7 @@ func (p *Pipeline) AnswerWithMetadataFilter(ctx context.Context, question string
 		return "", err
 	}
 	result = p.maybeDedup(result)
+	result = p.maybeAttachParentContent(ctx, result)
 
 	if p.mmrEnabled {
 		selected, err := selectMMR(ctx, embedding, result.Chunks, topK, p.mmrLambda)
@@ -208,6 +212,7 @@ func (p *Pipeline) AnswerHybrid(ctx context.Context, question string, topK int, 
 // Если retrieval уже выполнен, а Generate вернул ошибку, метод возвращает retrieval результат (partial),
 // массив citations и ошибку.
 //
+// @sk-task hierarchical-indices#T3.3: parent context attach in AnswerWithInlineCitations (AC-002)
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
 func (p *Pipeline) AnswerWithInlineCitations(
@@ -251,6 +256,7 @@ func (p *Pipeline) AnswerWithInlineCitations(
 		return "", domain.RetrievalResult{}, nil, err
 	}
 	result = p.maybeDedup(result)
+	result = p.maybeAttachParentContent(ctx, result)
 	result.QueryText = question
 
 	if p.mmrEnabled {
@@ -279,6 +285,7 @@ func (p *Pipeline) AnswerWithInlineCitations(
 // Если retrieval уже выполнен, а Generate вернул ошибку, метод возвращает retrieval результат (partial)
 // и ошибку, чтобы упростить диагностику и отображение источников.
 //
+// @sk-task hierarchical-indices#T3.3: parent context attach in AnswerWithCitations (AC-002)
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
 func (p *Pipeline) AnswerWithCitations(ctx context.Context, question string, topK int) (string, domain.RetrievalResult, error) {
@@ -318,6 +325,7 @@ func (p *Pipeline) AnswerWithCitations(ctx context.Context, question string, top
 		return "", domain.RetrievalResult{}, err
 	}
 	result = p.maybeDedup(result)
+	result = p.maybeAttachParentContent(ctx, result)
 	result.QueryText = question
 
 	if p.mmrEnabled {
@@ -345,6 +353,7 @@ func (p *Pipeline) AnswerWithCitations(ctx context.Context, question string, top
 //
 // Если parentIDs пустой — эквивалентно AnswerWithCitations.
 //
+// @sk-task hierarchical-indices#T3.3: parent context attach in AnswerWithCitationsWithParentIDs (AC-002)
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
 func (p *Pipeline) AnswerWithCitationsWithParentIDs(
@@ -398,6 +407,7 @@ func (p *Pipeline) AnswerWithCitationsWithParentIDs(
 		return "", domain.RetrievalResult{}, err
 	}
 	result = p.maybeDedup(result)
+	result = p.maybeAttachParentContent(ctx, result)
 	result.QueryText = question
 
 	if p.mmrEnabled {

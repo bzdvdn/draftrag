@@ -126,12 +126,6 @@ type RetrievalResult struct {
 	TotalFound int
 }
 
-// RetrievedChunk представляет чанк с оценкой релевантности в результате поиска.
-type RetrievedChunk struct {
-	Chunk Chunk
-	Score float64
-}
-
 // InlineCitation задаёт детерминированный маппинг номера цитаты (используется как `[n]`)
 // на конкретный retrieval-источник (чанк + score).
 //
@@ -167,6 +161,17 @@ type ModelPricing struct {
 	InputCostPer1K float64
 	// OutputCostPer1K — стоимость за 1K output (completion) токенов в USD.
 	OutputCostPer1K float64
+}
+
+// @sk-task hierarchical-indices#T1.2: ParentContent field on RetrievedChunk (AC-001, DM-001)
+//
+// RetrievedChunk представляет чанк с оценкой релевантности в результате поиска.
+// ParentContent содержит полный текст родительского документа (пустая строка,
+// если parent недоступен: store не поддерживает или ParentContextEnabled=false).
+type RetrievedChunk struct {
+	Chunk         Chunk
+	Score         float64
+	ParentContent string
 }
 
 // @sk-task cost-tracking: CostSnapshot для снапшота статистики (AC-003, RQ-003, RQ-007)

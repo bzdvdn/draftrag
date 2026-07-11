@@ -342,3 +342,172 @@ func TestPipeline_UpdateDocument_ValidationFailsBeforeDelete(t *testing.T) {
 		t.Fatal("expected old chunks to remain in store after validation failure")
 	}
 }
+
+// testChunkerForParent — тестовый chunker, который меняет текст чанков,
+// чтобы проверить, что parent embedding вычисляется из оригинального doc.Content (DEC-003).
+type testChunkerForParent struct{}
+
+func (testChunkerForParent) Chunk(_ context.Context, doc domain.Document) ([]domain.Chunk, error) {
+	return []domain.Chunk{
+		{
+			ID:       fmt.Sprintf("%s#0", doc.ID),
+			Content:  doc.Content + " [modified by chunker]",
+			ParentID: doc.ID,
+			Position: 0,
+		},
+	}, nil
+}
+
+// @sk-test hierarchical-indices#T5.3: TestPipelineParentDocumentRetrieval (AC-001, AC-002)
+func TestPipelineParentDocumentRetrieval(t *testing.T) {
+	ctx := context.Background()
+	store := vectorstore.NewInMemoryStore()
+	p, err := NewPipeline(store, testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	docs := []domain.Document{
+		{
+			ID:      "doc-1",
+			Content: "parent document full content for testing retrieval",
+		},
+	}
+
+	if err := p.Index(ctx, docs); err != nil {
+		t.Fatalf("index: %v", err)
+	}
+
+	result, err := p.Query(ctx, "cat", 5)
+	if err != nil {
+		t.Fatalf("query: %v", err)
+	}
+	if len(result.Chunks) == 0 {
+		t.Fatal("expected at least one chunk")
+	}
+	for i, rc := range result.Chunks {
+		if rc.ParentContent == "" {
+			t.Fatalf("chunk %d: expected non-empty ParentContent", i)
+		}
+		if rc.ParentContent != "parent document full content for testing retrieval" {
+			t.Fatalf("chunk %d: expected ParentContent %q, got %q", i,
+				"parent document full content for testing retrieval", rc.ParentContent)
+		}
+	}
+}
+
+// @sk-test hierarchical-indices#T5.3: TestPipelineParentDocumentGracefulDegradation (AC-003)
+func TestPipelineParentDocumentGracefulDegradation(t *testing.T) {
+	ctx := context.Background()
+	p, err := NewPipeline(&noFilterStore{}, testLLM{}, testEmbedder{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := p.Query(ctx, "cat", 5)
+	if err != nil {
+		t.Fatalf("query: %v", err)
+	}
+	for _, rc := range result.Chunks {
+		if rc.ParentContent != "" {
+			t.Fatalf("expected empty ParentContent for non-parent store, got %q", rc.ParentContent)
+		}
+	}
+}
+
+// @sk-test hierarchical-indices#T5.3: TestPipelineParentContextDisabled (AC-004, RQ-004)
+func TestPipelineParentContextDisabled(t *testing.T) {
+	ctx := context.Background()
+	store := vectorstore.NewInMemoryStore()
+	disabled := false
+	p, err := NewPipelineWithConfig(store, testLLM{}, testEmbedder{}, PipelineOptions{
+		ParentContextEnabled: &disabled,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	docs := []domain.Document{
+		{
+			ID:      "doc-1",
+			Content: "parent document content",
+		},
+	}
+
+	if err := p.Index(ctx, docs); err != nil {
+		t.Fatalf("index: %v", err)
+	}
+
+	result, err := p.Query(ctx, "cat", 5)
+	if err != nil {
+		t.Fatalf("query: %v", err)
+	}
+
+	var vs domain.VectorStore = store
+	ps, ok := vs.(domain.ParentDocumentStore)
+	if !ok {
+		t.Fatal("store should implement ParentDocumentStore")
+	}
+	parentDoc, err := ps.GetParentDocument(ctx, "doc-1")
+	if err != nil {
+		t.Fatalf("GetParentDocument: %v", err)
+	}
+	if parentDoc != nil {
+		t.Fatal("expected parent to NOT be saved when ParentContextEnabled=false")
+	}
+
+	for _, rc := range result.Chunks {
+		if rc.ParentContent != "" {
+			t.Fatalf("expected empty ParentContent when disabled, got %q", rc.ParentContent)
+		}
+	}
+}
+
+// @sk-test hierarchical-indices#T5.3: TestParentEmbeddingFromFullContent (DEC-003)
+func TestParentEmbeddingFromFullContent(t *testing.T) {
+	ctx := context.Background()
+	store := vectorstore.NewInMemoryStore()
+	p, err := NewPipelineWithConfig(store, testLLM{}, testEmbedder{}, PipelineOptions{
+		Chunker: testChunkerForParent{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	docs := []domain.Document{
+		{
+			ID:      "doc-1",
+			Content: "original text for embedding",
+		},
+	}
+
+	if err := p.Index(ctx, docs); err != nil {
+		t.Fatalf("index: %v", err)
+	}
+
+	var vs domain.VectorStore = store
+	ps, ok := vs.(domain.ParentDocumentStore)
+	if !ok {
+		t.Fatal("store should implement ParentDocumentStore")
+	}
+	parentDoc, err := ps.GetParentDocument(ctx, "doc-1")
+	if err != nil {
+		t.Fatalf("GetParentDocument: %v", err)
+	}
+	if parentDoc == nil {
+		t.Fatal("expected parent document after index")
+	}
+	if parentDoc.Content != "original text for embedding" {
+		t.Fatalf("expected parent content %q, got %q", "original text for embedding", parentDoc.Content)
+	}
+
+	result, err := p.Query(ctx, "cat", 5)
+	if err != nil {
+		t.Fatalf("query: %v", err)
+	}
+	for _, rc := range result.Chunks {
+		if rc.ParentContent != "original text for embedding" {
+			t.Fatalf("expected ParentContent from original doc, got %q (chunk content may have been modified by chunker)", rc.ParentContent)
+		}
+	}
+}

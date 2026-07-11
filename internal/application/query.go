@@ -14,6 +14,7 @@ const hydeSystemPrompt = "You are a helpful assistant. Write a short factual pas
 
 // QueryHyDE выполняет поиск с использованием Hypothetical Document Embeddings.
 //
+// @sk-task hierarchical-indices#T3.3: parent context attach in QueryHyDE (AC-002)
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // Сначала LLM генерирует гипотетический ответ на вопрос, затем ищем по его embedding.
 func (p *Pipeline) QueryHyDE(ctx context.Context, question string, topK int) (domain.RetrievalResult, error) {
@@ -48,6 +49,7 @@ func (p *Pipeline) QueryHyDE(ctx context.Context, question string, topK int) (do
 		return domain.RetrievalResult{}, err
 	}
 	result = p.maybeDedup(result)
+	result = p.maybeAttachParentContent(ctx, result)
 	result.QueryText = question
 	result, err = p.maybeRerank(ctx, question, result)
 	if err != nil {
@@ -60,6 +62,7 @@ const multiQuerySystemPrompt = "You are a helpful assistant. Generate alternativ
 
 // QueryMulti выполняет multi-query retrieval: генерирует n перефразировок вопроса,
 //
+// @sk-task hierarchical-indices#T3.3: parent context attach in QueryMulti (AC-002)
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // выполняет поиск по каждой, объединяет результаты через Reciprocal Rank Fusion.
 func (p *Pipeline) QueryMulti(ctx context.Context, question string, n, topK int) (domain.RetrievalResult, error) {
@@ -109,6 +112,7 @@ func (p *Pipeline) QueryMulti(ctx context.Context, question string, n, topK int)
 
 	merged := rrfMergeMultiple(allResults, topK)
 	merged = p.maybeDedup(merged)
+	merged = p.maybeAttachParentContent(ctx, merged)
 	merged.QueryText = question
 
 	// @sk-task reranker-cross-encoder#T3.2: QueryMulti integration — BatchReranker type-assert + fallback (AC-009)
@@ -124,6 +128,7 @@ func (p *Pipeline) QueryMulti(ctx context.Context, question string, n, topK int)
 
 // Query выполняет поиск по вопросу и возвращает RetrievalResult.
 //
+// @sk-task hierarchical-indices#T3.3: parent context attach in Query (AC-002)
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
 func (p *Pipeline) Query(ctx context.Context, question string, topK int) (domain.RetrievalResult, error) {
@@ -158,6 +163,7 @@ func (p *Pipeline) Query(ctx context.Context, question string, topK int) (domain
 		return domain.RetrievalResult{}, err
 	}
 	result = p.maybeDedup(result)
+	result = p.maybeAttachParentContent(ctx, result)
 	result.QueryText = question
 
 	result, err = p.maybeRerank(ctx, question, result)
@@ -231,6 +237,7 @@ func (p *Pipeline) QueryWithParentIDs(ctx context.Context, question string, topK
 // Если store не реализует VectorStoreWithFilters — возвращает ErrFiltersNotSupported.
 //
 // @ds-task T3.1: Добавить QueryWithMetadataFilter в application.Pipeline (RQ-005, AC-003, DEC-003)
+// @sk-task hierarchical-indices#T3.3: parent context attach in QueryWithMetadataFilter (AC-002)
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
 func (p *Pipeline) QueryWithMetadataFilter(ctx context.Context, question string, topK int, filter domain.MetadataFilter) (domain.RetrievalResult, error) {
@@ -274,6 +281,7 @@ func (p *Pipeline) QueryWithMetadataFilter(ctx context.Context, question string,
 		return domain.RetrievalResult{}, err
 	}
 	result = p.maybeDedup(result)
+	result = p.maybeAttachParentContent(ctx, result)
 	result.QueryText = question
 
 	result, err = p.maybeRerank(ctx, question, result)
@@ -285,6 +293,7 @@ func (p *Pipeline) QueryWithMetadataFilter(ctx context.Context, question string,
 }
 
 // @sk-task query-rewriting#T2.2: QueryWithQueries для pre-generated переформулировок (AC-003)
+// @sk-task hierarchical-indices#T3.3: parent context attach in QueryWithQueries (AC-002)
 // QueryWithQueries выполняет multi-query retrieval из уже готового списка запросов.
 // Каждый запрос эмбеддится и ищется, результаты объединяются через RRF.
 func (p *Pipeline) QueryWithQueries(ctx context.Context, queries []string, topK int) (domain.RetrievalResult, error) {
@@ -330,6 +339,7 @@ func (p *Pipeline) QueryWithQueries(ctx context.Context, queries []string, topK 
 
 	merged := rrfMergeMultiple(allResults, topK)
 	merged = p.maybeDedup(merged)
+	merged = p.maybeAttachParentContent(ctx, merged)
 	merged.QueryText = queries[0]
 
 	if p.reranker != nil {
@@ -351,6 +361,7 @@ var ErrHybridNotSupported = errors.New("vector store does not support hybrid sea
 //
 // Если store не реализует HybridSearcher — возвращает ErrHybridNotSupported.
 //
+// @sk-task hierarchical-indices#T3.3: parent context attach in QueryHybrid (AC-002)
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
 func (p *Pipeline) QueryHybrid(ctx context.Context, question string, topK int, config domain.HybridConfig) (domain.RetrievalResult, error) {
@@ -394,6 +405,7 @@ func (p *Pipeline) QueryHybrid(ctx context.Context, question string, topK int, c
 	}
 
 	result = p.maybeDedup(result)
+	result = p.maybeAttachParentContent(ctx, result)
 	result.QueryText = question
 
 	result, err = p.maybeRerank(ctx, question, result)

@@ -93,6 +93,17 @@ func (p *Pipeline) updateDocumentAtomicTransactional(
 		return fmt.Errorf("commit: %w", err)
 	}
 	committed = true
+
+	if p.parentContextEnabled {
+		if ps, ok := p.store.(domain.ParentDocumentStore); ok {
+			parentEmbedding := p.parentEmbeddingOrEmbed(ctx, "Update", doc)
+			if parentEmbedding != nil {
+				if err := ps.UpsertParent(ctx, doc, parentEmbedding); err != nil {
+					return fmt.Errorf("upsert parent after tx: %w", err)
+				}
+			}
+		}
+	}
 	return nil
 }
 

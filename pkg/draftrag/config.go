@@ -79,10 +79,10 @@ type QdrantStoreConfig struct {
 
 // ChromaDBStoreConfig — настройки ChromaDB.
 type ChromaDBStoreConfig struct {
-	BaseURL      string `yaml:"base_url"`
-	Collection   string `yaml:"collection"`
-	Dimension    int    `yaml:"dimension"`
-	AuthToken    string `yaml:"auth_token,omitempty"`
+	BaseURL    string `yaml:"base_url"`
+	Collection string `yaml:"collection"`
+	Dimension  int    `yaml:"dimension"`
+	AuthToken  string `yaml:"auth_token,omitempty"`
 }
 
 // WeaviateStoreConfig — настройки Weaviate.
@@ -135,12 +135,12 @@ type MistralEmbedderConfig struct {
 
 // LLMConfig — настройки LLM-провайдера.
 type LLMConfig struct {
-	Type             string                    `yaml:"type"`
-	Ollama           *OllamaLLMConfig          `yaml:"ollama,omitempty"`
+	Type             string                     `yaml:"type"`
+	Ollama           *OllamaLLMConfig           `yaml:"ollama,omitempty"`
 	OpenAICompatible *OpenAICompatibleLLMConfig `yaml:"openai_compatible,omitempty"`
-	Anthropic        *AnthropicLLMConfig       `yaml:"anthropic,omitempty"`
-	DeepSeek         *DeepSeekLLMConfig        `yaml:"deepseek,omitempty"`
-	Mistral          *MistralLLMConfig         `yaml:"mistral,omitempty"`
+	Anthropic        *AnthropicLLMConfig        `yaml:"anthropic,omitempty"`
+	DeepSeek         *DeepSeekLLMConfig         `yaml:"deepseek,omitempty"`
+	Mistral          *MistralLLMConfig          `yaml:"mistral,omitempty"`
 }
 
 // OllamaLLMConfig — настройки Ollama LLM.
@@ -187,8 +187,8 @@ type MistralLLMConfig struct {
 
 // ChunkerConfig — настройки чанкера.
 type ChunkerConfig struct {
-	Type     string               `yaml:"type"`
-	Basic    *BasicChunkerConfig  `yaml:"basic,omitempty"`
+	Type     string                 `yaml:"type"`
+	Basic    *BasicChunkerConfig    `yaml:"basic,omitempty"`
 	Semantic *SemanticChunkerConfig `yaml:"semantic,omitempty"`
 }
 
@@ -213,8 +213,8 @@ type RerankerConfig struct {
 
 // LLMRerankerConfig — настройки LLM-реранкера.
 type LLMRerankerConfig struct {
-	BatchSize  int    `yaml:"batch_size"`
-	MaxRetries int    `yaml:"max_retries"`
+	BatchSize  int `yaml:"batch_size"`
+	MaxRetries int `yaml:"max_retries"`
 }
 
 // ResilienceConfig — настройки resilience (retry, circuit breaker).

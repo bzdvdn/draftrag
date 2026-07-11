@@ -396,3 +396,11 @@ func TestRedactSecrets(t *testing.T) {
 		})
 	}
 }
+
+// @sk-test hierarchical-indices#T5.1: TestRetrievedChunkParentContentZeroValue (AC-001, DM-001)
+func TestRetrievedChunkParentContentZeroValue(t *testing.T) {
+	rc := RetrievedChunk{}
+	if rc.ParentContent != "" {
+		t.Fatalf("expected empty ParentContent, got %q", rc.ParentContent)
+	}
+}

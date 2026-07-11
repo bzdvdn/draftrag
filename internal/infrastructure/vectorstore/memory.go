@@ -10,16 +10,24 @@ import (
 	"github.com/bzdvdn/draftrag/internal/domain"
 )
 
+// parentEntry хранит родительский документ и его embedding в InMemoryStore.
+type parentEntry struct {
+	doc       domain.Document
+	embedding []float64
+}
+
 // InMemoryStore реализует VectorStore в памяти для тестирования.
 type InMemoryStore struct {
-	mu     sync.RWMutex
-	chunks map[string]domain.Chunk
+	mu      sync.RWMutex
+	chunks  map[string]domain.Chunk
+	parents map[string]parentEntry
 }
 
 // NewInMemoryStore создаёт новое in-memory хранилище.
 func NewInMemoryStore() *InMemoryStore {
 	return &InMemoryStore{
-		chunks: make(map[string]domain.Chunk),
+		chunks:  make(map[string]domain.Chunk),
+		parents: make(map[string]parentEntry),
 	}
 }
 
@@ -301,4 +309,68 @@ func cosineSimilarity(a, b []float64) float64 {
 	}
 
 	return similarity
+}
+
+// @sk-task hierarchical-indices#T2.1: ParentDocumentStore implementation for InMemoryStore (AC-001, DEC-001, DEC-002, DM-002)
+//
+// UpsertParent сохраняет или обновляет родительский документ с его embedding'ом.
+func (s *InMemoryStore) UpsertParent(ctx context.Context, doc domain.Document, embedding []float64) error {
+	if ctx == nil {
+		panic("nil context")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if doc.ID == "" {
+		return domain.ErrEmptyDocumentID
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.parents[doc.ID] = parentEntry{doc: doc, embedding: embedding}
+	return nil
+}
+
+// GetParentDocument загружает родительский документ по его ID.
+// Возвращает (nil, nil) если документ не найден.
+func (s *InMemoryStore) GetParentDocument(ctx context.Context, parentID string) (*domain.Document, error) {
+	if ctx == nil {
+		panic("nil context")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	entry, ok := s.parents[parentID]
+	if !ok {
+		return nil, nil
+	}
+	return &domain.Document{
+		ID:        entry.doc.ID,
+		Content:   entry.doc.Content,
+		Metadata:  entry.doc.Metadata,
+		CreatedAt: entry.doc.CreatedAt,
+		UpdatedAt: entry.doc.UpdatedAt,
+	}, nil
+}
+
+// DeleteParent удаляет родительский документ по ID.
+// Idempotent: повторный вызов для несуществующего ID возвращает nil.
+func (s *InMemoryStore) DeleteParent(ctx context.Context, parentID string) error {
+	if ctx == nil {
+		panic("nil context")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	delete(s.parents, parentID)
+	return nil
 }

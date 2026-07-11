@@ -43,6 +43,7 @@ type PipelineOptions struct {
 	StreamBufferSize             int
 	Reranker                     domain.Reranker
 	PIIDetector                  domain.PIIDetector
+	ParentContextEnabled         *bool
 }
 
 // Pipeline is the core RAG pipeline coordinating store, LLM, and embedder.
@@ -68,6 +69,7 @@ type Pipeline struct {
 	streamBufferSize             int
 	reranker                     domain.Reranker
 	piidetector                  domain.PIIDetector
+	parentContextEnabled         bool
 }
 
 // NewPipeline creates a Pipeline with required dependencies.
@@ -86,11 +88,12 @@ func NewPipeline(store domain.VectorStore, llm domain.LLMProvider, embedder doma
 	}
 
 	return &Pipeline{
-		store:        store,
-		llm:          llm,
-		embedder:     embedder,
-		chunker:      nil,
-		systemPrompt: defaultSystemPromptV1,
+		store:                store,
+		llm:                  llm,
+		embedder:             embedder,
+		chunker:              nil,
+		systemPrompt:         defaultSystemPromptV1,
+		parentContextEnabled: true,
 	}, nil
 }
 
@@ -140,6 +143,10 @@ func NewPipelineWithConfig(
 	p.streamBufferSize = cfg.StreamBufferSize
 	p.reranker = cfg.Reranker
 	p.piidetector = cfg.PIIDetector
+	p.parentContextEnabled = true
+	if cfg.ParentContextEnabled != nil {
+		p.parentContextEnabled = *cfg.ParentContextEnabled
+	}
 	return p, nil
 }
 
@@ -160,6 +167,8 @@ func NewPipelineWithChunker(
 	return NewPipelineWithConfig(store, llm, embedder, PipelineOptions{Chunker: chunker})
 }
 
+// @sk-task hierarchical-indices#T3.1: parent save in processDocumentOp (AC-001, RQ-001, DEC-003)
+//
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task api-consistency-pass#T3.1: shared doc-processor между Index и IndexBatch (DEC-004, RQ-004, AC-006)
 //
@@ -173,6 +182,11 @@ func NewPipelineWithChunker(
 // T3.2: делегирует chunking+embedding в produceChunks, оставляя здесь только
 // store.Upsert каждого чанка. Это позволяет updateDocumentAtomic повторно
 // использовать chunk+embed (через produceChunks) без двойной логики.
+//
+// T3.1: после upsert чанков сохраняет parent-документ в ParentDocumentStore,
+// если parentContextEnabled=true и store поддерживает capability.
+// Parent embedding вычисляется из doc.Content (DEC-003); при отсутствии chunker'а
+// переиспользует embedding единственного чанка во избежание дублирования вызова.
 func (p *Pipeline) processDocumentOp(ctx context.Context, operationName string, doc domain.Document) error {
 	chunks, err := p.produceChunks(ctx, operationName, doc)
 	if err != nil {
@@ -181,6 +195,20 @@ func (p *Pipeline) processDocumentOp(ctx context.Context, operationName string, 
 	for _, ch := range chunks {
 		if err := p.store.Upsert(ctx, ch); err != nil {
 			return err
+		}
+	}
+
+	if p.parentContextEnabled {
+		if ps, ok := p.store.(domain.ParentDocumentStore); ok {
+			parentEmbedding := p.parentEmbeddingOrEmbed(ctx, operationName, doc)
+			if parentEmbedding == nil && len(chunks) > 0 {
+				parentEmbedding = chunks[0].Embedding
+			}
+			if parentEmbedding != nil {
+				if err := ps.UpsertParent(ctx, doc, parentEmbedding); err != nil {
+					return err
+				}
+			}
 		}
 	}
 	return nil
@@ -242,6 +270,26 @@ func (p *Pipeline) produceChunks(ctx context.Context, operationName string, doc 
 	return []domain.Chunk{chunk}, nil
 }
 
+// @sk-task hierarchical-indices#T3.1: parentEmbeddingOrEmbed helper (AC-001, DEC-003)
+//
+// parentEmbeddingOrEmbed возвращает embedding для parent-документа.
+// При отсутствии chunker'а возвращает nil — вызывающий код должен использовать
+// embedding единственного чанка. При наличии chunker'а вызывает embedder
+// для полного текста документа.
+func (p *Pipeline) parentEmbeddingOrEmbed(ctx context.Context, operationName string, doc domain.Document) []float64 {
+	if p.chunker == nil {
+		return nil
+	}
+	embedStart := time.Now()
+	traceCtx := p.hookStart(ctx, operationName, domain.HookStageEmbed)
+	embedding, err := p.embedder.Embed(traceCtx, doc.Content)
+	p.hookEnd(traceCtx, operationName, domain.HookStageEmbed, embedStart, err)
+	if err != nil {
+		return nil
+	}
+	return embedding
+}
+
 // Index индексирует набор документов параллельно с ограничением
 //
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
@@ -294,6 +342,48 @@ func (p *Pipeline) Index(ctx context.Context, docs []domain.Document) error {
 		}
 	}
 	return nil
+}
+
+// @sk-task hierarchical-indices#T3.2: maybeAttachParentContent helper (AC-002, AC-003, AC-004, DM-001)
+//
+// maybeAttachParentContent загружает parent-документы для каждого уникального
+// ParentID среди найденных чанков и заполняет RetrievedChunk.ParentContent.
+//
+// Graceful degradation:
+// - store не реализует ParentDocumentStore → return (AC-003)
+// - parentContextEnabled=false → return (AC-004)
+// - GetParentDocument вернул nil → ParentContent остаётся пустой строкой
+//
+// Group by parentID: для N чанков с одним parentID выполняется ровно один
+// GetParentDocument, чтобы избежать N+1 round-trip на remote store.
+func (p *Pipeline) maybeAttachParentContent(ctx context.Context, result domain.RetrievalResult) domain.RetrievalResult {
+	if !p.parentContextEnabled {
+		return result
+	}
+	ps, ok := p.store.(domain.ParentDocumentStore)
+	if !ok {
+		return result
+	}
+
+	parentCache := make(map[string]string, len(result.Chunks))
+	for i, rc := range result.Chunks {
+		parentID := rc.Chunk.ParentID
+		if parentID == "" {
+			continue
+		}
+		content, cached := parentCache[parentID]
+		if !cached {
+			parentDoc, err := ps.GetParentDocument(ctx, parentID)
+			if err != nil || parentDoc == nil {
+				parentCache[parentID] = ""
+				continue
+			}
+			content = parentDoc.Content
+			parentCache[parentID] = content
+		}
+		result.Chunks[i].ParentContent = content
+	}
+	return result
 }
 
 // DeleteDocument deletes all chunks belonging to a document by its ID.

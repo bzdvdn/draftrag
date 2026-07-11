@@ -145,3 +145,84 @@ func TestInMemoryStore_BasicSearch(t *testing.T) {
 		t.Fatalf("expected score in [-1, 1], got %v", result.Chunks[0].Score)
 	}
 }
+
+// @sk-test hierarchical-indices#T5.2: TestInMemoryStoreParentDocumentStore (AC-001, DEC-001, DEC-002, DM-002)
+func TestInMemoryStoreParentDocumentStore(t *testing.T) {
+	store := NewInMemoryStore()
+	ctx := context.Background()
+
+	doc := domain.Document{
+		ID:      "doc-1",
+		Content: "parent document content for testing",
+	}
+	embedding := []float64{0.1, 0.2, 0.3}
+
+	var vs domain.VectorStore = store
+	ps, ok := vs.(domain.ParentDocumentStore)
+	if !ok {
+		t.Fatal("InMemoryStore does not implement ParentDocumentStore")
+	}
+
+	if err := ps.UpsertParent(ctx, doc, embedding); err != nil {
+		t.Fatalf("UpsertParent: %v", err)
+	}
+
+	got, err := ps.GetParentDocument(ctx, "doc-1")
+	if err != nil {
+		t.Fatalf("GetParentDocument: %v", err)
+	}
+	if got == nil {
+		t.Fatal("expected parent document, got nil")
+	}
+	if got.Content != "parent document content for testing" {
+		t.Fatalf("expected content %q, got %q", "parent document content for testing", got.Content)
+	}
+
+	if err := ps.DeleteParent(ctx, "doc-1"); err != nil {
+		t.Fatalf("DeleteParent: %v", err)
+	}
+
+	got, err = ps.GetParentDocument(ctx, "doc-1")
+	if err != nil {
+		t.Fatalf("GetParentDocument after delete: %v", err)
+	}
+	if got != nil {
+		t.Fatal("expected nil after delete")
+	}
+}
+
+// @sk-test hierarchical-indices#T5.2: TestInMemoryStoreParentDocumentStoreNotFound (DEC-002)
+func TestInMemoryStoreParentDocumentStoreNotFound(t *testing.T) {
+	store := NewInMemoryStore()
+	ctx := context.Background()
+
+	var vs domain.VectorStore = store
+	ps, ok := vs.(domain.ParentDocumentStore)
+	if !ok {
+		t.Fatal("InMemoryStore does not implement ParentDocumentStore")
+	}
+
+	got, err := ps.GetParentDocument(ctx, "nonexistent")
+	if err != nil {
+		t.Fatalf("GetParentDocument: %v", err)
+	}
+	if got != nil {
+		t.Fatal("expected nil for nonexistent document")
+	}
+}
+
+// @sk-test hierarchical-indices#T5.2: TestInMemoryStoreParentDocumentStoreDeleteIdempotent (DM-002)
+func TestInMemoryStoreParentDocumentStoreDeleteIdempotent(t *testing.T) {
+	store := NewInMemoryStore()
+	ctx := context.Background()
+
+	var vs domain.VectorStore = store
+	ps, ok := vs.(domain.ParentDocumentStore)
+	if !ok {
+		t.Fatal("InMemoryStore does not implement ParentDocumentStore")
+	}
+
+	if err := ps.DeleteParent(ctx, "nonexistent"); err != nil {
+		t.Fatalf("DeleteParent on nonexistent should be idempotent: %v", err)
+	}
+}

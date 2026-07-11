@@ -55,8 +55,8 @@ func TestPipeline_Index_UsesChunker_UpsertsMultipleChunks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
-	if emb.calls != 2 {
-		t.Fatalf("expected 2 Embed calls, got %d", emb.calls)
+	if emb.calls != 3 {
+		t.Fatalf("expected 3 Embed calls (2 chunks + 1 parent), got %d", emb.calls)
 	}
 
 	res, err := store.Search(context.Background(), []float64{1, 1}, 10)

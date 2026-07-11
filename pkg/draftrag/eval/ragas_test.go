@@ -152,9 +152,9 @@ func TestComputeContextRelevance_NilEmbedder(t *testing.T) {
 func TestComputeAnswerRelevance_DirectAnswer(t *testing.T) {
 	emb := mockEmbedder{
 		vecs: map[string][]float64{
-			"what is the sky color?":  {1, 0},
-			"the sky is blue":         {1, 0},
-			"i like to eat pizza":     {0, 1},
+			"what is the sky color?": {1, 0},
+			"the sky is blue":        {1, 0},
+			"i like to eat pizza":    {0, 1},
 		},
 	}
 	directScore, err := ComputeAnswerRelevance(context.Background(), "what is the sky color?", "the sky is blue", emb)
@@ -305,10 +305,10 @@ func TestRunWithAnswer_RAGASMetrics(t *testing.T) {
 	}
 
 	report, err := RunWithAnswer(context.Background(), runner, llm, emb, cases, Options{
-		DefaultTopK:              5,
-		EnableFaithfulness:       true,
-		EnableAnswerRelevance:    true,
-		EnableContextRelevance:   true,
+		DefaultTopK:            5,
+		EnableFaithfulness:     true,
+		EnableAnswerRelevance:  true,
+		EnableContextRelevance: true,
 	})
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)

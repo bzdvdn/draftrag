@@ -53,6 +53,12 @@ type ParentIDFilter = domain.ParentIDFilter
 // @ds-task T3.2: Переэкспортировать MetadataFilter из domain в публичный API (RQ-005, RQ-006, AC-003)
 type MetadataFilter = domain.MetadataFilter
 
+// @sk-task hierarchical-indices#T4.1: ParentDocumentStore re-export (AC-004, DM-002)
+//
+// ParentDocumentStore — опциональная capability интерфейса VectorStore для хранения
+// и загрузки родительских документов (parent-сущностей) отдельно от чанков.
+type ParentDocumentStore = domain.ParentDocumentStore
+
 // VectorStoreWithFilters — опциональная capability интерфейса VectorStore, поддерживающая фильтры.
 type VectorStoreWithFilters = domain.VectorStoreWithFilters
 
@@ -254,6 +260,13 @@ type PipelineOptions struct {
 	// Если установлен, Search(...).SubDecompose() включает декомпозицию.
 	// nil означает "декомпозиция отключена".
 	QueryDecomposer QueryDecomposer
+
+	// @sk-task hierarchical-indices#T4.1: ParentContextEnabled опция (AC-004, RQ-004)
+	// ParentContextEnabled включает сохранение parent-документа при индексации
+	// и загрузку parent-контекста при retrieval. nil означает "default (true)".
+	// При false pipeline пропускает как сохранение parent-сущности при индексации,
+	// так и загрузку parent-контента при retrieval (AC-004).
+	ParentContextEnabled *bool
 }
 
 // NewPipeline создаёт pipeline из зависимостей: VectorStore, LLMProvider и Embedder.
@@ -320,6 +333,7 @@ func NewPipelineWithOptions(store VectorStore, llm LLMProvider, embedder Embedde
 		StreamBufferSize:             opts.StreamBufferSize,
 		Reranker:                     opts.Reranker,
 		PIIDetector:                  opts.PIIDetector,
+		ParentContextEnabled:         opts.ParentContextEnabled,
 	})
 	if err != nil {
 		return nil, err

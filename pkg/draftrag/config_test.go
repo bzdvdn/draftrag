@@ -184,11 +184,11 @@ func TestNewPipelineFromConfigDispatch(t *testing.T) {
 	cfg := Config{
 		Store: StoreConfig{Type: "memory"},
 		Embedder: EmbedderConfig{
-			Type: "ollama",
+			Type:   "ollama",
 			Ollama: &OllamaEmbedderConfig{Model: "test", BaseURL: "http://localhost:11434"},
 		},
 		LLM: LLMConfig{
-			Type: "ollama",
+			Type:   "ollama",
 			Ollama: &OllamaLLMConfig{Model: "test", BaseURL: "http://localhost:11434"},
 		},
 	}
@@ -228,11 +228,11 @@ func TestNewPipelineFromConfigMissingEmbedderModel(t *testing.T) {
 	cfg := Config{
 		Store: StoreConfig{Type: "memory"},
 		Embedder: EmbedderConfig{
-			Type: "ollama",
+			Type:   "ollama",
 			Ollama: &OllamaEmbedderConfig{BaseURL: "http://localhost:11434"},
 		},
 		LLM: LLMConfig{
-			Type: "ollama",
+			Type:   "ollama",
 			Ollama: &OllamaLLMConfig{Model: "test", BaseURL: "http://localhost:11434"},
 		},
 	}
@@ -254,11 +254,11 @@ func TestNewPipelineFromConfigPgvectorRequiresDB(t *testing.T) {
 			},
 		},
 		Embedder: EmbedderConfig{
-			Type: "ollama",
+			Type:   "ollama",
 			Ollama: &OllamaEmbedderConfig{Model: "test", BaseURL: "http://localhost:11434"},
 		},
 		LLM: LLMConfig{
-			Type: "ollama",
+			Type:   "ollama",
 			Ollama: &OllamaLLMConfig{Model: "test", BaseURL: "http://localhost:11434"},
 		},
 	}
@@ -327,9 +327,9 @@ llm:
 func TestNewPipelineFromConfigResilienceNoop(t *testing.T) {
 	// @sk-test config-management#T4.1: resilience-секция без стратегии не вызывает ошибку
 	cfg := Config{
-		Store:    StoreConfig{Type: "memory"},
-		Embedder: EmbedderConfig{Type: "ollama", Ollama: &OllamaEmbedderConfig{Model: "t", BaseURL: "http://localhost:11434"}},
-		LLM:      LLMConfig{Type: "ollama", Ollama: &OllamaLLMConfig{Model: "t", BaseURL: "http://localhost:11434"}},
+		Store:      StoreConfig{Type: "memory"},
+		Embedder:   EmbedderConfig{Type: "ollama", Ollama: &OllamaEmbedderConfig{Model: "t", BaseURL: "http://localhost:11434"}},
+		LLM:        LLMConfig{Type: "ollama", Ollama: &OllamaLLMConfig{Model: "t", BaseURL: "http://localhost:11434"}},
 		Resilience: ResilienceConfig{
 			// nil Retry и nil CircuitBreaker — no-op
 		},

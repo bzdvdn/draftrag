@@ -230,6 +230,6 @@ func (r *llmReranker) RerankBatch(ctx context.Context, queries []string, chunks 
 
 // Ensure llmReranker implements domain.Reranker and domain.BatchReranker at compile time.
 var (
-	_ domain.Reranker       = (*llmReranker)(nil)
-	_ domain.BatchReranker  = (*llmReranker)(nil)
+	_ domain.Reranker      = (*llmReranker)(nil)
+	_ domain.BatchReranker = (*llmReranker)(nil)
 )

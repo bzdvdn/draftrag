@@ -238,6 +238,28 @@ type CollectionManager interface {
 	CollectionExists(ctx context.Context) (bool, error)
 }
 
+// @sk-task hierarchical-indices#T1.1: ParentDocumentStore optional capability (AC-001, DEC-001, DEC-002, DM-002)
+// ParentDocumentStore — опциональная capability интерфейса VectorStore для хранения
+// и загрузки родительских документов (parent-сущностей) отдельно от чанков.
+//
+// Parent-документ сохраняется при индексации и загружается при retrieval, чтобы
+// предоставить LLM полный контекст исходного документа.
+//
+// Реализации, поддерживающие родительские документы, должны реализовать этот
+// интерфейс дополнительно (без ломки существующего контракта VectorStore).
+type ParentDocumentStore interface {
+	// UpsertParent сохраняет или обновляет родительский документ с его embedding'ом.
+	UpsertParent(ctx context.Context, doc Document, embedding []float64) error
+
+	// GetParentDocument загружает родительский документ по его ID.
+	// Возвращает (nil, nil) если документ не найден.
+	GetParentDocument(ctx context.Context, parentID string) (*Document, error)
+
+	// DeleteParent удаляет родительский документ по ID.
+	// Idempotent: повторный вызов для несуществующего ID возвращает nil.
+	DeleteParent(ctx context.Context, parentID string) error
+}
+
 // HybridSearcherWithFilters расширяет HybridSearcher фильтрами для гибридного поиска.
 type HybridSearcherWithFilters interface {
 	HybridSearcher
