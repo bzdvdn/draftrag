@@ -565,6 +565,12 @@ func (s *MilvusStore) SearchHybridWithMetadataFilter(ctx context.Context, query 
 }
 
 // @sk-task health-check-interface#T3.1: Health на MilvusStore (RQ-004)
+// Close освобождает HTTP-клиент MilvusStore.
+func (s *MilvusStore) Close() error {
+	s.client.CloseIdleConnections()
+	return nil
+}
+
 func (s *MilvusStore) Health(ctx context.Context) error {
 	if ctx == nil {
 		return fmt.Errorf("nil context")

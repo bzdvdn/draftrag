@@ -201,10 +201,16 @@ func (p *Pipeline) Health(ctx context.Context) error {
 
 // @sk-task arch-issues#T3.1: Close() с sync.Once (AC-008)
 func (p *Pipeline) Close() error {
+	var errs []error
 	p.closeOnce.Do(func() {
 		p.closed.Store(true)
+		if c, ok := p.store.(domain.Closer); ok {
+			if err := c.Close(); err != nil {
+				errs = append(errs, fmt.Errorf("store close: %w", err))
+			}
+		}
 	})
-	return nil
+	return errors.Join(errs...)
 }
 
 // @sk-task arch-issues#T3.1: guard-проверка closed (AC-008)

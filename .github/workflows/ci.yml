@@ -39,5 +39,12 @@ jobs:
           go-version: ${{ matrix.go-version }}
           cache: true
 
-      - name: Test
-        run: go test ./...
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test with Race Detector
+        run: go test -race -count=1 ./...
+
+      - name: Fuzz (short)
+        run: go test -fuzz=FuzzValidateDocument -fuzztime=10s ./internal/domain/
+        continue-on-error: true

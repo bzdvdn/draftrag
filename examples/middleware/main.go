@@ -1,4 +1,5 @@
-// @sk-task middleware-chain#T2.6: пример middleware-цепочки с логгером и PII-цензором (AC-001, AC-004).
+// @sk-task middleware-chain#T2.6: пример middleware-цепочки с built-in LoggingMiddleware
+// и PIIDetectorMiddleware (AC-001, AC-004).
 //
 // Быстрый старт:
 //
@@ -14,35 +15,6 @@ import (
 	"github.com/bzdvdn/draftrag/pkg/draftrag"
 )
 
-// loggingMiddleware пишет в stdout каждую стадию.
-//
-// @sk-task middleware-chain#T2.6: loggingMiddleware (AC-001)
-func loggingMiddleware(next draftrag.Handler) draftrag.Handler {
-	return func(ctx context.Context, data draftrag.StageData) (draftrag.StageData, error) {
-		fmt.Printf("[middleware] stage=%s op=%s\n", data.Stage, data.Operation)
-		return next(ctx, data)
-	}
-}
-
-// redactMiddleware заменяет email-адреса на [REDACTED].
-//
-// @sk-task middleware-chain#T2.6: redactMiddleware (AC-004)
-func redactMiddleware(next draftrag.Handler) draftrag.Handler {
-	return func(ctx context.Context, data draftrag.StageData) (draftrag.StageData, error) {
-		// простая замена email на pre-generate стадии
-		if data.Query != "" {
-			data.Query = redactEmails(data.Query)
-		}
-		return next(ctx, data)
-	}
-}
-
-func redactEmails(s string) string {
-	// упрощённый детектор email
-	_ = s
-	return s // full impl в реальном middleware
-}
-
 func main() {
 	ctx := context.Background()
 
@@ -50,10 +22,13 @@ func main() {
 	embedder := shared.NewMockEmbedder(3)
 	store := draftrag.NewInMemoryStore()
 
+	// Используем встроенные middleware: логирование + PII redaction
+	piiDetector := draftrag.NewDefaultPIIDetector(draftrag.PIICategories{})
+
 	p, err := draftrag.NewPipelineWithOptions(store, llm, embedder, draftrag.PipelineOptions{
 		Middleware: []draftrag.Middleware{
-			loggingMiddleware,
-			redactMiddleware,
+			draftrag.NewLoggingMiddleware(),
+			draftrag.NewPIIDetectorMiddleware(piiDetector),
 		},
 	})
 	if err != nil {
@@ -61,9 +36,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Index документов
 	docs := []draftrag.Document{
-		{ID: "doc1", Content: "Привет, это тестовый документ."},
+		{ID: "doc1", Content: "Привет, это тестовый документ. Email: test@example.com"},
 	}
 	if err := p.Index(ctx, docs); err != nil {
 		fmt.Println("Error indexing:", err)
@@ -71,7 +45,6 @@ func main() {
 	}
 	fmt.Println("--- Index done ---")
 
-	// Query
 	result, err := p.Query(ctx, "тестовый запрос")
 	if err != nil {
 		fmt.Println("Error querying:", err)
@@ -79,11 +52,14 @@ func main() {
 	}
 	fmt.Printf("Query results: %d chunks\n", len(result.Chunks))
 
-	// Answer
 	answer, err := p.Answer(ctx, "тестовый запрос")
 	if err != nil {
 		fmt.Println("Error answering:", err)
 		os.Exit(1)
 	}
 	fmt.Printf("Answer: %s\n", answer)
+
+	if err := p.Close(); err != nil {
+		fmt.Println("Error closing pipeline:", err)
+	}
 }

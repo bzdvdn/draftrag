@@ -582,6 +582,12 @@ func (s *ChromaStore) CollectionExists(ctx context.Context) (bool, error) {
 	}
 }
 
+// Close освобождает HTTP-клиент ChromaStore.
+func (s *ChromaStore) Close() error {
+	s.client.CloseIdleConnections()
+	return nil
+}
+
 // @sk-task health-check-interface#T3.1: Health на ChromaStore (RQ-004)
 func (s *ChromaStore) Health(ctx context.Context) error {
 	if ctx == nil {

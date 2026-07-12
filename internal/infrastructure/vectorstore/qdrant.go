@@ -818,6 +818,12 @@ func (s *QdrantStore) SearchHybridWithMetadataFilter(ctx context.Context, query 
 	}, nil
 }
 
+// Close освобождает HTTP-клиент QdrantStore.
+func (s *QdrantStore) Close() error {
+	s.client.CloseIdleConnections()
+	return nil
+}
+
 // @sk-task health-check-interface#T3.1: Health на QdrantStore (RQ-004)
 func (s *QdrantStore) Health(ctx context.Context) error {
 	if ctx == nil {

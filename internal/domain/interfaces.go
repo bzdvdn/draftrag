@@ -231,6 +231,15 @@ type TransactionalDocumentStore interface {
 	BeginTx(ctx context.Context) (TransactionalTx, error)
 }
 
+// Closer — опциональная capability для освобождения ресурсов (HTTP-клиенты, соединения).
+// VectorStore/Embedder/LLMProvider могут реализовать этот интерфейс, если они
+// создают собственные ресурсы, требующие явного закрытия.
+type Closer interface {
+	// Close освобождает ресурсы компонента.
+	// После вызова Close компонент не должен использоваться.
+	Close() error
+}
+
 // CollectionManager — опциональная capability VectorStore для управления жизненным циклом коллекции.
 // Реализации, поддерживающие управление коллекциями, должны реализовывать этот интерфейс дополнительно
 // (без ломки существующего контракта VectorStore).

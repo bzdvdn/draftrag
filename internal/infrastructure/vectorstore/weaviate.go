@@ -620,6 +620,12 @@ func (s *WeaviateStore) parseGraphQLResponse(body []byte) (domain.RetrievalResul
 	}, nil
 }
 
+// Close освобождает HTTP-клиент WeaviateStore.
+func (s *WeaviateStore) Close() error {
+	s.client.CloseIdleConnections()
+	return nil
+}
+
 // @sk-task health-check-interface#T3.1: Health на WeaviateStore (RQ-004)
 func (s *WeaviateStore) Health(ctx context.Context) error {
 	if ctx == nil {

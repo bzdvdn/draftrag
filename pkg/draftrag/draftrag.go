@@ -62,6 +62,9 @@ type ParentDocumentStore = domain.ParentDocumentStore
 // VectorStoreWithFilters — опциональная capability интерфейса VectorStore, поддерживающая фильтры.
 type VectorStoreWithFilters = domain.VectorStoreWithFilters
 
+// Closer — опциональная capability для освобождения ресурсов (HTTP-клиенты, соединения).
+type Closer = domain.Closer
+
 // HybridSearcher — опциональная capability интерфейса VectorStore, поддерживающая гибридный поиск (BM25 + semantic).
 type HybridSearcher = domain.HybridSearcher
 
