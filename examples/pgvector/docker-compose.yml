@@ -10,10 +10,11 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U draftrag"]
+      test: ["CMD-SHELL", "pg_isready -U draftrag -d draftrag"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 15
+      start_period: 30s
 
 volumes:
   pgdata:

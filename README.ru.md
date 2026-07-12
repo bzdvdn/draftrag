@@ -640,16 +640,16 @@ for _, fe := range result.Failed {
 
 | Пример | Backend | Docker | LLM | Описание |
 |--------|---------|--------|-----|----------|
-| [examples/memory](examples/memory/) | In-memory | Нет | Любой | Быстрый старт без Docker, 10 Go-документов |
-| [examples/pgvector](examples/pgvector/) | PostgreSQL+pgvector | Да | Любой | Production-ready, гибридный поиск, фильтры |
-| [examples/qdrant](examples/qdrant/) | Qdrant | Да | Любой | Payload-фильтры, auto-create collection |
-| [examples/chromadb](examples/chromadb/) | ChromaDB | Да | Любой | Векторный поиск с метаданными |
-| [examples/weaviate](examples/weaviate/) | Weaviate | Да | Любой | GraphQL API, управление классами |
-| [examples/milvus](examples/milvus/) | Milvus | Да | Любой | High-performance distributed, ~2 GB RAM |
-| [examples/chat](examples/chat/) | In-memory | Нет | Любой | Интерактивный RAG-чат, inline citations |
-| [examples/index-dir](examples/index-dir/) | In-memory | Нет | Любой | Индексация директории с `.txt` файлами |
-| [examples/semantic-chunking](examples/semantic-chunking/) | In-memory | Нет | Любой | Семантический чанкинг |
-| [examples/sub-query-decomposition](examples/sub-query-decomposition/) | In-memory | Нет | Любой | Декомпозиция сложных запросов |
+| [examples/memory](examples/memory/README.ru.md) | In-memory | Нет | Любой | Быстрый старт без Docker, 10 Go-документов |
+| [examples/pgvector](examples/pgvector/README.ru.md) | PostgreSQL+pgvector | Да | Любой | Production-ready, гибридный поиск, фильтры |
+| [examples/qdrant](examples/qdrant/README.ru.md) | Qdrant | Да | Любой | Payload-фильтры, auto-create collection |
+| [examples/chromadb](examples/chromadb/README.ru.md) | ChromaDB | Да | Любой | Векторный поиск с метаданными |
+| [examples/weaviate](examples/weaviate/README.ru.md) | Weaviate | Да | Любой | GraphQL API, управление классами |
+| [examples/milvus](examples/milvus/README.ru.md) | Milvus | Да | Любой | High-performance distributed, ~2 GB RAM |
+| [examples/chat](examples/chat/README.ru.md) | In-memory | Нет | Любой | Интерактивный RAG-чат, inline citations |
+| [examples/index-dir](examples/index-dir/README.ru.md) | In-memory | Нет | Любой | Индексация директории с `.txt` файлами |
+| [examples/semantic-chunking](examples/semantic-chunking/README.ru.md) | In-memory | Нет | Любой | Семантический чанкинг |
+| [examples/sub-query-decomposition](examples/sub-query-decomposition/README.ru.md) | In-memory | Нет | Любой | Декомпозиция сложных запросов |
 
 ## Tutorials
 

@@ -1,32 +1,32 @@
-# Weaviate — RAG с Weaviate
+# Weaviate — RAG with Weaviate
 
-Интерактивный RAG-чат с Weaviate как векторным хранилищем. Коллекция создаётся автоматически при первом запуске.
+Interactive RAG chat with Weaviate as a vector store. The collection is created automatically on first run.
 
-## Быстрый старт
+## Quick start
 
-**1. Запустите Weaviate:**
+**1. Start Weaviate:**
 
 ```bash
 docker compose up -d
 ```
 
-**2. Запустите пример:**
+**2. Run the example:**
 
 ```bash
 cd examples/weaviate && cp .env.example .env && go run .
 ```
 
-Для mock-режима этого достаточно. Для реального LLM задайте `LLM_PROVIDER=ollama|openai|anthropic` и соответствующие ключи.
+For mock mode this is sufficient. For a real LLM, set `LLM_PROVIDER=ollama|openai|anthropic` and the corresponding keys.
 
-## Переменные окружения
+## Environment variables
 
-| Переменная | По умолчанию | Описание |
-|-----------|-------------|---------|
-| `LLM_PROVIDER` | `mock` | LLM провайдер (`mock`, `ollama`, `openai`, `anthropic`) |
-| `EMBEDDING_DIM` | `1536` | Размерность векторов |
-| `WEAVIATE_URL` | `http://localhost:8080` | URL Weaviate сервера |
-| `COLLECTION_NAME` | `DraftragChunk` | Имя класса Weaviate |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LLM_PROVIDER` | `mock` | LLM provider (`mock`, `ollama`, `openai`, `anthropic`) |
+| `EMBEDDING_DIM` | `1536` | Vector dimension |
+| `WEAVIATE_URL` | `http://localhost:8080` | Weaviate server URL |
+| `COLLECTION_NAME` | `DraftragChunk` | Weaviate class name |
 
 ## Tutorial
 
-Подробное руководство по гибридному поиску — [tutorial 03: Hybrid Search](../docs/tutorials/ru/03-hybrid-search.md).
+Detailed guide on hybrid search — [tutorial 03: Hybrid Search](../docs/tutorials/en/03-hybrid-search.md).

@@ -1,35 +1,35 @@
-# Milvus — RAG с Milvus
+# Milvus — RAG with Milvus
 
-Интерактивный RAG-чат с Milvus как векторным хранилищем. 
+Interactive RAG chat with Milvus as a vector store.
 
-**Внимание:** Milvus — самый ресурсоёмкий бэкенд. Требуется ~2 GB RAM для работы. При первом запуске может потребоваться время на инициализацию (start_period: 30s).
+**Note:** Milvus is the most resource-intensive backend. Requires ~2 GB RAM to run. First startup may take time to initialize (start_period: 30s).
 
-## Быстрый старт
+## Quick start
 
-**1. Запустите Milvus (etcd + minio + milvus standalone):**
+**1. Start Milvus (etcd + minio + milvus standalone):**
 
 ```bash
 docker compose up -d
 ```
 
-**2. Запустите пример:**
+**2. Run the example:**
 
 ```bash
 cd examples/milvus && cp .env.example .env && go run .
 ```
 
-Для mock-режима этого достаточно. Для реального LLM задайте `LLM_PROVIDER=ollama|openai|anthropic` и соответствующие ключи.
+For mock mode this is sufficient. For a real LLM, set `LLM_PROVIDER=ollama|openai|anthropic` and the corresponding keys.
 
-## Переменные окружения
+## Environment variables
 
-| Переменная | По умолчанию | Описание |
-|-----------|-------------|---------|
-| `LLM_PROVIDER` | `mock` | LLM провайдер (`mock`, `ollama`, `openai`, `anthropic`) |
-| `EMBEDDING_DIM` | `1536` | Размерность векторов |
-| `MILVUS_ADDR` | `localhost:19121` | Адрес Milvus REST API |
-| `COLLECTION_NAME` | `draftrag_chunks` | Имя коллекции |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LLM_PROVIDER` | `mock` | LLM provider (`mock`, `ollama`, `openai`, `anthropic`) |
+| `EMBEDDING_DIM` | `1536` | Vector dimension |
+| `MILVUS_ADDR` | `localhost:19121` | Milvus REST API address |
+| `COLLECTION_NAME` | `draftrag_chunks` | Collection name |
 
-## Примечание
+## Note
 
-MilvusStore — внутренний API (`internal/infrastructure/vectorstore`), статус: "API в разработке". 
-Публичный API будет добавлен в одном из следующих релизов.
+MilvusStore is an internal API (`internal/infrastructure/vectorstore`), status: "API in development".
+The public API will be added in one of the upcoming releases.

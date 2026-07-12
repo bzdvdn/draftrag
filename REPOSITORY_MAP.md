@@ -28,6 +28,11 @@ Compact code-only navigation index for the draftRAG Go library.
 - `pkg/draftrag/rewriter.go` — `NewLLMRewriter` (QueryRewriter constructor)
 - `pkg/draftrag/reranker_llm.go` — `NewLLMReranker` (LLM-as-judge Reranker constructor)
 - `pkg/draftrag/pii.go` — `NewDefaultPIIDetector` / `NewCompositePIIDetector` (public PII detector constructors)
+- `pkg/draftrag/pinecone.go` — `NewPineconeStore` (Pinecone VectorStore)
+- `pkg/draftrag/ratelimit.go` — `NewTokenBucketLLMProvider` / `NewTokenBucketEmbedder` / `NewTokenBucketStreamingLLMProvider` (rate limiting wrappers)
+- `pkg/draftrag/fallback.go` — `NewFallbackLLMProvider` / `NewFallbackStreamingLLMProvider` / `NewFallbackUsageAwareLLMProvider`
+- `pkg/draftrag/health.go` — `NewHealthChecker` / `LivenessHandler` / `ReadinessHandler` / `StartupHandler`
+- `pkg/draftrag/decomposer.go` — `NewLLMQueryDecomposer` / `NewRuleQueryDecomposer`
 
 ## Top-Level Code
 
@@ -40,10 +45,11 @@ Compact code-only navigation index for the draftRAG Go library.
 - `internal/infrastructure/llm/` — concrete LLM HTTP clients (Anthropic, Ollama, OpenAI-compatible, OpenAI Chat Completions, mock streaming)
 - `internal/infrastructure/piidetector/` — pattern-based PII detectors (`EmailDetector`, `PhoneDetector`, `SSNDetector`, `CreditCardDetector`, `CompositePIIDetector`)
 - `internal/infrastructure/costtracker/` — `CostTracker` wrapper: LLMProvider-обёртка с подсчётом токенов и стоимости
-- `internal/infrastructure/resilience/` — `circuitbreaker`, `retry`, `embedder`/`llm` wrappers, `hooks`, `errors`
-- `internal/infrastructure/vectorstore/` — concrete VectorStore implementations (pgvector with transactions, memory, qdrant, chromadb, weaviate, milvus, hybrid search) + extensive `*_test.go` per backend
-- `pkg/draftrag/` — public Go API surface: re-exports + facade + embedders/vectorstores/chunker/resilience/otel/eval/migrations
-- `examples/` — 9 runnable per-backend examples (memory, pgvector, qdrant, chromadb, weaviate, milvus, mistral, deepseek, cost-tracking) + pii-guardrails (PII redaction demo with InMemoryStore) + shared mock/print helpers + legacy (chat, index-dir) — NOT part of library API, demo only
+- `internal/infrastructure/resilience/` — `circuitbreaker`, `retry`, `tokenbucket`, `ratelimit_llm/embedder/streaming`, `fallback_llm/streaming/usage`, `hooks`, `errors`
+- `internal/infrastructure/decomposer/` — QueryDecomposer implementations (`LLMQueryDecomposer`, `RuleQueryDecomposer`, `CompositeDecomposer`)
+- `internal/infrastructure/vectorstore/` — concrete VectorStore implementations (pgvector with transactions, memory, qdrant, chromadb, weaviate, milvus, pinecone, hybrid search) + extensive `*_test.go` per backend
+- `pkg/draftrag/` — public Go API surface: re-exports + facade + embedders/vectorstores/chunker/resilience/otel/eval/migrations + health/fallback/ratelimit/decomposer
+- `examples/` — 11 runnable per-backend examples (memory, pgvector, qdrant, chromadb, weaviate, milvus, mistral, deepseek, cost-tracking, semantic-chunking, sub-query-decomposition) + pii-guardrails (PII redaction demo with InMemoryStore) + shared mock/print helpers + legacy (chat, index-dir) — NOT part of library API, demo only
 - `pkg/draftrag/mistral_embedder.go` — `NewMistralEmbedder` factory wrapping `OpenAICompatibleEmbedder` with Mistral defaults
 
 ## Key Paths
@@ -60,7 +66,10 @@ Compact code-only navigation index for the draftRAG Go library.
 - `internal/application/stream.go` — `wrapStreamWithHook` (bounded backpressure via `streamBufferSize`)
 - `internal/application/{query,answer,retrieval,mmr,rrf}.go` — retrieval/answer/rerank logic; `QueryWithQueries`, `AnswerWithQueries*` (multi-query retrieval)
 - `internal/infrastructure/vectorstore/pgvector.go` — `pgVectorTx` transactional path; `BeginTx`; SQL operations
+- `internal/infrastructure/vectorstore/pinecone.go` — Pinecone VectorStore (REST API: upsert/delete/search/health/collection management)
 - `internal/infrastructure/vectorstore/hybrid.go` — `HybridConfig` + `HybridSearch` plumbing
+- `internal/infrastructure/resilience/ratelimit_streaming.go` — `TokenBucketStreamingLLMProvider` (streaming rate limiter wrapper)
+- `internal/infrastructure/resilience/tokenbucket.go` — core token bucket implementation
 - `pkg/draftrag/draftrag.go` — `Pipeline`, `PipelineOptions` (IndexConcurrency, StreamBufferSize, IndexBatchRateLimitPerWorker, HybridConfig, QueryRewriter, PIIDetector, etc.), `NewPipeline*` constructors, `mapAppError`; re-export `TokenUsage`, `ModelPricing`, `CostSnapshot`, `UsageAwareLLMProvider`, `UsageAwareStreamingLLMProvider`, `Diff`, `QueryRewriter`, `RewrittenQuery`, `QueryHistory`
 - `pkg/draftrag/costtracker.go` — `CostTracker`, `NewCostTracker` (публичная обёртка LLMProvider с подсчётом токенов/стоимости)
 - `pkg/draftrag/routergen/routes.go` + `main.go` — route table definition and code generator (produces `search_routes_gen.go` via `go generate`); `pkg/draftrag/gen.go` — `//go:generate` directive
@@ -91,7 +100,11 @@ Compact code-only navigation index for the draftRAG Go library.
 - Public sentinels (re-exports + mapping) → `pkg/draftrag/errors.go` (re-exports) + `pkg/draftrag/draftrag.go::mapAppError` (mapping)
 - Domain sentinels/interfaces → `internal/domain/models.go` + `interfaces.go`
 - OpenTelemetry instrumentation → `pkg/draftrag/otel/hooks.go`; pipeline hooks wiring in `internal/application/pipeline.go`
+- Rate limiter (token bucket) → `internal/infrastructure/resilience/ratelimit_{llm,embedder,streaming}.go` + facade in `pkg/draftrag/ratelimit.go`
+- LLM fallback chain → `internal/infrastructure/resilience/fallback_{llm,streaming,usage}.go` + facade in `pkg/draftrag/fallback.go`
+- Health checker + HTTP handlers → `pkg/draftrag/health.go`
 - Resilience (retry, circuit breaker) → `internal/infrastructure/resilience/` + facade in `pkg/draftrag/resilience.go`
+- Query decomposer (public API) → `pkg/draftrag/decomposer.go` + `internal/infrastructure/decomposer/`
 - Migrations / SQL schema → `pkg/draftrag/migrations/pgvector/*.sql` (regenerate `pgvector_migrations_assets.go` via `go generate ./...`)
 - Eval harness (NDCG, Precision@K, Recall@K) → `pkg/draftrag/eval/`
 - Specs/plans/tasks → `docs/specs/<slug>/{spec,plan,data-model,tasks}.md`

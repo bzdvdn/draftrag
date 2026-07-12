@@ -1,74 +1,74 @@
-# pgvector — RAG с PostgreSQL + pgvector
+# pgvector — RAG with PostgreSQL + pgvector
 
-Интерактивный RAG-чат с pgvector как постоянным векторным хранилищем. Схема БД создаётся автоматически при первом запуске через `MigratePGVector` (идемпотентно).
+Interactive RAG chat with pgvector as a persistent vector store. The database schema is created automatically on first run via `MigratePGVector` (idempotent).
 
-## Быстрый старт
+## Quick start
 
-**1. Запустите PostgreSQL с pgvector:**
+**1. Start PostgreSQL with pgvector:**
 
 ```bash
 docker compose up -d
 ```
 
-**2. Запустите пример:**
+**2. Run the example:**
 
 ```bash
 cd examples/pgvector && cp .env.example .env && go run .
 ```
 
-Для mock-режима этого достаточно. Для реального LLM задайте `LLM_PROVIDER=ollama|openai|anthropic` и соответствующие ключи.
+For mock mode this is sufficient. For a real LLM, set `LLM_PROVIDER=ollama|openai|anthropic` and the corresponding keys.
 
-## Переменные окружения
+## Environment variables
 
-| Переменная | По умолчанию | Описание |
-|-----------|-------------|---------|
-| `LLM_PROVIDER` | `mock` | LLM провайдер (`mock`, `ollama`, `openai`, `anthropic`) |
-| `EMBEDDING_DIM` | `1536` | Размерность векторов (должна совпадать с моделью) |
-| `PGVECTOR_DSN` | — | **Обязательно.** DSN для подключения к PostgreSQL |
-| `TABLE_NAME` | `draftrag_chunks` | Имя таблицы для хранения чанков |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LLM_PROVIDER` | `mock` | LLM provider (`mock`, `ollama`, `openai`, `anthropic`) |
+| `EMBEDDING_DIM` | `1536` | Vector dimension (must match the model) |
+| `PGVECTOR_DSN` | — | **Required.** DSN for connecting to PostgreSQL |
+| `TABLE_NAME` | `draftrag_chunks` | Table name for storing chunks |
 
-Для `LLM_PROVIDER=ollama`:
+For `LLM_PROVIDER=ollama`:
 
-| Переменная | По умолчанию | Описание |
-|-----------|-------------|---------|
-| `OLLAMA_HOST` | `http://localhost:11434` | URL Ollama |
-| `OLLAMA_EMBED_MODEL` | `nomic-embed-text` | Модель эмбеддингов |
-| `OLLAMA_LLM_MODEL` | `llama3.2` | LLM модель |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OLLAMA_HOST` | `http://localhost:11434` | Ollama URL |
+| `OLLAMA_EMBED_MODEL` | `nomic-embed-text` | Embedding model |
+| `OLLAMA_LLM_MODEL` | `llama3.2` | LLM model |
 
-Для `LLM_PROVIDER=openai`:
+For `LLM_PROVIDER=openai`:
 
-| Переменная | По умолчанию | Описание |
-|-----------|-------------|---------|
-| `OPENAI_API_KEY` | — | **Обязательно.** API ключ |
-| `OPENAI_BASE_URL` | `https://api.openai.com` | Базовый URL |
-| `OPENAI_EMBED_MODEL` | `text-embedding-3-small` | Модель эмбеддингов |
-| `OPENAI_LLM_MODEL` | `gpt-4o-mini` | LLM модель |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OPENAI_API_KEY` | — | **Required.** API key |
+| `OPENAI_BASE_URL` | `https://api.openai.com` | Base URL |
+| `OPENAI_EMBED_MODEL` | `text-embedding-3-small` | Embedding model |
+| `OPENAI_LLM_MODEL` | `gpt-4o-mini` | LLM model |
 
-Для `LLM_PROVIDER=anthropic`:
+For `LLM_PROVIDER=anthropic`:
 
-| Переменная | По умолчанию | Описание |
-|-----------|-------------|---------|
-| `ANTHROPIC_API_KEY` | — | **Обязательно.** API ключ |
-| `ANTHROPIC_LLM_MODEL` | `claude-3-5-sonnet-latest` | LLM модель |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ANTHROPIC_API_KEY` | — | **Required.** API key |
+| `ANTHROPIC_LLM_MODEL` | `claude-3-5-sonnet-latest` | LLM model |
 
-## Размерность векторов
+## Vector dimension
 
-Размерность должна соответствовать используемой модели эмбеддингов:
+The dimension must match the embedding model used:
 
-| Модель | `EMBEDDING_DIM` |
+| Model | `EMBEDDING_DIM` |
 |---|---|
 | `text-embedding-ada-002` | `1536` |
 | `text-embedding-3-small` | `1536` |
 | `text-embedding-3-large` | `3072` |
 | `nomic-embed-text` (Ollama) | `768` |
 
-Если размерность изменилась после первого запуска — нужно пересоздать таблицу или использовать другое `TABLE_NAME`.
+If the dimension changes after the first run, you need to recreate the table or use a different `TABLE_NAME`.
 
-## Миграции
+## Migrations
 
-`MigratePGVector` создаёт таблицу и индекс при первом запуске. Повторный запуск безопасен — миграции идемпотентны.
+`MigratePGVector` creates the table and index on first run. Re-running is safe — migrations are idempotent.
 
-Для production рекомендуется применять SQL-миграции отдельным шагом деплоя:
+For production, it is recommended to apply SQL migrations as a separate deployment step:
 
 ```bash
 psql $PGVECTOR_DSN -f pkg/draftrag/migrations/pgvector/0000_pgvector_extension.sql
@@ -76,7 +76,7 @@ psql $PGVECTOR_DSN -f pkg/draftrag/migrations/pgvector/0001_chunks_table.sql
 psql $PGVECTOR_DSN -f pkg/draftrag/migrations/pgvector/0002_metadata_and_indexes.sql
 ```
 
-## Локальный режим (Ollama)
+## Local mode (Ollama)
 
 ```bash
 ollama pull nomic-embed-text

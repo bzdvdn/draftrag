@@ -1,69 +1,69 @@
-# index-dir — Индексация директории с файлами
+# index-dir — Directory indexing with files
 
-Рекурсивно обходит директорию, читает `.txt` файлы, чанкирует их через `BasicChunker` и индексирует в in-memory store. После индексации отвечает на заданный вопрос и выводит источники.
+Recursively walks a directory, reads `.txt` files, chunks them using `BasicChunker`, and indexes them into an in-memory store. After indexing, answers a given question and outputs sources.
 
-## Быстрый старт
+## Quick start
 
 ```bash
 EMBEDDER_API_KEY=sk-... \
 LLM_API_KEY=sk-... \
-go run ./examples/index-dir/ -dir ./docs -query "Как настроить авторизацию?"
+go run ./examples/index-dir/ -dir ./docs -query "How to configure authorization?"
 ```
 
-## Флаги
+## Flags
 
-| Флаг | По умолчанию | Описание |
+| Flag | Default | Description |
 |---|---|---|
-| `-dir` | `.` | Директория с `.txt` файлами (рекурсивно) |
-| `-query` | — | **Обязательно.** Вопрос для RAG |
-| `-topk` | `5` | Количество чанков для контекста |
-| `-chunk` | `500` | Размер чанка в рунах |
-| `-overlap` | `60` | Перекрытие между чанками в рунах |
+| `-dir` | `.` | Directory with `.txt` files (recursive) |
+| `-query` | — | **Required.** Question for RAG |
+| `-topk` | `5` | Number of chunks for context |
+| `-chunk` | `500` | Chunk size in runes |
+| `-overlap` | `60` | Overlap between chunks in runes |
 
-## Переменные окружения
+## Environment variables
 
-| Переменная | По умолчанию | Описание |
+| Variable | Default | Description |
 |---|---|---|
-| `EMBEDDER_API_KEY` | — | **Обязательно.** Ключ API для embedder |
-| `EMBEDDER_BASE_URL` | `https://api.openai.com` | Базовый URL embedder API |
-| `EMBEDDER_MODEL` | `text-embedding-ada-002` | Модель эмбеддингов |
-| `LLM_API_KEY` | — | **Обязательно.** Ключ API для LLM |
-| `LLM_BASE_URL` | `https://api.openai.com` | Базовый URL LLM API |
-| `LLM_MODEL` | `gpt-4o-mini` | Языковая модель |
+| `EMBEDDER_API_KEY` | — | **Required.** API key for the embedder |
+| `EMBEDDER_BASE_URL` | `https://api.openai.com` | Embedder API base URL |
+| `EMBEDDER_MODEL` | `text-embedding-ada-002` | Embedding model |
+| `LLM_API_KEY` | — | **Required.** API key for the LLM |
+| `LLM_BASE_URL` | `https://api.openai.com` | LLM API base URL |
+| `LLM_MODEL` | `gpt-4o-mini` | Language model |
 
-## Пример: индексация документации проекта
+## Example: indexing project documentation
 
 ```bash
-# Сохраните несколько .txt файлов в папку docs/
+# Save some .txt files to the docs/ folder
 mkdir -p docs
-echo "Авторизация выполняется через Bearer-токен в заголовке Authorization." > docs/auth.txt
-echo "Конфигурация хранится в файле config.yaml в корне проекта." > docs/config.txt
+echo "Authorization is done via a Bearer token in the Authorization header." > docs/auth.txt
+echo "Configuration is stored in config.yaml in the project root." > docs/config.txt
 
 EMBEDDER_API_KEY=sk-... LLM_API_KEY=sk-... \
 go run ./examples/index-dir/ \
   -dir ./docs \
-  -query "Где хранится конфигурация?" \
+  -query "Where is the configuration stored?" \
   -topk 3 \
   -chunk 300
 ```
 
-## Пример вывода
+## Example output
 
 ```
-Найдено 2 файлов в "docs"
-Индексируем 2 документов...
-Индексация завершена.
+Found 2 files in "docs"
+Indexing 2 documents...
+Indexing complete.
 
-Вопрос: Где хранится конфигурация?
+Question: Where is the configuration stored?
 ────────────────────────────────────────────────────────────
 
-Конфигурация хранится в файле config.yaml в корне проекта.
+Configuration is stored in config.yaml in the project root.
 
-Источники:
+Sources:
   [1] docs/config.txt (score=0.944)
-      Конфигурация хранится в файле config.yaml в корне проекта.
+      Configuration is stored in config.yaml in the project root.
 ```
 
-## Формат файлов
+## File format
 
-Читаются файлы с расширением `.txt` (без учёта регистра). Имя файла становится `ID` документа, путь к файлу — полем метаданных `path`. Пустые файлы пропускаются.
+Files with the `.txt` extension are read (case-insensitive). The file name becomes the document `ID`, the file path becomes the `path` metadata field. Empty files are skipped.

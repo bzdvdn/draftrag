@@ -1,32 +1,32 @@
-# ChromaDB — RAG с ChromaDB
+# ChromaDB — RAG with ChromaDB
 
-Интерактивный RAG-чат с ChromaDB как векторным хранилищем. Коллекция создаётся автоматически при первом запуске.
+Interactive RAG chat with ChromaDB as a vector store. The collection is created automatically on first run.
 
-## Быстрый старт
+## Quick start
 
-**1. Запустите ChromaDB:**
+**1. Start ChromaDB:**
 
 ```bash
 docker compose up -d
 ```
 
-**2. Запустите пример:**
+**2. Run the example:**
 
 ```bash
 cd examples/chromadb && cp .env.example .env && go run .
 ```
 
-Для mock-режима этого достаточно. Для реального LLM задайте `LLM_PROVIDER=ollama|openai|anthropic` и соответствующие ключи.
+For mock mode this is sufficient. For a real LLM, set `LLM_PROVIDER=ollama|openai|anthropic` and the corresponding keys.
 
-## Переменные окружения
+## Environment variables
 
-| Переменная | По умолчанию | Описание |
-|-----------|-------------|---------|
-| `LLM_PROVIDER` | `mock` | LLM провайдер (`mock`, `ollama`, `openai`, `anthropic`) |
-| `EMBEDDING_DIM` | `1536` | Размерность векторов |
-| `CHROMADB_URL` | `http://localhost:8000` | URL ChromaDB сервера |
-| `COLLECTION_NAME` | `draftrag_chunks` | Имя коллекции |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LLM_PROVIDER` | `mock` | LLM provider (`mock`, `ollama`, `openai`, `anthropic`) |
+| `EMBEDDING_DIM` | `1536` | Vector dimension |
+| `CHROMADB_URL` | `http://localhost:8000` | ChromaDB server URL |
+| `COLLECTION_NAME` | `draftrag_chunks` | Collection name |
 
 ## Tutorial
 
-Подробное руководство по работе с ChromaDB и метаданными — [tutorial 04: Metadata Filter](../docs/tutorials/ru/04-metadata-filter.md).
+Detailed guide on working with ChromaDB and metadata — [tutorial 04: Metadata Filter](../docs/tutorials/en/04-metadata-filter.md).

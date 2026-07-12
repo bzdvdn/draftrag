@@ -1,35 +1,35 @@
 # Memory example
 
-In-memory RAG-пример на базе Go-документации. Не требует Docker или внешних сервисов.
+In-memory RAG example based on Go documentation. Does not require Docker or external services.
 
-## Быстрый старт
+## Quick start
 
 ```bash
 cd examples/memory && cp .env.example .env && go run .
 ```
 
-## Переменные окружения
+## Environment variables
 
-Базовые (из `.env.example`):
+Basic (from `.env.example`):
 
-| Переменная | По умолчанию | Описание |
-|-----------|-------------|---------|
-| `LLM_PROVIDER` | `mock` | LLM провайдер (`mock`, `ollama`, `openai`, `anthropic`) |
-| `EMBEDDING_DIM` | `1536` | Размерность эмбеддингов |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LLM_PROVIDER` | `mock` | LLM provider (`mock`, `ollama`, `openai`, `anthropic`) |
+| `EMBEDDING_DIM` | `1536` | Embedding dimension |
 
-Для реального LLM (ollama/openai/anthropic) потребуются дополнительные переменные — см. [examples/shared/config.go](../shared/config.go).
+For a real LLM (ollama/openai/anthropic), additional variables are required — see [examples/shared/config.go](../shared/config.go).
 
-## Что делает пример
+## What the example does
 
-1. Создаёт in-memory векторное хранилище
-2. Индексирует 10 документов по языку Go (горутины, каналы, контекст, интерфейсы и др.)
-3. Задаёт вопрос "Что такое goroutine?"
-4. Выводит ответ с источниками
+1. Creates an in-memory vector store
+2. Indexes 10 documents about Go (goroutines, channels, context, interfaces, etc.)
+3. Asks the question "What is a goroutine?"
+4. Outputs the answer with sources
 
-## Требования
+## Requirements
 
 - Go 1.21+
-- Для `LLM_PROVIDER=mock` — ничего дополнительно
-- Для `LLM_PROVIDER=ollama` — запущенный [Ollama](https://ollama.ai) с моделями
-- Для `LLM_PROVIDER=openai` — `OPENAI_API_KEY`
-- Для `LLM_PROVIDER=anthropic` — `ANTHROPIC_API_KEY`
+- For `LLM_PROVIDER=mock` — nothing else needed
+- For `LLM_PROVIDER=ollama` — running [Ollama](https://ollama.ai) with models
+- For `LLM_PROVIDER=openai` — `OPENAI_API_KEY`
+- For `LLM_PROVIDER=anthropic` — `ANTHROPIC_API_KEY`

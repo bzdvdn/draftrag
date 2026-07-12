@@ -1,15 +1,15 @@
 # Sub-Query Decomposition Example
 
-Демонстрирует разбиение сложного запроса на под-вопросы
-через `SearchBuilder.SubDecompose()` для улучшения recall.
+Demonstrates splitting a complex query into sub-questions
+using `SearchBuilder.SubDecompose()` to improve recall.
 
-## Запуск
+## Run
 
 ```bash
-# С mock-провайдером (без внешних зависимостей)
+# With mock provider (no external dependencies)
 LLM_PROVIDER=mock go run .
 ```
 
-Для использования реальных LLM/embedder провайдеров установите
-`LLM_PROVIDER=ollama` или `LLM_PROVIDER=openai` с соответствующими
-переменными окружения (см. примеры `examples/memory/`).
+To use real LLM/embedder providers, set
+`LLM_PROVIDER=ollama` or `LLM_PROVIDER=openai` with the appropriate
+environment variables (see examples in `examples/memory/`).

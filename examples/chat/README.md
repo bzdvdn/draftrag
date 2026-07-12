@@ -1,10 +1,10 @@
-# chat — Базовый RAG-чат (CLI)
+# chat — Basic RAG chat (CLI)
 
-Интерактивный RAG-чат с in-memory хранилищем. Загружает набор документов, после чего принимает вопросы через stdin и отвечает с inline-цитатами `[1]`, `[2]`.
+Interactive RAG chat with in-memory storage. Loads a set of documents, then accepts questions via stdin and answers with inline citations `[1]`, `[2]`.
 
-Хранилище живёт в памяти — данные не сохраняются между запусками.
+The store lives in memory — data is not persisted between runs.
 
-## Быстрый старт
+## Quick start
 
 ```bash
 EMBEDDER_API_KEY=sk-... \
@@ -12,21 +12,21 @@ LLM_API_KEY=sk-... \
 go run ./examples/chat/
 ```
 
-## Переменные окружения
+## Environment variables
 
-| Переменная | По умолчанию | Описание |
+| Variable | Default | Description |
 |---|---|---|
-| `EMBEDDER_API_KEY` | — | **Обязательно.** Ключ API для embedder |
-| `EMBEDDER_BASE_URL` | `https://api.openai.com` | Базовый URL embedder API |
-| `EMBEDDER_MODEL` | `text-embedding-ada-002` | Модель эмбеддингов |
-| `LLM_API_KEY` | — | **Обязательно.** Ключ API для LLM |
-| `LLM_BASE_URL` | `https://api.openai.com` | Базовый URL LLM API |
-| `LLM_MODEL` | `gpt-4o-mini` | Языковая модель |
+| `EMBEDDER_API_KEY` | — | **Required.** API key for the embedder |
+| `EMBEDDER_BASE_URL` | `https://api.openai.com` | Embedder API base URL |
+| `EMBEDDER_MODEL` | `text-embedding-ada-002` | Embedding model |
+| `LLM_API_KEY` | — | **Required.** API key for the LLM |
+| `LLM_BASE_URL` | `https://api.openai.com` | LLM API base URL |
+| `LLM_MODEL` | `gpt-4o-mini` | Language model |
 
-## Локальный режим (Ollama)
+## Local mode (Ollama)
 
 ```bash
-# Запустите Ollama и скачайте нужные модели:
+# Start Ollama and pull the required models:
 ollama pull nomic-embed-text
 ollama pull llama3.2
 
@@ -39,26 +39,26 @@ LLM_MODEL=llama3.2 \
 go run ./examples/chat/
 ```
 
-## Пример сессии
+## Example session
 
 ```
-Индексируем базу знаний...
-Проиндексировано 8 документов.
+Indexing knowledge base...
+Indexed 8 documents.
 
-RAG-чат готов. Введите вопрос (Ctrl+C для выхода):
+RAG chat ready. Enter your question (Ctrl+C to exit):
 ────────────────────────────────────────────────────────────
 
-> Как добавить Zigbee-устройство?
+> How do I add a Zigbee device?
 
-Чтобы добавить Zigbee-устройство, откройте приложение SmartHome,
-выберите «Добавить устройство» → «Zigbee» и переведите устройство
-в режим сопряжения [1]. Хаб обнаружит его в течение 30 секунд [1].
+To add a Zigbee device, open the SmartHome application,
+select "Add Device" -> "Zigbee" and put the device
+into pairing mode [1]. The hub will detect it within 30 seconds [1].
 
-Источники:
+Sources:
   [1] smarthome-zigbee (score=0.921)
 ────────────────────────────────────────────────────────────
 ```
 
-## База знаний
+## Knowledge base
 
-Пример использует встроенную базу знаний о продукте SmartHome Hub (8 документов). Чтобы использовать собственные документы — замените срез `knowledgeBase` в `main.go`.
+The example uses a built-in knowledge base about the SmartHome Hub product (8 documents). To use your own documents, replace the `knowledgeBase` slice in `main.go`.
