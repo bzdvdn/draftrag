@@ -15,7 +15,12 @@ var sentenceExceptions = map[string]bool{
 	"e.g": true, "i.e": true, "vs": true, "etc": true,
 }
 
+func isCJKPunct(ch rune) bool {
+	return ch == '。' || ch == '！' || ch == '？'
+}
+
 // @sk-task chunker-semantic#T1.1: sentence splitter (AC-005)
+// @sk-task cjk-tokenization#T1.1: CJK punctuation delimiters (AC-001, AC-002)
 func splitSentences(text string) []string {
 	trimmed := strings.TrimSpace(text)
 	if trimmed == "" {
@@ -28,7 +33,7 @@ func splitSentences(text string) []string {
 
 	for i := 0; i < len(runes); i++ {
 		ch := runes[i]
-		if ch != '.' && ch != '!' && ch != '?' {
+		if ch != '.' && ch != '!' && ch != '?' && !isCJKPunct(ch) {
 			continue
 		}
 
@@ -36,7 +41,7 @@ func splitSentences(text string) []string {
 			continue
 		}
 
-		if !isSentenceBoundary(runes, i) {
+		if !isSentenceBoundary(runes, i, ch) {
 			continue
 		}
 
@@ -73,7 +78,12 @@ func isAbbreviation(runes []rune, start, dotIdx int) bool {
 	return sentenceExceptions[word]
 }
 
-func isSentenceBoundary(runes []rune, idx int) bool {
+// @sk-task cjk-tokenization#T1.2: CJK sentence boundary detection (AC-003)
+func isSentenceBoundary(runes []rune, idx int, delim rune) bool {
+	if isCJKPunct(delim) {
+		return true
+	}
+
 	next := idx + 1
 
 	if next >= len(runes) {
