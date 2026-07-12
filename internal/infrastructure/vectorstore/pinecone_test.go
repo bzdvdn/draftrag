@@ -52,10 +52,10 @@ func TestPineconeStore_Upsert(t *testing.T) {
 	defer srv.Close()
 
 	err := store.Upsert(context.Background(), domain.Chunk{
-		ID:      "chunk1",
-		Content: "test content",
+		ID:        "chunk1",
+		Content:   "test content",
 		Embedding: []float64{0.1, 0.2, 0.3},
-		Metadata: map[string]string{"key": "val"},
+		Metadata:  map[string]string{"key": "val"},
 	})
 	assert.NoError(t, err)
 }

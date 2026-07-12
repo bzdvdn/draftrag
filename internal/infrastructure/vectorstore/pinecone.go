@@ -72,10 +72,10 @@ type pineconeDeleteRequest struct {
 }
 
 type pineconeStatsResponse struct {
-	Dimension         int               `json:"dimension"`
-	IndexFullness     float64           `json:"indexFullness"`
-	TotalVectorCount  int               `json:"totalVectorCount"`
-	Namespaces        map[string]interface{} `json:"namespaces"`
+	Dimension        int                    `json:"dimension"`
+	IndexFullness    float64                `json:"indexFullness"`
+	TotalVectorCount int                    `json:"totalVectorCount"`
+	Namespaces       map[string]interface{} `json:"namespaces"`
 }
 
 type pineconeIndexResponse struct {

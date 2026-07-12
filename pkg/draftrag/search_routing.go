@@ -210,8 +210,6 @@ func filterStreamCite(p *application.Pipeline, ctx context.Context, q string, to
 	return p.AnswerStreamWithMetadataFilterWithInlineCitations(ctx, q, topK, b.filter)
 }
 
-
-
 // @sk-task query-rewriting#T2.2: rewriter handler helpers (AC-002, AC-005, AC-007)
 // @sk-task pii-guardrails#T3.2: PII redaction в RewrittenQuery (AC-007, RQ-007)
 

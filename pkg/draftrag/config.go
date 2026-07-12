@@ -198,6 +198,7 @@ type BasicChunkerConfig struct {
 	ChunkOverlap int `yaml:"chunk_overlap"`
 }
 
+// SemanticChunkerConfig — YAML config для SemanticChunker.
 // @sk-task chunker-semantic#T3.1: YAML semantic chunker config (AC-009)
 type SemanticChunkerConfig struct {
 	SimilarityThreshold float64 `yaml:"threshold"`
@@ -389,7 +390,7 @@ func parseInt(s string) (int64, error) {
 func parseFloat(s string) (float64, error) {
 	var v float64
 	var frac bool
-	var fracMul float64 = 0.1
+	var fracMul = 0.1
 	for _, c := range s {
 		if c == '.' && !frac {
 			frac = true
@@ -416,7 +417,7 @@ func parseFloat(s string) (float64, error) {
 // NewPipelineFromConfig создаёт Pipeline из Config.
 // deps — опциональные runtime-зависимости для store-типов, требующих
 // внешнего подключения (pgvector).
-func NewPipelineFromConfig(ctx context.Context, cfg Config, deps ...ExternalDeps) (*Pipeline, error) {
+func NewPipelineFromConfig(_ context.Context, cfg Config, deps ...ExternalDeps) (*Pipeline, error) {
 	store, err := newStoreFromConfig(cfg.Store, deps)
 	if err != nil {
 		return nil, fmt.Errorf("store: %w", err)

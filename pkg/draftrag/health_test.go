@@ -89,7 +89,7 @@ func TestHealthChecker_ContextDeadline(t *testing.T) {
 }
 
 // @sk-test health-check-interface#T4.1: concurrent Register + Check races
-func TestHealthChecker_ConcurrentSafety(t *testing.T) {
+func TestHealthChecker_ConcurrentSafety(_ *testing.T) {
 	hc := NewHealthChecker(
 		ComponentHealth{Name: "a", Health: func(_ context.Context) error { return nil }},
 		ComponentHealth{Name: "b", Health: func(_ context.Context) error { return nil }},
@@ -143,7 +143,7 @@ func TestHealthChecker_NilContextPanics(t *testing.T) {
 		}
 	}()
 	hc := NewHealthChecker()
-	hc.Check(nil)
+	hc.Check(nil) //nolint:staticcheck // intentional: test panic on nil
 }
 
 // @sk-test health-check-interface#T4.1: LivenessHandler always 200 (AC-006)

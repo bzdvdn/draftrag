@@ -97,43 +97,26 @@ speckeep archive     → docs/specs-archive/<slug>/<date>/
 | Docs (bilingual: en + ru) | `docs-and-examples` | ✅ |
 | Public examples (6 backends) | `public-examples` | ✅ |
 
+## Cross-cutting / Advanced RAG
+
+| Фича | Spec-ы | Статус |
+|---|---|---|
+| Tool calling (agentic RAG) | `arch-issues` | ✅ |
+| CJK tokenization | `cjk-tokenization` | ✅ |
+
 ---
 
 ## Backlog — Specs к созданию
 
 Приоритет: P0 → P1 → P2. Каждый item — будущий `/spk.spec <slug>`.
 
-### P0 — Production blockers
-
-| Spec slug | Зачем |
-|---|---|
-| `reranker-cross-encoder` | Cohere Rerank или локальный cross-encoder. Интерфейс есть, impl нет — biggest quality gap |
-| `health-check-interface` | `Health() error` на store/LLM/embedder. K8s probes |
-| `cost-tracking` | Счётчик токенов + $ на LLM-вызовах. Без этого — финансовый риск |
-| `graceful-degradation` | Chain fallback: `Primary → Secondary → Local`. При outage LLM — не полный отказ |
-| `rate-limiting-llm` | Клиентский rate limiter для LLM API (token bucket). Предотвратить 429 |
-
 ### P1 — Quality & maturity
 
-| Spec slug | Зачем |
-|---|---|
-| `query-rewriting` | `Search().Rewrite(prompt).Answer()` — LLM-переформулировка перед поиском |
-| `reranker-llm-based` | LLM-as-judge reranker (zero-shot, без fine-tune) |
-| `eval-faithfulness` | Faithfulness / answer relevance / context relevance (RAGAS-style) |
-| `config-management` | Единый config struct + YAML/env binding |
-| `chunker-semantic` | Sentence + semantic chunking (не только rune-based) |
-| `pii-guardrails` | PII detection + redaction на входе/выходе pipeline |
+_(пусто — все P1 фичи реализованы)_
 
 ### P2 — Ecosystem & advanced RAG
 
-| Spec slug | Зачем |
-|---|---|
-| `pinecone-vectorstore` | Managed Pinecone для enterprise |
-| `sub-query-decomposition` | Разбиение сложного вопроса → под-вопросы → merge |
-| `hierarchical-indices` | Parent document → chunks, two-level search |
-| `contextual-chunking` | Чанкинг с учётом контекста документа |
-| `middleware-chain` | Плагинная система между стадиями pipeline (PII filter, guardrails, logging) |
-| `cjk-tokenization` | Поддержка CJK в чанкере |
+_(пусто — все P2 фичи реализованы)_
 
 ---
 

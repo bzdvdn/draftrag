@@ -41,9 +41,8 @@ func WithMaxRetries(n int) LLMRerankerOption {
 	})
 }
 
-// @sk-task reranker-llm-based#T1.2: NewLLMReranker — публичный конструктор с опциями (AC-001, AC-002)
-//
 // NewLLMReranker создаёт LLM-as-judge reranker.
+// @sk-task reranker-llm-based#T1.2: публичный конструктор с опциями (AC-001, AC-002)
 // llm — обязательный LLMProvider для скоринга чанков.
 // Опции: WithBatchSize, WithPromptTemplate, WithMaxRetries.
 //

@@ -74,7 +74,6 @@ func (hc *HealthChecker) Check(ctx context.Context) *HealthCheckerResult {
 
 	for _, comp := range components {
 		wg.Add(1)
-		comp := comp
 		go func() {
 			defer wg.Done()
 			err := comp.Health(ctx)

@@ -27,6 +27,7 @@ type semanticChunkerImpl struct {
 	inner *chunker.SemanticChunker
 }
 
+// NewSemanticChunker создаёт SemanticChunker.
 // @sk-task chunker-semantic#T2.2: public constructor + validation (AC-007)
 func NewSemanticChunker(opts SemanticChunkerOptions) (Chunker, error) {
 	if err := validateSemanticChunkerOptions(opts); err != nil {

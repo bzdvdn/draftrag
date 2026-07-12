@@ -69,11 +69,7 @@ func main() {
 
 	var columns []columnData
 	for _, c := range outputColumns {
-		columns = append(columns, columnData{
-			Name:       c.Name,
-			Wrapper:    c.Wrapper,
-			ResultType: c.ResultType,
-		})
+		columns = append(columns, columnData(c))
 	}
 
 	data := tmplData{Columns: columns, Entries: entries}

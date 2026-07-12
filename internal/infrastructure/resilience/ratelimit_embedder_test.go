@@ -13,7 +13,6 @@ import (
 // MockEmbedderForRL — минимальный mock embedder для rate limit тестов.
 type MockEmbedderForRL struct {
 	mock.Mock
-	mu sync.Mutex
 }
 
 func (m *MockEmbedderForRL) Health(ctx context.Context) error {

@@ -23,7 +23,7 @@ func TestPipeline_HealthOK(t *testing.T) {
 
 type unhealthyStore struct{}
 
-func (unhealthyStore) Health(_ context.Context) error { return errors.New("store is down") }
+func (unhealthyStore) Health(_ context.Context) error                 { return errors.New("store is down") }
 func (unhealthyStore) Upsert(_ context.Context, _ domain.Chunk) error { return nil }
 func (unhealthyStore) Delete(_ context.Context, _ string) error       { return nil }
 func (unhealthyStore) Search(_ context.Context, _ []float64, _ int) (domain.RetrievalResult, error) {
