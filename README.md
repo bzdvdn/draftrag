@@ -118,6 +118,8 @@ internal/
 | [examples/chromadb](examples/chromadb/) | ChromaDB            | Yes    | Any | Vector search with metadata             |
 | [examples/weaviate](examples/weaviate/) | Weaviate            | Yes    | Any | GraphQL API, class management           |
 | [examples/milvus](examples/milvus/)     | Milvus              | Yes    | Any | High-performance distributed            |
+| [examples/semantic-chunking](examples/semantic-chunking/) | In-memory | No | Any | Semantic chunking demo                  |
+| [examples/sub-query-decomposition](examples/sub-query-decomposition/) | In-memory | No | Any | Multi-query decomposition     |
 
 ## Installation
 

@@ -42,8 +42,17 @@ jobs:
       - name: Vet
         run: go vet ./...
 
-      - name: Test with Race Detector
-        run: go test -race -count=1 ./...
+      - name: Test with Race Detector and Coverage
+        run: go test -race -count=1 -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: Coverage Summary
+        run: go tool cover -func coverage.out
+
+      - name: Upload Coverage Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.go-version }}
+          path: coverage.out
 
       - name: Fuzz (short)
         run: go test -fuzz=FuzzValidateDocument -fuzztime=10s ./internal/domain/

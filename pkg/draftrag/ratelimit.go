@@ -35,3 +35,12 @@ func NewTokenBucketEmbedder(emb Embedder, opts TokenBucketOptions) (Embedder, er
 	}
 	return resilience.NewTokenBucketEmbedder(emb, opts.TokensPerSecond, opts.BurstSize, nil), nil
 }
+
+// @sk-task prod-issues#T1.3: NewTokenBucketStreamingLLMProvider (AC-012, RQ-029)
+func NewTokenBucketStreamingLLMProvider(llm StreamingLLMProvider, opts TokenBucketOptions) (StreamingLLMProvider, error) {
+	if opts.TokensPerSecond < 0 || opts.BurstSize < 0 {
+		return nil, fmt.Errorf("token bucket: rate and burst must be non-negative, got rate=%v burst=%v",
+			opts.TokensPerSecond, opts.BurstSize)
+	}
+	return resilience.NewTokenBucketStreamingLLMProvider(llm, opts.TokensPerSecond, opts.BurstSize, nil), nil
+}

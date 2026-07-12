@@ -648,6 +648,8 @@ for _, fe := range result.Failed {
 | [examples/milvus](examples/milvus/) | Milvus | Да | Любой | High-performance distributed, ~2 GB RAM |
 | [examples/chat](examples/chat/) | In-memory | Нет | Любой | Интерактивный RAG-чат, inline citations |
 | [examples/index-dir](examples/index-dir/) | In-memory | Нет | Любой | Индексация директории с `.txt` файлами |
+| [examples/semantic-chunking](examples/semantic-chunking/) | In-memory | Нет | Любой | Семантический чанкинг |
+| [examples/sub-query-decomposition](examples/sub-query-decomposition/) | In-memory | Нет | Любой | Декомпозиция сложных запросов |
 
 ## Tutorials
 
