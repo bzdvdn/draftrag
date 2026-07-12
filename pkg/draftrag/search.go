@@ -31,6 +31,7 @@ import (
 //
 // @sk-task query-rewriting#T2.1: добавлены поля rewriter и history (AC-002)
 // @sk-task sub-query-decomposition#T1.2: добавлены поля subDecompose и decomposer (AC-001, AC-006)
+// @sk-task arch-issues#T4.4: добавлено поле tools (AC-004)
 type SearchBuilder struct {
 	pipeline     *Pipeline
 	question     string
@@ -44,6 +45,8 @@ type SearchBuilder struct {
 	history      QueryHistory
 	subDecompose bool
 	decomposer   QueryDecomposer
+	tools        []ToolDefinition
+	toolHandler  func(ToolCall) ToolResult
 }
 
 // Search создаёт SearchBuilder для заданного вопроса.
@@ -125,6 +128,18 @@ func (b *SearchBuilder) History(h QueryHistory) *SearchBuilder {
 // Если decomposer не настроен, вызов Retrieve/Answer вернёт ErrSubDecomposeNotSupported.
 func (b *SearchBuilder) SubDecompose() *SearchBuilder {
 	b.subDecompose = true
+	return b
+}
+
+// @sk-task arch-issues#T4.4: Tools добавляет инструменты для LLM tool calling (AC-004)
+func (b *SearchBuilder) Tools(tools []ToolDefinition) *SearchBuilder {
+	b.tools = tools
+	return b
+}
+
+// @sk-task arch-issues#T4.4: ToolHandler регистрирует executor для инструментов (AC-004)
+func (b *SearchBuilder) ToolHandler(h func(ToolCall) ToolResult) *SearchBuilder {
+	b.toolHandler = h
 	return b
 }
 

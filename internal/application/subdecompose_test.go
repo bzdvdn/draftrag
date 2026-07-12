@@ -204,7 +204,7 @@ func TestPipeline_AnswerSubDecompose_Integration(t *testing.T) {
 	llm := &recordingLLM{calls: &calls}
 
 	p, err := NewPipeline(
-		recordingStore{
+		&recordingStore{
 			calls: &calls,
 			result: domain.RetrievalResult{
 				Chunks: []domain.RetrievedChunk{
@@ -241,7 +241,7 @@ func TestPipeline_AnswerSubDecomposeWithCitations(t *testing.T) {
 	llm := &recordingLLM{calls: &calls}
 
 	p, err := NewPipeline(
-		recordingStore{
+		&recordingStore{
 			calls: &calls,
 			result: domain.RetrievalResult{
 				Chunks: []domain.RetrievedChunk{

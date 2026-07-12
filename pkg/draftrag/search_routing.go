@@ -2,6 +2,8 @@ package draftrag
 
 import (
 	"context"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/bzdvdn/draftrag/internal/application"
 )
@@ -13,12 +15,14 @@ const (
 	routeRewriter
 	routeHyDE
 	routeMultiQuery
+	routeTools
 	routeHybrid
 	routeParentIDs
 	routeFilter
 	routeSubDecompose
 )
 
+// @sk-task arch-issues#T4.3: routeTools constant + pickRoute case (AC-004)
 func (b *SearchBuilder) pickRoute() (q string, r route, err error) {
 	q, err = b.validate()
 	if err != nil {
@@ -33,6 +37,8 @@ func (b *SearchBuilder) pickRoute() (q string, r route, err error) {
 		r = routeHyDE
 	case b.multiQuery > 0:
 		r = routeMultiQuery
+	case len(b.tools) > 0:
+		r = routeTools
 	case b.hybrid != nil:
 		r = routeHybrid
 	case len(b.parentIDs) > 0:
@@ -112,146 +118,99 @@ func subDecomposeStreamCite(p *application.Pipeline, ctx context.Context, q stri
 	return p.AnswerSubDecomposeStreamWithInlineCitations(ctx, q, topK, d)
 }
 
-var retrieveHandlers = map[route]func(context.Context, string, int, *SearchBuilder) (rRetrieve, error){
-	routeBasic:        mkRetrieve((*application.Pipeline).Query),
-	routeRewriter:     wrapRetrieve(rewriterRetrieve),
-	routeSubDecompose: wrapRetrieve(subDecomposeRetrieve),
-	routeHyDE:         mkRetrieve((*application.Pipeline).QueryHyDE),
-	routeMultiQuery: wrapRetrieve(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (RetrievalResult, error) {
-		return p.QueryMulti(ctx, q, b.multiQuery, topK)
-	}),
-	routeHybrid: wrapRetrieve(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (RetrievalResult, error) {
-		return p.QueryHybrid(ctx, q, topK, *b.hybrid)
-	}),
-	routeParentIDs: wrapRetrieve(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (RetrievalResult, error) {
-		return p.QueryWithParentIDs(ctx, q, topK, b.parentIDs)
-	}),
-	routeFilter: wrapRetrieve(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (RetrievalResult, error) {
-		return p.QueryWithMetadataFilter(ctx, q, topK, b.filter)
-	}),
+// @sk-task arch-issues#T5.1: multiQuery handler functions for all output types (AC-005)
+func multiQueryRetrieve(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (RetrievalResult, error) {
+	return p.QueryMulti(ctx, q, b.multiQuery, topK)
+}
+func multiQueryAnswer(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, error) {
+	return p.AnswerMulti(ctx, q, b.multiQuery, topK)
+}
+func multiQueryCite(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, RetrievalResult, error) {
+	return p.AnswerMultiWithCitations(ctx, q, b.multiQuery, topK)
+}
+func multiQueryInlineCite(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, RetrievalResult, []InlineCitation, error) {
+	return p.AnswerMultiWithInlineCitations(ctx, q, b.multiQuery, topK)
+}
+func multiQueryStream(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, error) {
+	return p.AnswerMultiStream(ctx, q, b.multiQuery, topK)
+}
+func multiQueryStreamSources(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, error) {
+	return p.AnswerMultiStreamWithSources(ctx, q, b.multiQuery, topK)
+}
+func multiQueryStreamCite(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, []InlineCitation, error) {
+	return p.AnswerMultiStreamWithInlineCitations(ctx, q, b.multiQuery, topK)
 }
 
-// @sk-task arch-generics#T2.1: handler maps через generic factory (AC-001)
-//
-//nolint:dupl // structurally similar by design (per-output-type maps)
-var answerHandlers = map[route]func(context.Context, string, int, *SearchBuilder) (rAnswer, error){
-	routeBasic:        mkAnswer((*application.Pipeline).Answer),
-	routeRewriter:     wrapAnswer(rewriterAnswer),
-	routeSubDecompose: wrapAnswer(subDecomposeAnswer),
-	routeHyDE:         mkAnswer((*application.Pipeline).AnswerHyDE),
-	routeMultiQuery: wrapAnswer(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, error) {
-		return p.AnswerMulti(ctx, q, b.multiQuery, topK)
-	}),
-	routeHybrid: wrapAnswer(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, error) {
-		return p.AnswerHybrid(ctx, q, topK, *b.hybrid)
-	}),
-	routeParentIDs: wrapAnswer(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, error) {
-		return p.AnswerWithParentIDs(ctx, q, topK, b.parentIDs)
-	}),
-	routeFilter: wrapAnswer(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, error) {
-		return p.AnswerWithMetadataFilter(ctx, q, topK, b.filter)
-	}),
+// @sk-task arch-issues#T5.1: hybrid handler functions for all output types (AC-005)
+func hybridRetrieve(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (RetrievalResult, error) {
+	return p.QueryHybrid(ctx, q, topK, *b.hybrid)
+}
+func hybridAnswer(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, error) {
+	return p.AnswerHybrid(ctx, q, topK, *b.hybrid)
+}
+func hybridCite(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, RetrievalResult, error) {
+	return p.AnswerHybridWithCitations(ctx, q, topK, *b.hybrid)
+}
+func hybridInlineCite(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, RetrievalResult, []InlineCitation, error) {
+	return p.AnswerHybridWithInlineCitations(ctx, q, topK, *b.hybrid)
+}
+func hybridStream(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, error) {
+	return p.AnswerHybridStream(ctx, q, topK, *b.hybrid)
+}
+func hybridStreamSources(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, error) {
+	return p.AnswerHybridStreamWithSources(ctx, q, topK, *b.hybrid)
+}
+func hybridStreamCite(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, []InlineCitation, error) {
+	return p.AnswerHybridStreamWithInlineCitations(ctx, q, topK, *b.hybrid)
 }
 
-// @sk-task arch-generics#T2.1: handler maps через generic factory (AC-001)
-var citeHandlers = map[route]func(context.Context, string, int, *SearchBuilder) (rCite, error){
-	routeBasic:        mkCite((*application.Pipeline).AnswerWithCitations),
-	routeRewriter:     wrapCite(rewriterCite),
-	routeSubDecompose: wrapCite(subDecomposeCite),
-	routeHyDE:         mkCite((*application.Pipeline).AnswerHyDEWithCitations),
-	routeMultiQuery: wrapCite(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, RetrievalResult, error) {
-		return p.AnswerMultiWithCitations(ctx, q, b.multiQuery, topK)
-	}),
-	routeHybrid: wrapCite(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, RetrievalResult, error) {
-		return p.AnswerHybridWithCitations(ctx, q, topK, *b.hybrid)
-	}),
-	routeParentIDs: wrapCite(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, RetrievalResult, error) {
-		return p.AnswerWithCitationsWithParentIDs(ctx, q, topK, b.parentIDs)
-	}),
-	routeFilter: wrapCite(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, RetrievalResult, error) {
-		return p.AnswerWithCitationsWithMetadataFilter(ctx, q, topK, b.filter)
-	}),
+// @sk-task arch-issues#T5.1: parentIDs handler functions for all output types (AC-005)
+func parentIDsRetrieve(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (RetrievalResult, error) {
+	return p.QueryWithParentIDs(ctx, q, topK, b.parentIDs)
+}
+func parentIDsAnswer(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, error) {
+	return p.AnswerWithParentIDs(ctx, q, topK, b.parentIDs)
+}
+func parentIDsCite(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, RetrievalResult, error) {
+	return p.AnswerWithCitationsWithParentIDs(ctx, q, topK, b.parentIDs)
+}
+func parentIDsInlineCite(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, RetrievalResult, []InlineCitation, error) {
+	return p.AnswerWithInlineCitationsWithParentIDs(ctx, q, topK, b.parentIDs)
+}
+func parentIDsStream(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, error) {
+	return p.AnswerStreamWithParentIDs(ctx, q, topK, b.parentIDs)
+}
+func parentIDsStreamSources(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, error) {
+	return p.AnswerStreamWithParentIDsWithSources(ctx, q, topK, b.parentIDs)
+}
+func parentIDsStreamCite(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, []InlineCitation, error) {
+	return p.AnswerStreamWithParentIDsWithInlineCitations(ctx, q, topK, b.parentIDs)
 }
 
-// @sk-task arch-generics#T2.1: handler maps через generic factory (AC-001)
-var inlineCiteHandlers = map[route]func(context.Context, string, int, *SearchBuilder) (rInlineCite, error){
-	routeBasic:        mkInlineCite((*application.Pipeline).AnswerWithInlineCitations),
-	routeRewriter:     wrapInlineCite(rewriterInlineCite),
-	routeSubDecompose: wrapInlineCite(subDecomposeInlineCite),
-	routeHyDE:         mkInlineCite((*application.Pipeline).AnswerHyDEWithInlineCitations),
-	routeMultiQuery: wrapInlineCite(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, RetrievalResult, []InlineCitation, error) {
-		return p.AnswerMultiWithInlineCitations(ctx, q, b.multiQuery, topK)
-	}),
-	routeHybrid: wrapInlineCite(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, RetrievalResult, []InlineCitation, error) {
-		return p.AnswerHybridWithInlineCitations(ctx, q, topK, *b.hybrid)
-	}),
-	routeParentIDs: wrapInlineCite(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, RetrievalResult, []InlineCitation, error) {
-		return p.AnswerWithInlineCitationsWithParentIDs(ctx, q, topK, b.parentIDs)
-	}),
-	routeFilter: wrapInlineCite(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, RetrievalResult, []InlineCitation, error) {
-		return p.AnswerWithInlineCitationsWithMetadataFilter(ctx, q, topK, b.filter)
-	}),
+// @sk-task arch-issues#T5.1: filter handler functions for all output types (AC-005)
+func filterRetrieve(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (RetrievalResult, error) {
+	return p.QueryWithMetadataFilter(ctx, q, topK, b.filter)
+}
+func filterAnswer(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, error) {
+	return p.AnswerWithMetadataFilter(ctx, q, topK, b.filter)
+}
+func filterCite(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, RetrievalResult, error) {
+	return p.AnswerWithCitationsWithMetadataFilter(ctx, q, topK, b.filter)
+}
+func filterInlineCite(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, RetrievalResult, []InlineCitation, error) {
+	return p.AnswerWithInlineCitationsWithMetadataFilter(ctx, q, topK, b.filter)
+}
+func filterStream(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, error) {
+	return p.AnswerStreamWithMetadataFilter(ctx, q, topK, b.filter)
+}
+func filterStreamSources(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, error) {
+	return p.AnswerStreamWithMetadataFilterWithSources(ctx, q, topK, b.filter)
+}
+func filterStreamCite(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, []InlineCitation, error) {
+	return p.AnswerStreamWithMetadataFilterWithInlineCitations(ctx, q, topK, b.filter)
 }
 
-// @sk-task arch-generics#T2.1: handler maps через generic factory (AC-001)
-var streamHandlers = map[route]func(context.Context, string, int, *SearchBuilder) (rStream, error){
-	routeBasic:        mkStream((*application.Pipeline).AnswerStream),
-	routeRewriter:     wrapStream(rewriterStream),
-	routeSubDecompose: wrapStream(subDecomposeStream),
-	routeHyDE:         mkStream((*application.Pipeline).AnswerHyDEStream),
-	routeMultiQuery: wrapStream(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, error) {
-		return p.AnswerMultiStream(ctx, q, b.multiQuery, topK)
-	}),
-	routeHybrid: wrapStream(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, error) {
-		return p.AnswerHybridStream(ctx, q, topK, *b.hybrid)
-	}),
-	routeParentIDs: wrapStream(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, error) {
-		return p.AnswerStreamWithParentIDs(ctx, q, topK, b.parentIDs)
-	}),
-	routeFilter: wrapStream(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, error) {
-		return p.AnswerStreamWithMetadataFilter(ctx, q, topK, b.filter)
-	}),
-}
 
-// @sk-task arch-generics#T2.1: handler maps через generic factory (AC-001)
-var streamSourcesHandlers = map[route]func(context.Context, string, int, *SearchBuilder) (rStreamSources, error){
-	routeBasic:        mkStreamSources((*application.Pipeline).AnswerStreamWithSources),
-	routeRewriter:     wrapStreamSources(rewriterStreamSources),
-	routeSubDecompose: wrapStreamSources(subDecomposeStreamSources),
-	routeHyDE:         mkStreamSources((*application.Pipeline).AnswerHyDEStreamWithSources),
-	routeMultiQuery: wrapStreamSources(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, error) {
-		return p.AnswerMultiStreamWithSources(ctx, q, b.multiQuery, topK)
-	}),
-	routeHybrid: wrapStreamSources(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, error) {
-		return p.AnswerHybridStreamWithSources(ctx, q, topK, *b.hybrid)
-	}),
-	routeParentIDs: wrapStreamSources(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, error) {
-		return p.AnswerStreamWithParentIDsWithSources(ctx, q, topK, b.parentIDs)
-	}),
-	routeFilter: wrapStreamSources(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, error) {
-		return p.AnswerStreamWithMetadataFilterWithSources(ctx, q, topK, b.filter)
-	}),
-}
-
-// @sk-task arch-generics#T2.1: handler maps через generic factory (AC-001)
-var streamCiteHandlers = map[route]func(context.Context, string, int, *SearchBuilder) (rStreamCite, error){
-	routeBasic:        mkStreamCite((*application.Pipeline).AnswerStreamWithInlineCitations),
-	routeRewriter:     wrapStreamCite(rewriterStreamCite),
-	routeSubDecompose: wrapStreamCite(subDecomposeStreamCite),
-	routeHyDE:         mkStreamCite((*application.Pipeline).AnswerHyDEStreamWithInlineCitations),
-	routeMultiQuery: wrapStreamCite(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, []InlineCitation, error) {
-		return p.AnswerMultiStreamWithInlineCitations(ctx, q, b.multiQuery, topK)
-	}),
-	routeHybrid: wrapStreamCite(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, []InlineCitation, error) {
-		return p.AnswerHybridStreamWithInlineCitations(ctx, q, topK, *b.hybrid)
-	}),
-	routeParentIDs: wrapStreamCite(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, []InlineCitation, error) {
-		return p.AnswerStreamWithParentIDsWithInlineCitations(ctx, q, topK, b.parentIDs)
-	}),
-	routeFilter: wrapStreamCite(func(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, []InlineCitation, error) {
-		return p.AnswerStreamWithMetadataFilterWithInlineCitations(ctx, q, topK, b.filter)
-	}),
-}
 
 // @sk-task query-rewriting#T2.2: rewriter handler helpers (AC-002, AC-005, AC-007)
 // @sk-task pii-guardrails#T3.2: PII redaction в RewrittenQuery (AC-007, RQ-007)
@@ -360,6 +319,99 @@ func rewriterStreamCite(p *application.Pipeline, ctx context.Context, q string, 
 		return p.AnswerStreamWithInlineCitations(ctx, queries[0], topK)
 	}
 	return p.AnswerWithQueriesStreamWithInlineCitations(ctx, q, queries, topK)
+}
+
+// @sk-task arch-issues#T4.4: tool route handler functions (AC-004)
+func buildToolsUserMessage(result RetrievalResult, question string, maxChars, maxChunks int) string {
+	var ctxBuf strings.Builder
+	ctxBuf.WriteString("Контекст:\n")
+	wrote := 0
+	for _, rc := range result.Chunks {
+		if maxChunks > 0 && wrote >= maxChunks {
+			break
+		}
+		ctxBuf.WriteString(rc.Chunk.Content)
+		ctxBuf.WriteString("\n")
+		wrote++
+	}
+	context := ctxBuf.String()
+	if maxChars > 0 && utf8.RuneCountInString(context) > maxChars {
+		runes := []rune(context)
+		context = string(runes[:maxChars])
+	}
+	var buf strings.Builder
+	buf.WriteString(context)
+	if !strings.HasSuffix(context, "\n") {
+		buf.WriteString("\n\nВопрос:\n")
+	} else {
+		buf.WriteString("\nВопрос:\n")
+	}
+	buf.WriteString(question)
+	return buf.String()
+}
+
+func runToolsAnswer(p *application.Pipeline, ctx context.Context, q string, result RetrievalResult, b *SearchBuilder) (string, error) {
+	if len(b.tools) == 0 || b.toolHandler == nil {
+		userMsg := buildToolsUserMessage(result, q, p.MaxContextChars(), p.MaxContextChunks())
+		return p.ExecuteWithTools(ctx, p.SystemPrompt(), userMsg, nil, nil)
+	}
+	userMsg := buildToolsUserMessage(result, q, p.MaxContextChars(), p.MaxContextChunks())
+	return p.ExecuteWithTools(ctx, p.SystemPrompt(), userMsg, b.tools, b.toolHandler)
+}
+
+// @sk-task arch-issues#T4.4: toolsRetrieve handler (AC-004)
+func toolsRetrieve(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (RetrievalResult, error) {
+	return p.Query(ctx, q, topK)
+}
+
+// @sk-task arch-issues#T4.4: toolsAnswer handler (AC-004)
+func toolsAnswer(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, error) {
+	result, err := p.Query(ctx, q, topK)
+	if err != nil {
+		return "", err
+	}
+	return runToolsAnswer(p, ctx, q, result, b)
+}
+
+// @sk-task arch-issues#T4.4: toolsCite handler (AC-004)
+func toolsCite(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, RetrievalResult, error) {
+	result, err := p.Query(ctx, q, topK)
+	if err != nil {
+		return "", RetrievalResult{}, err
+	}
+	answer, err := runToolsAnswer(p, ctx, q, result, b)
+	if err != nil {
+		return "", RetrievalResult{}, err
+	}
+	return answer, result, nil
+}
+
+// @sk-task arch-issues#T4.4: toolsInlineCite handler (AC-004)
+func toolsInlineCite(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (string, RetrievalResult, []InlineCitation, error) {
+	result, err := p.Query(ctx, q, topK)
+	if err != nil {
+		return "", RetrievalResult{}, nil, err
+	}
+	answer, err := runToolsAnswer(p, ctx, q, result, b)
+	if err != nil {
+		return "", RetrievalResult{}, nil, err
+	}
+	return answer, result, nil, nil
+}
+
+// @sk-task arch-issues#T4.4: toolsStream handler — not supported (AC-004)
+func toolsStream(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, error) {
+	return nil, ErrToolsNotSupportedInStream
+}
+
+// @sk-task arch-issues#T4.4: toolsStreamSources handler — not supported (AC-004)
+func toolsStreamSources(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, error) {
+	return nil, RetrievalResult{}, ErrToolsNotSupportedInStream
+}
+
+// @sk-task arch-issues#T4.4: toolsStreamCite handler — not supported (AC-004)
+func toolsStreamCite(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, []InlineCitation, error) {
+	return nil, RetrievalResult{}, nil, ErrToolsNotSupportedInStream
 }
 
 var (

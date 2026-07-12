@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -315,4 +316,28 @@ type IndexBatchError struct {
 	DocumentID string
 	// Error — оригинальная ошибка (embed, chunking или upsert).
 	Error error
+}
+
+// @sk-task arch-issues#T1.1: ToolDefinition для tool calling (AC-003, AC-004)
+// ToolDefinition описывает инструмент для LLM tool calling.
+type ToolDefinition struct {
+	Name        string          `json:"name"`
+	Description string          `json:"description"`
+	Parameters  json.RawMessage `json:"parameters"`
+}
+
+// @sk-task arch-issues#T1.1: ToolCall для tool calling (AC-003, AC-004)
+// ToolCall представляет вызов инструмента от LLM.
+type ToolCall struct {
+	ID        string          `json:"id"`
+	Name      string          `json:"name"`
+	Arguments json.RawMessage `json:"arguments"`
+}
+
+// @sk-task arch-issues#T1.1: ToolResult для tool calling (AC-003, AC-004)
+// ToolResult представляет результат выполнения инструмента.
+type ToolResult struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Result string `json:"result"`
 }

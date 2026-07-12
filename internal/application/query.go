@@ -17,6 +17,7 @@ const hydeSystemPrompt = "You are a helpful assistant. Write a short factual pas
 // @sk-task hierarchical-indices#T3.3: parent context attach in QueryHyDE (AC-002)
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // Сначала LLM генерирует гипотетический ответ на вопрос, затем ищем по его embedding.
+// @sk-task arch-issues#T2.1: PII redaction в QueryHyDE (AC-001)
 func (p *Pipeline) QueryHyDE(ctx context.Context, question string, topK int) (domain.RetrievalResult, error) {
 	if ctx == nil {
 		panic("nil context")
@@ -24,6 +25,7 @@ func (p *Pipeline) QueryHyDE(ctx context.Context, question string, topK int) (do
 	if err := ctx.Err(); err != nil {
 		return domain.RetrievalResult{}, err
 	}
+	question = p.redact(question)
 
 	var hypothetical string
 	_, err := p.execWithStageMiddleware(ctx, domain.HookStageGenerate, "QueryHyDE", domain.StageData{Query: question}, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
@@ -75,6 +77,7 @@ func (p *Pipeline) QueryHyDE(ctx context.Context, question string, topK int) (do
 	result = p.maybeDedup(result)
 	result = p.maybeAttachParentContent(ctx, result)
 	result.QueryText = question
+	result = p.RedactRetrievalResult(result)
 	result, err = p.maybeRerank(ctx, question, result)
 	if err != nil {
 		return domain.RetrievalResult{}, err
@@ -89,6 +92,7 @@ const multiQuerySystemPrompt = "You are a helpful assistant. Generate alternativ
 // @sk-task hierarchical-indices#T3.3: parent context attach in QueryMulti (AC-002)
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // выполняет поиск по каждой, объединяет результаты через Reciprocal Rank Fusion.
+// @sk-task arch-issues#T2.1: PII redaction в QueryMulti (AC-001)
 func (p *Pipeline) QueryMulti(ctx context.Context, question string, n, topK int) (domain.RetrievalResult, error) {
 	if ctx == nil {
 		panic("nil context")
@@ -96,6 +100,7 @@ func (p *Pipeline) QueryMulti(ctx context.Context, question string, n, topK int)
 	if err := ctx.Err(); err != nil {
 		return domain.RetrievalResult{}, err
 	}
+	question = p.redact(question)
 	if n <= 0 {
 		n = 3
 	}
@@ -162,6 +167,7 @@ func (p *Pipeline) QueryMulti(ctx context.Context, question string, n, topK int)
 	merged = p.maybeDedup(merged)
 	merged = p.maybeAttachParentContent(ctx, merged)
 	merged.QueryText = question
+	merged = p.RedactRetrievalResult(merged)
 
 	// @sk-task reranker-cross-encoder#T3.2: QueryMulti integration — BatchReranker type-assert + fallback (AC-009)
 	if p.reranker != nil {
@@ -176,18 +182,24 @@ func (p *Pipeline) QueryMulti(ctx context.Context, question string, n, topK int)
 
 // Query выполняет поиск по вопросу и возвращает RetrievalResult.
 //
+// @sk-task arch-issues#T2.1: PII redaction в Query (AC-001, AC-002)
 // @sk-task hierarchical-indices#T3.3: parent context attach in Query (AC-002)
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
+// @sk-task arch-issues#T3.1: closed guard в Query (AC-008)
 func (p *Pipeline) Query(ctx context.Context, question string, topK int) (domain.RetrievalResult, error) {
 	if ctx == nil {
 		panic("nil context")
+	}
+	if err := p.checkClosed(); err != nil {
+		return domain.RetrievalResult{}, err
 	}
 	if err := ctx.Err(); err != nil {
 		return domain.RetrievalResult{}, err
 	}
 
 	question = strings.TrimSpace(question)
+	question = p.redact(question)
 	if question == "" {
 		return domain.RetrievalResult{}, fmt.Errorf("%w: question is empty", domain.ErrEmptyQueryText)
 	}
@@ -229,6 +241,7 @@ func (p *Pipeline) Query(ctx context.Context, question string, topK int) (domain
 	result = p.maybeDedup(result)
 	result = p.maybeAttachParentContent(ctx, result)
 	result.QueryText = question
+	result = p.RedactRetrievalResult(result)
 
 	result, err = p.maybeRerank(ctx, question, result)
 	if err != nil {
@@ -238,6 +251,8 @@ func (p *Pipeline) Query(ctx context.Context, question string, topK int) (domain
 	return result, nil
 }
 
+// @sk-task arch-issues#T2.1: PII redaction в QueryWithParentIDs (AC-001)
+//
 // QueryWithParentIDs выполняет поиск по вопросу с фильтром по ParentIDs.
 //
 // Если parentIDs пустой — эквивалентно Query.
@@ -257,6 +272,7 @@ func (p *Pipeline) QueryWithParentIDs(ctx context.Context, question string, topK
 	}
 
 	question = strings.TrimSpace(question)
+	question = p.redact(question)
 	if question == "" {
 		return domain.RetrievalResult{}, fmt.Errorf("%w: question is empty", domain.ErrEmptyQueryText)
 	}
@@ -302,6 +318,7 @@ func (p *Pipeline) QueryWithParentIDs(ctx context.Context, question string, topK
 	}
 	result = p.maybeDedup(result)
 	result.QueryText = question
+	result = p.RedactRetrievalResult(result)
 
 	result, err = p.maybeRerank(ctx, question, result)
 	if err != nil {
@@ -311,6 +328,8 @@ func (p *Pipeline) QueryWithParentIDs(ctx context.Context, question string, topK
 	return result, nil
 }
 
+// @sk-task arch-issues#T2.1: PII redaction в QueryWithMetadataFilter (AC-001)
+//
 // QueryWithMetadataFilter выполняет поиск по вопросу с фильтром по метаданным документа.
 //
 // Если filter.Fields пустой — эквивалентно Query.
@@ -333,6 +352,7 @@ func (p *Pipeline) QueryWithMetadataFilter(ctx context.Context, question string,
 	}
 
 	question = strings.TrimSpace(question)
+	question = p.redact(question)
 	if question == "" {
 		return domain.RetrievalResult{}, fmt.Errorf("%w: question is empty", domain.ErrEmptyQueryText)
 	}
@@ -379,6 +399,7 @@ func (p *Pipeline) QueryWithMetadataFilter(ctx context.Context, question string,
 	result = p.maybeDedup(result)
 	result = p.maybeAttachParentContent(ctx, result)
 	result.QueryText = question
+	result = p.RedactRetrievalResult(result)
 
 	result, err = p.maybeRerank(ctx, question, result)
 	if err != nil {
@@ -388,6 +409,8 @@ func (p *Pipeline) QueryWithMetadataFilter(ctx context.Context, question string,
 	return result, nil
 }
 
+// @sk-task arch-issues#T2.1: PII redaction в QueryWithQueries (AC-001)
+//
 // @sk-task query-rewriting#T2.2: QueryWithQueries для pre-generated переформулировок (AC-003)
 // @sk-task hierarchical-indices#T3.3: parent context attach in QueryWithQueries (AC-002)
 // QueryWithQueries выполняет multi-query retrieval из уже готового списка запросов.
@@ -409,6 +432,7 @@ func (p *Pipeline) QueryWithQueries(ctx context.Context, queries []string, topK 
 			return domain.RetrievalResult{}, err
 		}
 		q = strings.TrimSpace(q)
+		q = p.redact(q)
 		if q == "" {
 			continue
 		}
@@ -453,6 +477,7 @@ func (p *Pipeline) QueryWithQueries(ctx context.Context, queries []string, topK 
 	merged = p.maybeDedup(merged)
 	merged = p.maybeAttachParentContent(ctx, merged)
 	merged.QueryText = queries[0]
+	merged = p.RedactRetrievalResult(merged)
 
 	if p.reranker != nil {
 		var err error
@@ -476,6 +501,7 @@ var ErrHybridNotSupported = errors.New("vector store does not support hybrid sea
 // @sk-task hierarchical-indices#T3.3: parent context attach in QueryHybrid (AC-002)
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
+// @sk-task arch-issues#T2.1: PII redaction в QueryHybrid (AC-001)
 func (p *Pipeline) QueryHybrid(ctx context.Context, question string, topK int, config domain.HybridConfig) (domain.RetrievalResult, error) {
 	if ctx == nil {
 		panic("nil context")
@@ -485,6 +511,7 @@ func (p *Pipeline) QueryHybrid(ctx context.Context, question string, topK int, c
 	}
 
 	question = strings.TrimSpace(question)
+	question = p.redact(question)
 	if question == "" {
 		return domain.RetrievalResult{}, fmt.Errorf("%w: question is empty", domain.ErrEmptyQueryText)
 	}
@@ -535,6 +562,7 @@ func (p *Pipeline) QueryHybrid(ctx context.Context, question string, topK int, c
 	result = p.maybeDedup(result)
 	result = p.maybeAttachParentContent(ctx, result)
 	result.QueryText = question
+	result = p.RedactRetrievalResult(result)
 
 	result, err = p.maybeRerank(ctx, question, result)
 	if err != nil {

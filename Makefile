@@ -1,4 +1,4 @@
-.PHONY: help test test-cover lint lint-fix fmt fmt-check vet build clean deps tidy
+.PHONY: help test test-cover lint lint-fix fmt fmt-check vet build clean deps tidy generate-router
 
 # Переменные
 GO := go
@@ -70,6 +70,10 @@ deps:
 # Очистить go.mod и go.sum
 tidy:
 	$(GO) mod tidy
+
+# Сгенерировать handler-маппинги роутера
+generate-router:
+	$(GO) generate ./pkg/draftrag/...
 
 # Запустить все проверки
 all: fmt-check vet lint test

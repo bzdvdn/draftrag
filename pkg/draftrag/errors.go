@@ -64,6 +64,9 @@ var (
 
 	// @sk-task sub-query-decomposition#T1.1: sentinel для SubDecompose без decomposer (AC-001, AC-006)
 	ErrSubDecomposeNotSupported = errors.New("sub-query decomposition not supported: no QueryDecomposer configured")
+
+	// @sk-task arch-issues#T1.2: sentinel для streaming c tools (AC-004)
+	ErrToolsNotSupportedInStream = errors.New("tool calling is not supported in streaming mode")
 )
 
 // @sk-task arch-generics#T1.1: nil context guard helper (AC-002)

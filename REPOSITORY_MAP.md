@@ -63,7 +63,9 @@ Compact code-only navigation index for the draftRAG Go library.
 - `internal/infrastructure/vectorstore/hybrid.go` — `HybridConfig` + `HybridSearch` plumbing
 - `pkg/draftrag/draftrag.go` — `Pipeline`, `PipelineOptions` (IndexConcurrency, StreamBufferSize, IndexBatchRateLimitPerWorker, HybridConfig, QueryRewriter, PIIDetector, etc.), `NewPipeline*` constructors, `mapAppError`; re-export `TokenUsage`, `ModelPricing`, `CostSnapshot`, `UsageAwareLLMProvider`, `UsageAwareStreamingLLMProvider`, `Diff`, `QueryRewriter`, `RewrittenQuery`, `QueryHistory`
 - `pkg/draftrag/costtracker.go` — `CostTracker`, `NewCostTracker` (публичная обёртка LLMProvider с подсчётом токенов/стоимости)
-- `pkg/draftrag/search.go` + `search_routing.go` — public `SearchBuilder` (Retrieve/Answer/Cite/InlineCite/Stream/StreamSources/StreamCite) with `selectRetrieval`/`selectGeneration`; `Rewriter`/`History` methods + `routeRewriter` handlers
+- `pkg/draftrag/routergen/routes.go` + `main.go` — route table definition and code generator (produces `search_routes_gen.go` via `go generate`); `pkg/draftrag/gen.go` — `//go:generate` directive
+- `pkg/draftrag/search.go` + `search_routing.go` — public `SearchBuilder` (Retrieve/Answer/Cite/InlineCite/Stream/StreamSources/StreamCite) with `selectRetrieval`/`selectGeneration`; `Rewriter`/`History`/`Tools`/`ToolHandler` methods + route handler functions (rewriter, subDecompose, tools, multiQuery, hybrid, parentIDs, filter)
+- `pkg/draftrag/search_routes_gen.go` — auto-generated handler maps (7 map literals, one per output type); regenerated via `go generate ./pkg/draftrag/...`
 - `pkg/draftrag/errors.go` — re-exported public sentinels; `ErrUnknownConfigKey`, `ErrMissingRequiredField`
 - `pkg/draftrag/pii.go` — type aliases `PIIDetector`, `PIICategories`; `NewDefaultPIIDetector`, `NewCompositePIIDetector` constructors
 - `pkg/draftrag/config.go` — `Config` struct + all sub-config types; `LoadConfig`, `LoadConfigFromEnv`, `NewPipelineFromConfig`, `ExternalDeps`
@@ -72,7 +74,7 @@ Compact code-only navigation index for the draftRAG Go library.
 - `pkg/draftrag/eval/` — evaluation harness (`harness.go`, `metrics.go`, `models.go`)
 - `.github/workflows/ci.yml` — CI pipeline (test, lint, vet)
 - `.github/workflows/examples-smoke.yml` — per-backend smoke CI (compose-validate + build + 6× mock-run matrix)
-- `Makefile` — `test`, `test-cover`, `lint`, `lint-fix`, `fmt`, `fmt-check`, `vet`, `build`, `tidy`
+- `Makefile` — `test`, `test-cover`, `lint`, `lint-fix`, `fmt`, `fmt-check`, `vet`, `build`, `tidy`, `generate-router`
 
 ## Where To Edit
 

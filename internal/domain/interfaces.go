@@ -106,6 +106,19 @@ type StreamingLLMProvider interface {
 	GenerateStream(ctx context.Context, systemPrompt, userMessage string) (<-chan string, error)
 }
 
+// @sk-task arch-issues#T4.1: ToolCallingLLMProvider — optional capability для LLMProvider (AC-003)
+// ToolCallingLLMProvider — опциональная capability интерфейса LLMProvider.
+//
+// Реализации, поддерживающие tool calling (function calling), должны
+// реализовать этот интерфейс дополнительно (без ломки существующего контракта LLMProvider).
+type ToolCallingLLMProvider interface {
+	LLMProvider
+
+	// GenerateWithTools генерирует ответ с возможностью вызова инструментов.
+	// Возвращает текст ответа и список вызовов инструментов (если LLM решила их вызвать).
+	GenerateWithTools(ctx context.Context, systemPrompt, userMessage string, tools []ToolDefinition) (string, []ToolCall, error)
+}
+
 // @sk-task health-check-interface#T1.1: Добавлен Health(ctx) в Embedder (AC-002, RQ-001)
 // Embedder определяет интерфейс для преобразования текста в векторное представление.
 type Embedder interface {

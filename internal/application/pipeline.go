@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/bzdvdn/draftrag/internal/domain"
@@ -20,6 +22,9 @@ var (
 
 	// @sk-task sub-query-decomposition#T3.3: sentinel for nil decomposer guard (AC-005, AC-006)
 	ErrSubDecomposeNotSupported = errors.New("sub-query decomposition not supported: no QueryDecomposer configured")
+
+	// @sk-task arch-issues#T1.2: sentinel для Pipeline.Close (AC-008)
+	ErrPipelineClosed = errors.New("pipeline is closed")
 )
 
 // PipelineOptions configures a Pipeline behaviour.
@@ -49,6 +54,7 @@ type PipelineOptions struct {
 
 // Pipeline is the core RAG pipeline coordinating store, LLM, and embedder.
 //
+// @sk-task arch-issues#T3.1: Health + Close (AC-007, AC-008)
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task pii-guardrails#T2.1: Pipeline.PIIDetector (RQ-001, RQ-002)
 type Pipeline struct {
@@ -72,6 +78,8 @@ type Pipeline struct {
 	piidetector                  domain.PIIDetector
 	parentContextEnabled         bool
 	middleware                   []domain.Middleware
+	closeOnce                    sync.Once
+	closed                       atomic.Bool
 }
 
 // NewPipeline creates a Pipeline with required dependencies.
@@ -170,27 +178,49 @@ func NewPipelineWithChunker(
 	return NewPipelineWithConfig(store, llm, embedder, PipelineOptions{Chunker: chunker})
 }
 
-// @sk-task hierarchical-indices#T3.1: parent save in processDocumentOp (AC-001, RQ-001, DEC-003)
-//
-// @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
-// @sk-task api-consistency-pass#T3.1: shared doc-processor между Index и IndexBatch (DEC-004, RQ-004, AC-006)
+// @sk-task arch-issues#T3.1: Health() fan-out с таймаутом 1s (AC-007)
+func (p *Pipeline) Health(ctx context.Context) error {
+	if err := p.checkClosed(); err != nil {
+		return err
+	}
+	hCtx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+
+	var errs []error
+	if err := p.store.Health(hCtx); err != nil {
+		errs = append(errs, fmt.Errorf("store: %w", err))
+	}
+	if err := p.llm.Health(hCtx); err != nil {
+		errs = append(errs, fmt.Errorf("llm: %w", err))
+	}
+	if err := p.embedder.Health(hCtx); err != nil {
+		errs = append(errs, fmt.Errorf("embedder: %w", err))
+	}
+	return errors.Join(errs...)
+}
+
+// @sk-task arch-issues#T3.1: Close() с sync.Once (AC-008)
+func (p *Pipeline) Close() error {
+	p.closeOnce.Do(func() {
+		p.closed.Store(true)
+	})
+	return nil
+}
+
+// @sk-task arch-issues#T3.1: guard-проверка closed (AC-008)
+func (p *Pipeline) checkClosed() error {
+	if p.closed.Load() {
+		return ErrPipelineClosed
+	}
+	return nil
+}
+
+// @sk-task arch-issues#T2.1: PII redaction в processDocumentOp (AC-001, AC-002)
 //
 // processDocumentOp — общий путь индексации одного документа: optional chunking
-// → embedding → upsert всех чанков. operationName используется в hook-вызовах
-// и метриках, чтобы различать вызовы из Index vs IndexBatch.
-//
-// Заменяет processDocumentForBatch из T1.2: единый helper для обоих entry-points
-// (Index и IndexBatch) вместо двух почти-копий.
-//
-// T3.2: делегирует chunking+embedding в produceChunks, оставляя здесь только
-// store.Upsert каждого чанка. Это позволяет updateDocumentAtomic повторно
-// использовать chunk+embed (через produceChunks) без двойной логики.
-//
-// T3.1: после upsert чанков сохраняет parent-документ в ParentDocumentStore,
-// если parentContextEnabled=true и store поддерживает capability.
-// Parent embedding вычисляется из doc.Content (DEC-003); при отсутствии chunker'а
-// переиспользует embedding единственного чанка во избежание дублирования вызова.
+// → embedding → upsert всех чанков.
 func (p *Pipeline) processDocumentOp(ctx context.Context, operationName string, doc domain.Document) error {
+	doc.Content = p.redact(doc.Content)
 	chunks, err := p.produceChunks(ctx, operationName, doc)
 	if err != nil {
 		return err
@@ -302,6 +332,72 @@ func (p *Pipeline) produceChunks(ctx context.Context, operationName string, doc 
 // При отсутствии chunker'а возвращает nil — вызывающий код должен использовать
 // embedding единственного чанка. При наличии chunker'а вызывает embedder
 // для полного текста документа.
+// @sk-task arch-issues#T4.4: SystemPrompt accessor для tool route handlers (AC-004)
+func (p *Pipeline) SystemPrompt() string {
+	return p.systemPrompt
+}
+
+// @sk-task arch-issues#T4.4: MaxContextChars accessor (AC-004)
+func (p *Pipeline) MaxContextChars() int {
+	return p.maxContextChars
+}
+
+// @sk-task arch-issues#T4.4: MaxContextChunks accessor (AC-004)
+func (p *Pipeline) MaxContextChunks() int {
+	return p.maxContextChunks
+}
+
+// @sk-task arch-issues#T2.1: PII redaction helper (AC-001, AC-002)
+// redact применяет PIIDetector к строке, если детектор сконфигурирован.
+func (p *Pipeline) redact(s string) string {
+	if p.piidetector == nil {
+		return s
+	}
+	return p.piidetector.Detect(s)
+}
+
+// @sk-task arch-issues#T2.2: экспортирован для pkg/draftrag делегирования (AC-001, AC-002)
+func (p *Pipeline) RedactRetrievalResult(r domain.RetrievalResult) domain.RetrievalResult {
+	if p.piidetector == nil {
+		return r
+	}
+	for i := range r.Chunks {
+		r.Chunks[i].Chunk.Content = p.piidetector.Detect(r.Chunks[i].Chunk.Content)
+	}
+	return r
+}
+
+// @sk-task arch-issues#T4.2: tool execution loop (AC-003)
+func (p *Pipeline) ExecuteWithTools(ctx context.Context, systemPrompt, userMessage string, tools []domain.ToolDefinition, execTool func(domain.ToolCall) domain.ToolResult) (string, error) {
+	tllm, ok := p.llm.(domain.ToolCallingLLMProvider)
+	if !ok || len(tools) == 0 {
+		return p.llm.Generate(ctx, systemPrompt, userMessage)
+	}
+
+	msg := userMessage
+	for i := 0; i < 10; i++ {
+		response, calls, err := tllm.GenerateWithTools(ctx, systemPrompt, msg, tools)
+		if err != nil {
+			return "", err
+		}
+		if len(calls) == 0 {
+			return response, nil
+		}
+		results := make([]domain.ToolResult, 0, len(calls))
+		for _, call := range calls {
+			results = append(results, execTool(call))
+		}
+		var b strings.Builder
+		b.WriteString(msg)
+		b.WriteString("\n\n--- Tool Results ---\n")
+		for _, r := range results {
+			b.WriteString(fmt.Sprintf("[Tool: %s | ID: %s]\n%s\n", r.Name, r.ID, r.Result))
+		}
+		msg = b.String()
+	}
+	return "", fmt.Errorf("tool execution exceeded max iterations")
+}
+
 func (p *Pipeline) parentEmbeddingOrEmbed(ctx context.Context, operationName string, doc domain.Document) []float64 {
 	if p.chunker == nil {
 		return nil
@@ -331,9 +427,13 @@ func (p *Pipeline) parentEmbeddingOrEmbed(ctx context.Context, operationName str
 //
 // Параллелизм: реализовано через processDocsConcurrently (T1.2). На каждую
 // документную goroutine — отдельный семафор слот и общий rate-limiter.
+// @sk-task arch-issues#T3.1: closed guard в Index (AC-008)
 func (p *Pipeline) Index(ctx context.Context, docs []domain.Document) error {
 	if ctx == nil {
 		panic("nil context")
+	}
+	if err := p.checkClosed(); err != nil {
+		return err
 	}
 	if err := ctx.Err(); err != nil {
 		return err
@@ -428,9 +528,14 @@ func (p *Pipeline) DeleteDocument(ctx context.Context, docID string) error {
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task api-consistency-pass#T3.2: делегирует в updateDocumentAtomic (DEC-005, RQ-005, AC-008, AC-009)
 //
+// @sk-task arch-issues#T3.1: closed guard в UpdateDocument (AC-008)
+//
 // UpdateDocument выполняет атомарное обновление документа через
 // updateDocumentAtomic, который выбирает transactional или best-effort путь
 // в зависимости от capability underlying store.
 func (p *Pipeline) UpdateDocument(ctx context.Context, doc domain.Document) error {
+	if err := p.checkClosed(); err != nil {
+		return err
+	}
 	return p.updateDocumentAtomic(ctx, doc)
 }

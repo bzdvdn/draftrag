@@ -32,19 +32,25 @@ func (p *Pipeline) generateAnswer(ctx context.Context, question string, result d
 
 // Answer выполняет полный RAG-цикл: retrieval (Embed+Search) → prompt → LLM.Generate.
 //
+// @sk-task arch-issues#T2.1: PII redaction в Answer (AC-001, AC-002)
 // @sk-task hierarchical-indices#T3.3: parent context attach in Answer (AC-002)
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
 // @sk-task middleware-chain#T3.2: userMessage from d.Query, return stageResult.Answer (AC-004)
+// @sk-task arch-issues#T3.1: closed guard в Answer (AC-008)
 func (p *Pipeline) Answer(ctx context.Context, question string, topK int) (string, error) {
 	if ctx == nil {
 		panic("nil context")
+	}
+	if err := p.checkClosed(); err != nil {
+		return "", err
 	}
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
 
 	question = strings.TrimSpace(question)
+	question = p.redact(question)
 	if question == "" {
 		return "", fmt.Errorf("%w: question is empty", domain.ErrEmptyQueryText)
 	}
@@ -90,6 +96,8 @@ func (p *Pipeline) Answer(ctx context.Context, question string, topK int) (strin
 	}
 	result = p.maybeDedup(result)
 	result = p.maybeAttachParentContent(ctx, result)
+	result.QueryText = question
+	result = p.RedactRetrievalResult(result)
 
 	if p.mmrEnabled {
 		selected, err := selectMMR(ctx, embedding, result.Chunks, topK, p.mmrLambda)
@@ -140,6 +148,7 @@ func (p *Pipeline) AnswerWithParentIDs(ctx context.Context, question string, top
 // @sk-task hierarchical-indices#T3.3: parent context attach in AnswerWithMetadataFilter (AC-002)
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
+// @sk-task arch-issues#T2.1: PII redaction в AnswerWithMetadataFilter (AC-001)
 func (p *Pipeline) AnswerWithMetadataFilter(ctx context.Context, question string, topK int, filter domain.MetadataFilter) (string, error) {
 	if len(filter.Fields) == 0 {
 		return p.Answer(ctx, question, topK)
@@ -153,6 +162,7 @@ func (p *Pipeline) AnswerWithMetadataFilter(ctx context.Context, question string
 	}
 
 	question = strings.TrimSpace(question)
+	question = p.redact(question)
 	if question == "" {
 		return "", fmt.Errorf("%w: question is empty", domain.ErrEmptyQueryText)
 	}
@@ -203,6 +213,7 @@ func (p *Pipeline) AnswerWithMetadataFilter(ctx context.Context, question string
 	}
 	result = p.maybeDedup(result)
 	result = p.maybeAttachParentContent(ctx, result)
+	result = p.RedactRetrievalResult(result)
 
 	if p.mmrEnabled {
 		selected, err := selectMMR(ctx, embedding, result.Chunks, topK, p.mmrLambda)
@@ -281,6 +292,7 @@ func (p *Pipeline) AnswerHybrid(ctx context.Context, question string, topK int, 
 // @sk-task hierarchical-indices#T3.3: parent context attach in AnswerWithInlineCitations (AC-002)
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
+// @sk-task arch-issues#T2.1: PII redaction в AnswerWithInlineCitations (AC-001)
 func (p *Pipeline) AnswerWithInlineCitations(
 	ctx context.Context,
 	question string,
@@ -294,6 +306,7 @@ func (p *Pipeline) AnswerWithInlineCitations(
 	}
 
 	question = strings.TrimSpace(question)
+	question = p.redact(question)
 	if question == "" {
 		return "", domain.RetrievalResult{}, nil, fmt.Errorf("%w: question is empty", domain.ErrEmptyQueryText)
 	}
@@ -379,6 +392,7 @@ func (p *Pipeline) AnswerWithInlineCitations(
 // @sk-task hierarchical-indices#T3.3: parent context attach in AnswerWithCitations (AC-002)
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
+// @sk-task arch-issues#T2.1: PII redaction в AnswerWithCitations (AC-001)
 func (p *Pipeline) AnswerWithCitations(ctx context.Context, question string, topK int) (string, domain.RetrievalResult, error) {
 	if ctx == nil {
 		panic("nil context")
@@ -388,6 +402,7 @@ func (p *Pipeline) AnswerWithCitations(ctx context.Context, question string, top
 	}
 
 	question = strings.TrimSpace(question)
+	question = p.redact(question)
 	if question == "" {
 		return "", domain.RetrievalResult{}, fmt.Errorf("%w: question is empty", domain.ErrEmptyQueryText)
 	}
@@ -434,6 +449,7 @@ func (p *Pipeline) AnswerWithCitations(ctx context.Context, question string, top
 	result = p.maybeDedup(result)
 	result = p.maybeAttachParentContent(ctx, result)
 	result.QueryText = question
+	result = p.RedactRetrievalResult(result)
 
 	if p.mmrEnabled {
 		selected, err := selectMMR(ctx, embedding, result.Chunks, topK, p.mmrLambda)
@@ -470,6 +486,7 @@ func (p *Pipeline) AnswerWithCitations(ctx context.Context, question string, top
 // @sk-task hierarchical-indices#T3.3: parent context attach in AnswerWithCitationsWithParentIDs (AC-002)
 // @sk-task hardening-2026q2#T1.1: Разделить pipeline.go на модули (AC-001, AC-003)
 // @sk-task api-consistency-pass#T2.1: wrapped domain.ErrEmptyQueryText/ErrInvalidQueryTopK в validation (RQ-003, AC-003)
+// @sk-task arch-issues#T2.1: PII redaction в AnswerWithCitationsWithParentIDs (AC-001)
 func (p *Pipeline) AnswerWithCitationsWithParentIDs(
 	ctx context.Context,
 	question string,
@@ -488,6 +505,7 @@ func (p *Pipeline) AnswerWithCitationsWithParentIDs(
 	}
 
 	question = strings.TrimSpace(question)
+	question = p.redact(question)
 	if question == "" {
 		return "", domain.RetrievalResult{}, fmt.Errorf("%w: question is empty", domain.ErrEmptyQueryText)
 	}
@@ -539,6 +557,7 @@ func (p *Pipeline) AnswerWithCitationsWithParentIDs(
 	result = p.maybeDedup(result)
 	result = p.maybeAttachParentContent(ctx, result)
 	result.QueryText = question
+	result = p.RedactRetrievalResult(result)
 
 	if p.mmrEnabled {
 		selected, err := selectMMR(ctx, embedding, result.Chunks, topK, p.mmrLambda)

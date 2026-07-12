@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -20,23 +21,30 @@ func (e recordingEmbedder) Embed(_ context.Context, text string) ([]float64, err
 }
 
 type recordingStore struct {
+	mu     sync.Mutex
 	calls  *[]string
 	result domain.RetrievalResult
 }
 
-func (s recordingStore) Health(_ context.Context) error { return nil }
-func (s recordingStore) Upsert(_ context.Context, _ domain.Chunk) error {
+func (s *recordingStore) Health(_ context.Context) error { return nil }
+func (s *recordingStore) Upsert(_ context.Context, _ domain.Chunk) error {
+	s.mu.Lock()
 	*s.calls = append(*s.calls, "upsert")
+	s.mu.Unlock()
 	return nil
 }
 
-func (s recordingStore) Delete(_ context.Context, _ string) error {
+func (s *recordingStore) Delete(_ context.Context, _ string) error {
+	s.mu.Lock()
 	*s.calls = append(*s.calls, "delete")
+	s.mu.Unlock()
 	return nil
 }
 
-func (s recordingStore) Search(_ context.Context, _ []float64, _ int) (domain.RetrievalResult, error) {
+func (s *recordingStore) Search(_ context.Context, _ []float64, _ int) (domain.RetrievalResult, error) {
+	s.mu.Lock()
 	*s.calls = append(*s.calls, "search")
+	s.mu.Unlock()
 	return s.result, nil
 }
 
@@ -59,7 +67,7 @@ func TestPipeline_Answer_CallsOrderAndReturnsAnswer(t *testing.T) {
 	llm := &recordingLLM{calls: &calls}
 
 	p, err := NewPipeline(
-		recordingStore{
+		&recordingStore{
 			calls: &calls,
 			result: domain.RetrievalResult{
 				Chunks: []domain.RetrievedChunk{
@@ -99,7 +107,7 @@ func TestPipeline_Answer_PromptContractV1(t *testing.T) {
 	llm := &recordingLLM{calls: &calls}
 
 	p, err := NewPipeline(
-		recordingStore{
+		&recordingStore{
 			calls: &calls,
 			result: domain.RetrievalResult{
 				Chunks: []domain.RetrievedChunk{
@@ -134,7 +142,7 @@ func TestPipeline_Answer_ContextCanceledFastAndNoCalls(t *testing.T) {
 	llm := &recordingLLM{calls: &calls}
 
 	p, err := NewPipeline(
-		recordingStore{calls: &calls},
+		&recordingStore{calls: &calls},
 		llm,
 		recordingEmbedder{calls: &calls},
 	)

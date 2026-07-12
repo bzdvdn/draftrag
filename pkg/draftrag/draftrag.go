@@ -165,6 +165,18 @@ type StageData = domain.StageData
 // @sk-task arch-quality-pass#T1.1: re-export alias PipelineConfig → PipelineOptions (AC-004)
 // @sk-task arch-quality-pass#T3.2: удалён (AC-004)
 
+// @sk-task arch-issues#T4.4: re-export ToolDefinition (AC-004)
+type ToolDefinition = domain.ToolDefinition
+
+// @sk-task arch-issues#T4.4: re-export ToolCall (AC-004)
+type ToolCall = domain.ToolCall
+
+// @sk-task arch-issues#T4.4: re-export ToolResult (AC-004)
+type ToolResult = domain.ToolResult
+
+// @sk-task arch-issues#T4.4: re-export ToolCallingLLMProvider (AC-004)
+type ToolCallingLLMProvider = domain.ToolCallingLLMProvider
+
 // DocumentStore — опциональная capability VectorStore для удаления по ParentID.
 type DocumentStore = domain.DocumentStore
 
@@ -384,9 +396,6 @@ func (p *Pipeline) Index(ctx context.Context, docs []Document) error {
 		if content == "" {
 			return ErrEmptyDocument
 		}
-		if p.piidetector != nil {
-			docs[i].Content = p.piidetector.Detect(docs[i].Content)
-		}
 	}
 
 	err := p.core.Index(ctx, docs)
@@ -411,11 +420,6 @@ func (p *Pipeline) Query(ctx context.Context, question string) (RetrievalResult,
 	result, err := p.core.Query(ctx, question, p.defaultTop)
 	if err != nil {
 		return RetrievalResult{}, mapAppError(err)
-	}
-	if p.piidetector != nil {
-		for i := range result.Chunks {
-			result.Chunks[i].Chunk.Content = p.piidetector.Detect(result.Chunks[i].Chunk.Content)
-		}
 	}
 	return result, nil
 }
@@ -530,14 +534,19 @@ func (p *Pipeline) IndexBatch(ctx context.Context, docs []Document, batchSize in
 	return result, mapAppError(err)
 }
 
-// @sk-task pii-guardrails#T2.3: redactRetrievalResult (RQ-002, AC-002)
+// @sk-task arch-issues#T2.2: делегирует в application.Pipeline.redactRetrievalResult (AC-001, AC-002)
 func (p *Pipeline) redactRetrievalResult(rr *RetrievalResult) {
-	if p.piidetector == nil {
-		return
-	}
-	for i := range rr.Chunks {
-		rr.Chunks[i].Chunk.Content = p.piidetector.Detect(rr.Chunks[i].Chunk.Content)
-	}
+	*rr = p.core.RedactRetrievalResult(*rr)
+}
+
+// @sk-task arch-issues#T3.2: Health facade (AC-008)
+func (p *Pipeline) Health(ctx context.Context) error {
+	return p.core.Health(ctx)
+}
+
+// @sk-task arch-issues#T3.2: Close facade (AC-008)
+func (p *Pipeline) Close() error {
+	return p.core.Close()
 }
 
 // mapAppError — единая точка маппинга application/domain ошибок на публичные sentinel'ы.
