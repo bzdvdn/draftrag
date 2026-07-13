@@ -9,10 +9,11 @@ services:
     volumes:
       - chroma_data:/chroma/chroma-data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/api/v1/heartbeat"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 30
+      start_period: 15s
 
 volumes:
   chroma_data:
