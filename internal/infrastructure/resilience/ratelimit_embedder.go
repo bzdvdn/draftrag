@@ -40,6 +40,7 @@ func (p *TokenBucketEmbedder) Embed(ctx context.Context, text string) ([]float64
 	return p.inner.Embed(ctx, text)
 }
 
+// Health делегирует проверку здоровья внутреннему эмбеддеру.
 func (p *TokenBucketEmbedder) Health(ctx context.Context) error {
 	return p.inner.Health(ctx)
 }

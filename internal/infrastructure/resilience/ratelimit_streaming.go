@@ -16,6 +16,7 @@ type TokenBucketStreamingLLMProvider struct {
 	hooks  domain.Hooks
 }
 
+// NewTokenBucketStreamingLLMProvider создаёт rate-limited обёртку для StreamingLLMProvider.
 func NewTokenBucketStreamingLLMProvider(inner domain.StreamingLLMProvider, rate, burst float64, hooks domain.Hooks) *TokenBucketStreamingLLMProvider {
 	if rate <= 0 {
 		return &TokenBucketStreamingLLMProvider{inner: inner, hooks: hooks}
@@ -30,6 +31,7 @@ func NewTokenBucketStreamingLLMProvider(inner domain.StreamingLLMProvider, rate,
 	}
 }
 
+// Generate применяет rate limit и делегирует внутреннему LLM.
 func (p *TokenBucketStreamingLLMProvider) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
 	if p.bucket != nil {
 		waited, err := p.bucket.Take(ctx, 1)
@@ -51,6 +53,7 @@ func (p *TokenBucketStreamingLLMProvider) Generate(ctx context.Context, systemPr
 	return p.inner.Generate(ctx, systemPrompt, userMessage)
 }
 
+// GenerateStream применяет rate limit и делегирует streaming внутреннему LLM.
 func (p *TokenBucketStreamingLLMProvider) GenerateStream(ctx context.Context, systemPrompt, userMessage string) (<-chan string, error) {
 	if p.bucket != nil {
 		waited, err := p.bucket.Take(ctx, 1)
@@ -72,10 +75,12 @@ func (p *TokenBucketStreamingLLMProvider) GenerateStream(ctx context.Context, sy
 	return p.inner.GenerateStream(ctx, systemPrompt, userMessage)
 }
 
+// Health делегирует проверку здоровья внутреннему LLM.
 func (p *TokenBucketStreamingLLMProvider) Health(ctx context.Context) error {
 	return p.inner.Health(ctx)
 }
 
+// TokensPerSecond возвращает настроенную скорость rate limiter'а.
 func (p *TokenBucketStreamingLLMProvider) TokensPerSecond() float64 {
 	if p.bucket == nil {
 		return 0

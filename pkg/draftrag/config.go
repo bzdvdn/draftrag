@@ -256,7 +256,7 @@ func LoadConfig(path string) (Config, error) {
 	var cfg Config
 
 	if path != "" {
-		data, err := os.ReadFile(path)
+		data, err := os.ReadFile(path) //nolint:gosec // path is user-provided config file
 		if err != nil {
 			return cfg, fmt.Errorf("read config: %w", err)
 		}

@@ -123,6 +123,7 @@ type SemanticChunker struct {
 	maxChunkSize        int
 }
 
+// NewSemanticChunker создаёт SemanticChunker с заданными опциями.
 func NewSemanticChunker(opts SemanticChunkerOptions) *SemanticChunker {
 	return &SemanticChunker{
 		embedder:            opts.Embedder,
@@ -132,6 +133,7 @@ func NewSemanticChunker(opts SemanticChunkerOptions) *SemanticChunker {
 	}
 }
 
+// Chunk разбивает документ на семантические сегменты по порогу сходства.
 func (c *SemanticChunker) Chunk(ctx context.Context, doc domain.Document) ([]domain.Chunk, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err

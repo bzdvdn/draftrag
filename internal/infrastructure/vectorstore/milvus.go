@@ -571,6 +571,7 @@ func (s *MilvusStore) Close() error {
 	return nil
 }
 
+// Health проверяет доступность Milvus.
 func (s *MilvusStore) Health(ctx context.Context) error {
 	if ctx == nil {
 		return fmt.Errorf("nil context")

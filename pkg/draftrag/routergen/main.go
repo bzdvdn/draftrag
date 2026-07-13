@@ -1,3 +1,4 @@
+// Command routergen generates route handler maps for SearchBuilder.
 package main
 
 import (
@@ -89,7 +90,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := os.WriteFile(outPath, src, 0644); err != nil {
+	if err := os.WriteFile(outPath, src, 0o600); err != nil {
 		fmt.Fprintf(os.Stderr, "write: %v\n", err)
 		os.Exit(1)
 	}

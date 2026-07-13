@@ -28,6 +28,7 @@ func NewFallbackStreamingLLM(providers []domain.StreamingLLMProvider, logger dom
 	}, nil
 }
 
+// Generate returns a response from the first successful provider, falling back on retryable errors.
 func (f *FallbackStreamingLLMProvider) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
 	if err := ctx.Err(); err != nil {
 		return "", err
@@ -84,6 +85,7 @@ func (f *FallbackStreamingLLMProvider) Generate(ctx context.Context, systemPromp
 	return "", aggregate
 }
 
+// Health возвращает статус первого (primary) провайдера.
 func (f *FallbackStreamingLLMProvider) Health(ctx context.Context) error {
 	if ctx == nil {
 		return fmt.Errorf("nil context")
@@ -94,6 +96,7 @@ func (f *FallbackStreamingLLMProvider) Health(ctx context.Context) error {
 	return f.providers[0].Health(ctx)
 }
 
+// GenerateStream делегирует streaming вызов провайдерам с fallback.
 func (f *FallbackStreamingLLMProvider) GenerateStream(ctx context.Context, systemPrompt, userMessage string) (<-chan string, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -158,6 +161,7 @@ func (f *FallbackStreamingLLMProvider) GenerateStream(ctx context.Context, syste
 	return out, nil
 }
 
+// Stats возвращает снепшот статистики fallback-цепи.
 func (f *FallbackStreamingLLMProvider) Stats() FallbackStats {
 	return f.stats.snapshot()
 }

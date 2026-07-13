@@ -1,3 +1,4 @@
+// Package rewriter implements LLM-based query rewriting strategy.
 package rewriter
 
 import (

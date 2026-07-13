@@ -270,7 +270,7 @@ func (p *Pipeline) wrapStreamWithMiddleware(ctx context.Context, source <-chan s
 			Stage:  domain.HookStageGenerate,
 			Answer: sb.String(),
 		}
-		runMiddleware(ctx, p.middleware, data, func(ctx context.Context, d domain.StageData) (domain.StageData, error) {
+		_, _ = runMiddleware(ctx, p.middleware, data, func(_ context.Context, d domain.StageData) (domain.StageData, error) {
 			return d, nil
 		})
 	}()

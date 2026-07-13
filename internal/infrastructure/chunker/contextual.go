@@ -14,6 +14,7 @@ type ContextualChunker struct {
 	template   string
 }
 
+// NewContextualChunker создаёт контекстный чанкер-декоратор.
 func NewContextualChunker(base domain.Chunker, contextKey, template string) *ContextualChunker {
 	return &ContextualChunker{
 		base:       base,
@@ -22,6 +23,7 @@ func NewContextualChunker(base domain.Chunker, contextKey, template string) *Con
 	}
 }
 
+// Chunk разбивает документ на чанки, обогащая каждый контекстом документа.
 func (c *ContextualChunker) Chunk(ctx context.Context, doc domain.Document) ([]domain.Chunk, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err

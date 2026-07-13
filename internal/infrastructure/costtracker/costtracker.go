@@ -9,6 +9,7 @@ import (
 	"github.com/bzdvdn/draftrag/internal/domain"
 )
 
+// ErrStreamingNotSupported возвращается при попытке streaming, если провайдер его не поддерживает.
 var ErrStreamingNotSupported = errors.New("LLM provider does not support streaming")
 
 // CostTracker — прозрачная обёртка над LLMProvider, накапливающая статистику

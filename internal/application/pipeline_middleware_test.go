@@ -346,7 +346,8 @@ func TestMiddleware_Stages_AnswerStream(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for range ch {
+	for range ch { // drain
+		_ = 1
 	}
 
 	// AnswerStream: embed, search, generate
@@ -382,7 +383,8 @@ func TestMiddleware_Stages_AnswerStreamWithInlineCitations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for range ch {
+	for range ch { // drain
+		_ = 1
 	}
 
 	expected := []string{"embed", "search", "generate"}
@@ -417,7 +419,8 @@ func TestMiddleware_Stages_AnswerStreamWithSources(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for range ch {
+	for range ch { // drain
+		_ = 1
 	}
 
 	expected := []string{"embed", "search", "generate"}
@@ -498,7 +501,8 @@ func TestMiddleware_ModifyQuery_AnswerStream(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for range ch {
+	for range ch { // drain
+		_ = 1
 	}
 
 	if !strings.Contains(llm.userMessage, "redacted stream question") {

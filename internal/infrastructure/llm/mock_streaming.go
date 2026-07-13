@@ -23,6 +23,7 @@ type MockStreamingLLM struct {
 	GenerateResult string
 }
 
+// Health возвращает nil (мок всегда здоров).
 func (m *MockStreamingLLM) Health(_ context.Context) error { return nil }
 
 // Generate возвращает мок-результат или ошибку.
@@ -77,6 +78,7 @@ type MockStreamingLLMWithCancel struct {
 	Delay  time.Duration
 }
 
+// Health возвращает nil (мок всегда здоров).
 func (m *MockStreamingLLMWithCancel) Health(_ context.Context) error { return nil }
 
 // Generate возвращает пустую строку.
@@ -121,6 +123,7 @@ type NonStreamingLLM struct {
 	Err    error
 }
 
+// Health возвращает nil (мок всегда здоров).
 func (m *NonStreamingLLM) Health(_ context.Context) error { return nil }
 
 // Generate возвращает мок-результат.

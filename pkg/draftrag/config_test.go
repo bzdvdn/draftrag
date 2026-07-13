@@ -33,7 +33,7 @@ llm:
     base_url: http://localhost:11434
 `
 	path := writeTempYAML(t, yamlContent)
-	defer os.Remove(path)
+	defer func() { _ = os.Remove(path) }()
 
 	cfg, err := LoadConfig(path)
 	require.NoError(t, err)
@@ -68,7 +68,7 @@ llm:
     api_key: placeholder
 `
 	path := writeTempYAML(t, yamlContent)
-	defer os.Remove(path)
+	defer func() { _ = os.Remove(path) }()
 
 	t.Setenv("DRAFTRAG_LLM_OLLAMA_API_KEY", "real-key")
 
@@ -117,7 +117,7 @@ llm:
     model: test
 `
 	path := writeTempYAML(t, yamlContent)
-	defer os.Remove(path)
+	defer func() { _ = os.Remove(path) }()
 
 	_, err := LoadConfig(path)
 	require.Error(t, err)
@@ -273,7 +273,7 @@ func TestLoadConfigEmptyYAML(t *testing.T) {
 	// @sk-test config-management#T4.1: пустой YAML → zero values (не ошибка парсинга)
 	yamlContent := ``
 	path := writeTempYAML(t, yamlContent)
-	defer os.Remove(path)
+	defer func() { _ = os.Remove(path) }()
 
 	cfg, err := LoadConfig(path)
 	require.NoError(t, err)
@@ -287,7 +287,7 @@ func TestLoadConfigInvalidYAML(t *testing.T) {
 	// @sk-test config-management#T4.1: некорректный YAML → ошибка парсинга
 	yamlContent := `store: [invalid yaml`
 	path := writeTempYAML(t, yamlContent)
-	defer os.Remove(path)
+	defer func() { _ = os.Remove(path) }()
 
 	_, err := LoadConfig(path)
 	require.Error(t, err)
@@ -312,7 +312,7 @@ llm:
     model: original-llm
 `
 	path := writeTempYAML(t, yamlContent)
-	defer os.Remove(path)
+	defer func() { _ = os.Remove(path) }()
 
 	t.Setenv("DRAFTRAG_EMBEDDER_OLLAMA_MODEL", "")
 

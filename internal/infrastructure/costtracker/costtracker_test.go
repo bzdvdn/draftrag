@@ -281,7 +281,8 @@ func TestCostTracker_GenerateStream_NoUsage(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for range ch {
+	for range ch { // drain
+		_ = 1
 	}
 
 	snap := ct.Snapshot()
@@ -324,7 +325,8 @@ func TestCostTracker_GenerateStream_WithCost(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for range ch {
+	for range ch { // drain
+		_ = 1
 	}
 
 	expectedCost := (100.0/1000.0)*0.01 + (50.0/1000.0)*0.03

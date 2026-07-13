@@ -28,6 +28,7 @@ func NewFallbackLLM(providers []domain.LLMProvider, logger domain.Logger, hooks 
 	}, nil
 }
 
+// Generate returns a response from the first successful provider, falling back on retryable errors.
 func (f *FallbackLLMProvider) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
 	if err := ctx.Err(); err != nil {
 		return "", err
@@ -84,6 +85,7 @@ func (f *FallbackLLMProvider) Generate(ctx context.Context, systemPrompt, userMe
 	return "", aggregate
 }
 
+// Health возвращает статус первого (primary) провайдера.
 func (f *FallbackLLMProvider) Health(ctx context.Context) error {
 	if ctx == nil {
 		return fmt.Errorf("nil context")
@@ -94,6 +96,7 @@ func (f *FallbackLLMProvider) Health(ctx context.Context) error {
 	return f.providers[0].Health(ctx)
 }
 
+// Stats возвращает снепшот статистики fallback-цепи.
 func (f *FallbackLLMProvider) Stats() FallbackStats {
 	return f.stats.snapshot()
 }

@@ -1,3 +1,4 @@
+// Package piidetector implements pattern-based PII detection and redaction.
 package piidetector
 
 import (
@@ -21,10 +22,12 @@ type CompositePIIDetector struct {
 	detectors []domain.PIIDetector
 }
 
+// NewCompositePIIDetector создаёт композитный детектор из набора под-детекторов.
 func NewCompositePIIDetector(detectors ...domain.PIIDetector) domain.PIIDetector {
 	return &CompositePIIDetector{detectors: detectors}
 }
 
+// Detect последовательно применяет все под-детекторы.
 func (d *CompositePIIDetector) Detect(text string) string {
 	for _, det := range d.detectors {
 		text = det.Detect(text)

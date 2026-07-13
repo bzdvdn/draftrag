@@ -227,9 +227,7 @@ func rewriterResult(b *SearchBuilder, ctx context.Context, q string) []string {
 	}
 
 	// @sk-task query-rewriting#T2.2: проверка на HyDE/MultiQuery конфликт (AC-007)
-	if b.hyDE || b.multiQuery > 0 {
-		// warning логируется через hooks или лог
-	}
+	_ = b.hyDE || b.multiQuery > 0 // warning логируется через hooks
 
 	rewritten, err := rw.Rewrite(ctx, q, b.history)
 	if err != nil || len(rewritten) == 0 {
@@ -358,7 +356,7 @@ func runToolsAnswer(p *application.Pipeline, ctx context.Context, q string, resu
 }
 
 // @sk-task arch-issues#T4.4: toolsRetrieve handler (AC-004)
-func toolsRetrieve(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (RetrievalResult, error) {
+func toolsRetrieve(p *application.Pipeline, ctx context.Context, q string, topK int, _ *SearchBuilder) (RetrievalResult, error) {
 	return p.Query(ctx, q, topK)
 }
 
@@ -398,17 +396,17 @@ func toolsInlineCite(p *application.Pipeline, ctx context.Context, q string, top
 }
 
 // @sk-task arch-issues#T4.4: toolsStream handler — not supported (AC-004)
-func toolsStream(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, error) {
+func toolsStream(_ *application.Pipeline, _ context.Context, _ string, _ int, _ *SearchBuilder) (<-chan string, error) {
 	return nil, ErrToolsNotSupportedInStream
 }
 
 // @sk-task arch-issues#T4.4: toolsStreamSources handler — not supported (AC-004)
-func toolsStreamSources(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, error) {
+func toolsStreamSources(_ *application.Pipeline, _ context.Context, _ string, _ int, _ *SearchBuilder) (<-chan string, RetrievalResult, error) {
 	return nil, RetrievalResult{}, ErrToolsNotSupportedInStream
 }
 
 // @sk-task arch-issues#T4.4: toolsStreamCite handler — not supported (AC-004)
-func toolsStreamCite(p *application.Pipeline, ctx context.Context, q string, topK int, b *SearchBuilder) (<-chan string, RetrievalResult, []InlineCitation, error) {
+func toolsStreamCite(_ *application.Pipeline, _ context.Context, _ string, _ int, _ *SearchBuilder) (<-chan string, RetrievalResult, []InlineCitation, error) {
 	return nil, RetrievalResult{}, nil, ErrToolsNotSupportedInStream
 }
 

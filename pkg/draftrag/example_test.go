@@ -32,9 +32,9 @@ func Example() {
 		fmt.Println("Error:", err)
 		return
 	}
-	defer pipeline.Close()
+	defer pipeline.Close() //nolint:errcheck
 
-	pipeline.Index(ctx, []draftrag.Document{
+	pipeline.Index(ctx, []draftrag.Document{ //nolint:errcheck
 		{ID: "paris", Content: "Paris is the capital of France."},
 	})
 
@@ -54,7 +54,7 @@ func ExamplePipeline_Close() {
 	embedder := &mockEmbedder{}
 
 	pipeline, _ := draftrag.NewPipeline(store, llm, embedder)
-	pipeline.Index(ctx, []draftrag.Document{{ID: "doc1", Content: "test"}})
+	pipeline.Index(ctx, []draftrag.Document{{ID: "doc1", Content: "test"}}) //nolint:errcheck
 
 	if err := pipeline.Close(); err != nil {
 		fmt.Println("Close error:", err)

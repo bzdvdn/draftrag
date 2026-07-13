@@ -1,3 +1,4 @@
+// Package middleware provides pipeline middleware implementations (logging, PII).
 package middleware
 
 import (

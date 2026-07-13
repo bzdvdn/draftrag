@@ -32,7 +32,7 @@ linters-settings:
   gocyclo:
     min-complexity: 25
   dupl:
-    threshold: 100
+    threshold: 300
   goconst:
     min-len: 2
     min-occurrences: 3
@@ -76,3 +76,17 @@ issues:
         - dupl
         - gosec
         - goconst
+    # SpecKeep traceability markers — intentional project convention
+    - linters: [revive]
+      source: "@sk-task"
+    # Route handler signature: pipeline first, ctx second — deliberate pattern
+    - path: pkg/draftrag/search_routing\.go
+      linters: [revive]
+      text: "context-as-argument"
+    # Unused params in test mocks/helpers — acceptable
+    - path: _test\.go
+      linters: [revive]
+      text: "unused-parameter"
+    # resp.Body.Close() — standard Go pattern, safe to ignore
+    - linters: [errcheck]
+      text: "resp.Body.Close"

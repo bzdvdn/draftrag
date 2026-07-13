@@ -1,3 +1,4 @@
+// Package reranker implements LLM-as-judge reranking strategy.
 package reranker
 
 import (

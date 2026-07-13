@@ -1,3 +1,4 @@
+// Package decomposer implements query decomposition strategies.
 package decomposer
 
 import (

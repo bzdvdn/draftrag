@@ -32,6 +32,7 @@ func NewFallbackUsageAwareLLM(providers []domain.UsageAwareLLMProvider, logger d
 	}, nil
 }
 
+// Generate делегирует вызов провайдерам в порядке приоритета с fallback.
 func (f *FallbackUsageAwareLLMProvider) Generate(ctx context.Context, systemPrompt, userMessage string) (string, error) {
 	if err := ctx.Err(); err != nil {
 		return "", err
@@ -89,6 +90,7 @@ func (f *FallbackUsageAwareLLMProvider) Generate(ctx context.Context, systemProm
 	return "", aggregate
 }
 
+// Health возвращает статус первого (primary) провайдера.
 func (f *FallbackUsageAwareLLMProvider) Health(ctx context.Context) error {
 	if ctx == nil {
 		return fmt.Errorf("nil context")
@@ -99,6 +101,7 @@ func (f *FallbackUsageAwareLLMProvider) Health(ctx context.Context) error {
 	return f.providers[0].Health(ctx)
 }
 
+// GenerateWithUsage делегирует вызов с трекингом токенов и fallback.
 func (f *FallbackUsageAwareLLMProvider) GenerateWithUsage(ctx context.Context, systemPrompt, userMessage string) (string, domain.TokenUsage, error) {
 	if err := ctx.Err(); err != nil {
 		return "", domain.TokenUsage{}, err
@@ -156,6 +159,7 @@ func (f *FallbackUsageAwareLLMProvider) GenerateWithUsage(ctx context.Context, s
 	return "", domain.TokenUsage{}, aggregate
 }
 
+// ModelName возвращает имя модели первого провайдера.
 func (f *FallbackUsageAwareLLMProvider) ModelName() string {
 	f.activeIndexMu.Lock()
 	idx := f.activeIndex
@@ -172,6 +176,7 @@ func (f *FallbackUsageAwareLLMProvider) setActiveIndex(idx int) {
 	f.activeIndexMu.Unlock()
 }
 
+// Stats возвращает снепшот статистики fallback-цепи.
 func (f *FallbackUsageAwareLLMProvider) Stats() FallbackStats {
 	return f.stats.snapshot()
 }

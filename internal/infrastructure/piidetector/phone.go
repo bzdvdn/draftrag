@@ -22,10 +22,12 @@ var phoneRe = regexp.MustCompile(
 // @sk-task pii-guardrails#T1.2: PhoneDetector (RQ-003, AC-004)
 type PhoneDetector struct{}
 
+// NewPhoneDetector создаёт детектор телефонных номеров.
 func NewPhoneDetector() domain.PIIDetector {
 	return &PhoneDetector{}
 }
 
+// Detect заменяет телефонные номера на redacted marker.
 func (d *PhoneDetector) Detect(text string) string {
 	return phoneRe.ReplaceAllString(text, redactedMarker)
 }

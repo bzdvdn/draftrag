@@ -89,6 +89,7 @@ type pineconeIndexResponse struct {
 	} `json:"status"`
 }
 
+// NewPineconeStore создаёт Pinecone VectorStore.
 func NewPineconeStore(opts PineconeOptions) (*PineconeStore, error) {
 	if opts.APIKey == "" {
 		return nil, fmt.Errorf("APIKey is required")
@@ -375,7 +376,7 @@ func (s *PineconeStore) CollectionExists(ctx context.Context) (bool, error) {
 
 // DeleteByParentID не поддерживается Pinecone REST API (только удаление по ID).
 // Используйте Delete с конкретными ID чанков.
-func (s *PineconeStore) DeleteByParentID(ctx context.Context, parentID string) error {
+func (s *PineconeStore) DeleteByParentID(_ context.Context, parentID string) error {
 	if parentID == "" {
 		return fmt.Errorf("parentID must not be empty")
 	}

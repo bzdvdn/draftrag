@@ -1,5 +1,4 @@
-// @sk-task health-check-interface#T2.1: HealthChecker + HTTP handlers (AC-005, AC-006, AC-007, RQ-002, RQ-003, RQ-009)
-package draftrag
+package draftrag // @sk-task health-check-interface#T2.1: HealthChecker + HTTP handlers
 
 import (
 	"context"
@@ -102,7 +101,7 @@ func (hc *HealthChecker) Check(ctx context.Context) *HealthCheckerResult {
 // LivenessHandler возвращает http.HandlerFunc, который всегда отвечает 200 OK.
 // Не проверяет зависимости — только процесс жив.
 func LivenessHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("OK"))
 	}

@@ -11,10 +11,12 @@ var ssnRe = regexp.MustCompile(`\b\d{3}-\d{2}-\d{4}\b`)
 // @sk-task pii-guardrails#T1.2: SSNDetector (RQ-003, AC-004)
 type SSNDetector struct{}
 
+// NewSSNDetector создаёт детектор SSN (Social Security Number).
 func NewSSNDetector() domain.PIIDetector {
 	return &SSNDetector{}
 }
 
+// Detect заменяет SSN на redacted marker.
 func (d *SSNDetector) Detect(text string) string {
 	return ssnRe.ReplaceAllString(text, redactedMarker)
 }

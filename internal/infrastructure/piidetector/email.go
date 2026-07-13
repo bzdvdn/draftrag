@@ -11,10 +11,12 @@ var emailRe = regexp.MustCompile(`\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2
 // @sk-task pii-guardrails#T1.2: EmailDetector (RQ-003, AC-004)
 type EmailDetector struct{}
 
+// NewEmailDetector создаёт детектор email-адресов.
 func NewEmailDetector() domain.PIIDetector {
 	return &EmailDetector{}
 }
 
+// Detect заменяет email-адреса на redacted marker.
 func (d *EmailDetector) Detect(text string) string {
 	return emailRe.ReplaceAllString(text, redactedMarker)
 }

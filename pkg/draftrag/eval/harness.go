@@ -113,6 +113,8 @@ func Run(ctx context.Context, runner RetrievalRunner, cases []Case, opts Options
 
 // RunWithAnswer прогоняет датасет кейсов с генерацией ответа LLM и вычислением RAGAS-метрик.
 // @sk-task eval-ragas-metrics#T3.1: RunWithAnswer (AC-004)
+//
+//nolint:gocyclo // complexity is inherent to multi-metric evaluation
 func RunWithAnswer(ctx context.Context, runner RetrievalRunner, llm draftrag.LLMProvider, embedder draftrag.Embedder, cases []Case, opts Options) (Report, error) {
 	if ctx == nil {
 		return Report{}, draftrag.ErrNilContext
