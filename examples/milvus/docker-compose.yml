@@ -25,7 +25,7 @@ services:
       - minio_data:/data
     command: server /data
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 5s
       timeout: 5s
       retries: 30
@@ -46,7 +46,7 @@ services:
     volumes:
       - milvus_data:/var/lib/milvus
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --post-data='{}' -O /dev/null http://localhost:19530/v2/vectordb/collections/list"]
+      test: ["CMD", "curl", "-sf", "-X", "POST", "http://localhost:19530/v2/vectordb/collections/list", "-H", "Content-Type: application/json", "-d", "{}"]
       interval: 15s
       timeout: 10s
       retries: 20

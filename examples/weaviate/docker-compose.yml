@@ -4,6 +4,7 @@ services:
     ports:
       - "8080:8080"
     environment:
+      CLUSTER_HOST: "0.0.0.0:8300"
       ENABLE_MODULES: ""
       AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: "true"
       PERSISTENCE_DATA_PATH: /var/lib/weaviate
